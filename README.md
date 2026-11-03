@@ -6,6 +6,8 @@ Borderless turns a TV, projector or room display into a shared canvas. People jo
 
 This is a working local-hub alpha, with real HTTP, WebSocket, SQLite and encrypted file flows. The desktop application source is included. Signed installers, OS virtual display drivers and hardware frame synchronisation have separate delivery gates. See [the capability matrix](docs/CAPABILITIES.md) for precise status.
 
+**Architecture correction:** the complete product follows the original Go hub, Rust system core and C#/.NET/Godot Wall, with a Swift Mac adapter and Windows-specific OS integration. Node/Electron remains the current compatibility implementation. Read the reconstructed [PRD v2](docs/PRD.md), [native architecture](docs/NATIVE_ARCHITECTURE.md), [reuse research](docs/REUSE_RESEARCH.md) and [native build guide](native/README.md). Native foundations now compile, but native capture-to-Wall delivery and display extension are not complete. For an independent review, start with [CLAUDE_REVIEW.md](docs/CLAUDE_REVIEW.md).
+
 ## Run on this computer
 
 Install Node.js **24 LTS**, version 24.15 or later, then:

@@ -11,3 +11,9 @@ coverage/
 .playwright-cli/
 output/playwright*/
 .impeccable/review/
+native/**/target/
+native/**/.build/
+native/**/bin/
+native/**/obj/
+native/**/.godot/
+output/native/

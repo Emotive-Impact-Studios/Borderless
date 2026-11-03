@@ -1,0 +1,105 @@
+{
+  "reviewed": "2026-11-03",
+  "repositories": [
+    {
+      "repository": "microsoft/Windows-driver-samples",
+      "url": "https://github.com/microsoft/Windows-driver-samples",
+      "reviewedCommit": "f4c1ff842b6a0001152f44cb61788b216a1c7627",
+      "commitDate": "2026-10-28T22:32:26Z",
+      "licence": "MS-PL",
+      "licenceURL": "https://github.com/microsoft/Windows-driver-samples/blob/f4c1ff842b6a0001152f44cb61788b216a1c7627/LICENSE",
+      "licenceTextRetrieved": true,
+      "status": "researched; not vendored or integrated"
+    },
+    {
+      "repository": "robmikh/Win32CaptureSample",
+      "url": "https://github.com/robmikh/Win32CaptureSample",
+      "reviewedCommit": "49fefe79fd9b11025f0b5eb91783a98888516070",
+      "commitDate": "2026-09-02T21:41:13Z",
+      "licence": "MIT",
+      "licenceURL": "https://github.com/robmikh/Win32CaptureSample/blob/49fefe79fd9b11025f0b5eb91783a98888516070/LICENSE",
+      "licenceTextRetrieved": true,
+      "status": "researched; not vendored or integrated"
+    },
+    {
+      "repository": "pion/webrtc",
+      "url": "https://github.com/pion/webrtc",
+      "reviewedCommit": "b2da5bc8c6c9f3559e7c747fbd2ffd604a21acbc",
+      "commitDate": "2026-11-01T12:59:20Z",
+      "licence": "MIT",
+      "licenceURL": "https://github.com/pion/webrtc/blob/b2da5bc8c6c9f3559e7c747fbd2ffd604a21acbc/LICENSE",
+      "licenceTextRetrieved": true,
+      "status": "researched; not vendored or integrated"
+    },
+    {
+      "repository": "godotengine/godot",
+      "url": "https://github.com/godotengine/godot",
+      "reviewedCommit": "b251066fb5b5654a6cf9c1bb284fac53d20a10d2",
+      "commitDate": "2026-11-02T14:57:47Z",
+      "licence": "MIT",
+      "licenceURL": "https://github.com/godotengine/godot/blob/b251066fb5b5654a6cf9c1bb284fac53d20a10d2/LICENSE.txt",
+      "licenceTextRetrieved": true,
+      "status": "researched; not vendored or integrated"
+    },
+    {
+      "repository": "localsend/localsend",
+      "url": "https://github.com/localsend/localsend",
+      "reviewedCommit": "92e133aa43869e94d394fd04fa70c50a0f796a64",
+      "commitDate": "2026-10-29T23:56:52Z",
+      "licence": "Apache-2.0",
+      "licenceURL": "https://github.com/localsend/localsend/blob/92e133aa43869e94d394fd04fa70c50a0f796a64/LICENSE",
+      "licenceTextRetrieved": true,
+      "status": "researched; not vendored or integrated"
+    },
+    {
+      "repository": "LizardByte/Sunshine",
+      "url": "https://github.com/LizardByte/Sunshine",
+      "reviewedCommit": "005ddb7c016ee754add3e16f1e9c452045a2cf7d",
+      "commitDate": "2026-11-03T02:35:15Z",
+      "licence": "GPL-3.0",
+      "licenceURL": "https://github.com/LizardByte/Sunshine/blob/005ddb7c016ee754add3e16f1e9c452045a2cf7d/LICENSE",
+      "licenceTextRetrieved": true,
+      "status": "researched; not vendored or integrated"
+    },
+    {
+      "repository": "rustdesk/rustdesk",
+      "url": "https://github.com/rustdesk/rustdesk",
+      "reviewedCommit": "55786aaa5709ac0a450aabcf06f9d1fee3119908",
+      "commitDate": "2026-11-03T04:26:12Z",
+      "licence": "AGPL-3.0",
+      "licenceURL": "https://github.com/rustdesk/rustdesk/blob/55786aaa5709ac0a450aabcf06f9d1fee3119908/LICENCE",
+      "licenceTextRetrieved": true,
+      "status": "researched; not vendored or integrated"
+    },
+    {
+      "repository": "paullouisageneau/libdatachannel",
+      "url": "https://github.com/paullouisageneau/libdatachannel",
+      "reviewedCommit": "2afeedc70878043bcd59d2d726e1476824f687c3",
+      "commitDate": "2026-11-03T10:43:49Z",
+      "licence": "MPL-2.0",
+      "licenceURL": "https://github.com/paullouisageneau/libdatachannel/blob/2afeedc70878043bcd59d2d726e1476824f687c3/LICENSE",
+      "licenceTextRetrieved": true,
+      "status": "researched; not vendored or integrated"
+    },
+    {
+      "repository": "mozilla/uniffi-rs",
+      "url": "https://github.com/mozilla/uniffi-rs",
+      "reviewedCommit": "ef9625b68dd51207f55f024a27649e58edb52b09",
+      "commitDate": "2026-10-28T17:36:46Z",
+      "licence": "MPL-2.0",
+      "licenceURL": "https://github.com/mozilla/uniffi-rs/blob/ef9625b68dd51207f55f024a27649e58edb52b09/LICENSE",
+      "licenceTextRetrieved": true,
+      "status": "researched; not vendored or integrated"
+    },
+    {
+      "repository": "deskflow/deskflow",
+      "url": "https://github.com/deskflow/deskflow",
+      "reviewedCommit": "2877600facc0cf1b38b7f50b51cdc8fe20052bf2",
+      "commitDate": "2026-10-27T16:35:57Z",
+      "licence": "GPL-2.0",
+      "licenceURL": "https://github.com/deskflow/deskflow/blob/2877600facc0cf1b38b7f50b51cdc8fe20052bf2/LICENSE",
+      "licenceTextRetrieved": true,
+      "status": "researched; not vendored or integrated"
+    }
+  ]
+}

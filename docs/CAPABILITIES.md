@@ -5,6 +5,12 @@ Updated 3 November 2026. “Implemented” means the source exists and is connec
 | Capability | Implementation | Evidence / remaining gate |
 | --- | --- | --- |
 | Full original conversation and product plan | Complete | Verbatim 387,055-byte source; SHA-256 checked by `npm run check`. |
+| Whole-source PRD reconstruction | Ready for independent review | All 14,281 lines reviewed; PRD v2 has 36 requirements/ten flows; 90 code blocks indexed and checked. Source audit, native ADR, pinned reuse/licence research and Claude review guide added. Not user product acceptance. |
+| Shared Rust native core | Implemented, library tests pass | Eight tests; actual C ABI called from Swift and .NET. Geometry/complete-frame health only; no driver/media/input implementation. |
+| Swift macOS capture adapter | Compiled/launched; OS capture failed | Native system picker/stop and bounded preview service exist; three Swift/Rust tests pass. Actual selected disposable window delivers zero complete frames after deadline, including after picker-lifetime correction. No native network media. |
+| Native .NET room client | Compiled and loopback conformance tested | 19 checks include actual Rust P/Invoke and server-issued Wall pairing, HTTP snapshot and authenticated hello/state. Bounded fragmented receive code included; full reconnect/media and exhaustive protocol parity remain. |
+| Godot C# native Wall | Initial notes scene compiled and engine-tested | Actual note text, stable content node across movement and removal pass in headless Godot 4.7.2. Client connection source included; no end-to-end rendered network/media or final visual acceptance. File viewers, ink/quiz and interactive spatial parity remain. |
+| Go native hub migration | First validation/policy unit tested | Strict proposed move envelope and trusted actor/room/owner/version guard pass Go race tests. No replacement Go server, SQLite migration or complete protocol conformance yet. |
 | Named rooms and returning leader login | Implemented | HTTP integration tests; password and role checks pass. |
 | Browser phone/laptop portal | Implemented; Chromium acceptance passed | 390px Portal rendered and exercised against native hub. Physical iPhone/Android outstanding. |
 | Leader console and shared wall | Implemented; rendered acceptance passed | Native Console and read-only 4K Chromium Wall share the same room. Screenshots and core classroom flow pass. |
@@ -51,6 +57,8 @@ Updated 3 November 2026. “Implemented” means the source exists and is connec
 | Production school / enterprise release | Not certified | Requires identity/retention policy, native/device QA, accessibility, load/latency and security review. |
 
 ## Verification environment
+
+Native correction evidence is in [NATIVE_QA_2026-11-03.md](NATIVE_QA_2026-11-03.md). Existing Electron/browser rows below remain evidence for the compatibility implementation; they do not transfer automatically to Swift/Godot/Go. `npm run native:verify` is a separate gate and reports whether Godot engine execution was included.
 
 - Node.js 24.22.1 on Apple Silicon macOS 14.5; Electron 45.2.1; Playwright 1.64.1 with installed Google Chrome.
 - `npm test`: 54 passing integration/recovery/process/permission/client/spatial tests. Four new cases cover owner-only offers, recipient authority, invitation generation/expiry, targeted socket/capture binding, receiver closure and authenticated viewer routes. Original 29-test managed Linux checkpoint remains historical.

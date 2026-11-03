@@ -6,7 +6,7 @@
 
 web
 
-The current interfaces use web technology inside browsers and the Mac desktop wrapper. The complete product also includes native desktop/mobile integration and true display extension; the wrapper alone does not deliver those capabilities. See docs/DELIVERY.md for the full platform scope.
+The current compatibility interfaces use web technology. The target is the original native architecture: Go room hub, Rust shared system core and C#/.NET/Godot Wall, with Swift Mac and Windows-specific OS adapters. The web Portal remains part of this one product. Native libraries introduced in this revision are foundations, not proof of complete display extension. See docs/NATIVE_ARCHITECTURE.md and docs/PRD.md v2 before building.
 
 ## Users
 

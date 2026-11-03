@@ -16,6 +16,8 @@
     "check": "node scripts/check.mjs",
     "build": "node scripts/build.mjs",
     "verify": "npm run check && npm test && npm run build",
+    "native:verify": "node scripts/verify-native.mjs",
+    "native:mac:package": "node scripts/package-native-mac.mjs",
     "cert": "node scripts/cert.mjs",
     "audit:verify": "node scripts/audit.mjs",
     "backup": "node scripts/backup.mjs",

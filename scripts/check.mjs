@@ -9,7 +9,7 @@ let count = 0;
 async function walk(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     if (
-      ["node_modules", ".git", ".borderless", "dist", "release"].includes(
+      ["node_modules", ".git", ".borderless", "dist", "release", "output", ".build", "target", "bin", "obj", ".godot"].includes(
         entry.name,
       )
     )
@@ -32,6 +32,7 @@ async function walk(directory) {
   }
 }
 await walk(root);
+await import('./source-index.mjs');
 const source = await readFile(
   join(root, "docs/source/2026-11-03-original-conversation.md"),
 );

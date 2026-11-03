@@ -14,16 +14,20 @@ for (const path of [
   "desktop",
   "test",
   "deploy",
+  "native",
   ".github",
   "package.json",
   "package-lock.json",
   "README.md",
   "AGENTS.md",
+  "PRODUCT.md",
+  "DESIGN.md",
   ".env.example",
 ]) {
   await cp(join(root, path), join(target, path), {
     recursive: true,
-    filter: (source) => !source.includes("node_modules"),
+    filter: (source) => !source.split(/[\\/]/).some(part =>
+      ["node_modules", "target", ".build", ".godot", "bin", "obj"].includes(part)),
   });
 }
 const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8"));

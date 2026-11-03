@@ -1,10 +1,12 @@
 # Borderless architecture and protocol
 
-## Chosen implementation
+## Target architecture and current compatibility implementation
+
+The target and migration decision are in [NATIVE_ARCHITECTURE.md](NATIVE_ARCHITECTURE.md). PRD v2 restores the complete conversation scope. `native/` now contains real Rust/Swift/Go/.NET/Godot source and its own verification path; this does not yet replace the running hub or deliver a virtual display. The rest of this document describes the current compatibility protocol and storage, which native clients must preserve until a tested migration.
 
 One Node.js 24 local hub serves a buildless ES-module web application. Node's SQLite module provides transactional local state; `ws` provides WebSockets; `qrcode` generates invitation QR codes locally; `bonjour-service` provides opt-in local discovery. Electron wraps the same application for native desktop responsibilities. No frontend framework, remote database, analytics CDN, SaaS backend, API key or cloud relay is required at runtime.
 
-The original source progresses from a web prototype to an explicit native architecture: Go for the hub, Rust for the system/display layer and C#/.NET with Godot for the native visual layer (source line 12959 and final builder directives at 14251–14253). The present Node/Electron implementation follows the prototype route. It contains no Rust or .NET projects and is not an approved replacement for those native layers. On 3 November the user challenged this departure; the builder acknowledged that making it the main build path without agreement was a mistake.
+The original source progresses from a web prototype to an explicit native architecture: Go for the hub, Rust for the system/display layer and C#/.NET with Godot for the native visual layer (source line 12959 and final builder directives at 14251–14253). Node/Electron followed the prototype route and was not an approved replacement. On 3 November the user challenged that departure; this revision adds native foundations and records the correction. Shared-library and scene tests do not establish complete native delivery.
 
 The working room protocol, authority, transfer and persistence code can support migration, but their tests do not validate native capture, virtual monitors or OS window handoff. The next architecture work must restore the native scope, validate supported platform APIs and make component boundaries explicit. Keep the original Go/Rust/Godot-.NET plan as the reference; record and justify any proposed substitution before treating it as the target. Original snippets and performance/security claims still require engineering validation rather than literal execution.
 

@@ -1,0 +1,4 @@
+module CBorderlessCore [system] {
+    header "../../../core/include/borderless_core.h"
+    export *
+}
