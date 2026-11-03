@@ -8,6 +8,8 @@ The wrapper runs its embedded hub from `<Electron userData>/hub`. Optional `--hu
 
 The hub runs in an isolated Electron utility process so native capture and file-confirmation dialogs cannot stall other room clients. Graceful quit closes the hub and removes its process lock. Starting Borderless twice reuses its existing desktop instance. `--user-data-dir=<absolute path>` selects a separate desktop profile for disposable QA; do not point two profiles at the same hub data.
 
+Chromium may request local-network or loopback access for WebRTC. Borderless asks for explicit consent from the trusted hub's main frame and remembers approval for the current desktop session. Cancel denies the connection; untrusted origins/subframes and unrelated capabilities remain refused. macOS may separately request Local Network access, described by the package's usage string. Manage an OS refusal through System Settings → Privacy & Security → Local Network. Certificate validation remains enabled.
+
 Room menu includes display placement, a software wall spanning all display bounds and opt-in global desktop edge cues. Edge cues observe the global cursor near a display border and send an entry cue. They do not create a virtual monitor, capture or inject global input, move native application windows or implement seamless remote KVM.
 
 The screen picker requires consent. Native opening verifies room ownership/leader access, checks the downloaded file hash and asks the operator before launching its default application. It never runs an uploaded executable or constructs a shell command from a filename. Temporary native-open files are deleted on graceful exit; crash leftovers in the OS temp directory require normal OS retention policy.

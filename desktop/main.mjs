@@ -16,6 +16,7 @@ import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
 import { startHubProcess } from "./hub-process.mjs";
+import { roomPermissionHandler } from "./permissions.mjs";
 
 let hub,
   mainWindow,
@@ -214,17 +215,8 @@ app
     }
     // Chromium still shows its source picker. macOS permissions and certificate checks are not bypassed.
     session.defaultSession.setPermissionRequestHandler(
-      (contents, permission, callback) => {
-        let trusted = false;
-        try {
-          trusted = new URL(contents.getURL()).origin === origin;
-        } catch {
-          /* No permission for an unknown origin. */
-        }
-        callback(
-          trusted && ["display-capture", "fullscreen"].includes(permission),
-        );
-      },
+      roomPermissionHandler(origin, (contents, options) =>
+        dialog.showMessageBox(BrowserWindow.fromWebContents(contents), options)),
     );
     session.defaultSession.setDisplayMediaRequestHandler(
       async (request, callback) => {

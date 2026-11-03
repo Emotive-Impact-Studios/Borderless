@@ -45,7 +45,6 @@ try {
   });
   const leader = await application.firstWindow();
   watch(leader);
-  await leader.evaluate(installPeerDiagnostics);
   await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setContentSize(1440, 1000));
   await leader.getByRole("button", { name: "Create your room" }).waitFor();
   const native = await application.evaluate(({ app, BrowserWindow }) => ({
@@ -69,6 +68,7 @@ try {
   await leader.getByText("Live", { exact: true }).waitFor();
   const origin = new URL(leader.url()).origin;
   const roomId = new URL(leader.url()).pathname.split("/")[2];
+  await leader.evaluate(installPeerDiagnostics);
 
   // Reproduce a modal blocking Electron's main loop without depending on TCC or
   // capturing the operator's desktop. The hub must answer before main unblocks.
@@ -215,6 +215,7 @@ try {
   check("targeted return download matches the original SHA-256");
 
   await application.evaluate(({ dialog, shell }) => {
+    globalThis.qaOriginalDialog = dialog.showMessageBox;
     globalThis.qaOpenCalls = 0;
     globalThis.qaConfirmCalls = 0;
     dialog.showMessageBox = async () => { globalThis.qaConfirmCalls++; return { response: 0 }; };
@@ -227,6 +228,13 @@ try {
   assert.deepEqual(cancelled, { opened: false });
   assert.deepEqual(await application.evaluate(() => [globalThis.qaConfirmCalls, globalThis.qaOpenCalls]), [1, 0]);
   check("native file-open cancellation does not launch an application (dialog stub)");
+  await application.evaluate(({ dialog }) => {
+    // Approve only the native app's room-network consent in this disposable lab.
+    // OS privacy settings and certificate validation are unchanged.
+    dialog.showMessageBox = (...args) => args.at(-1).title === "Connect to your room?"
+      ? Promise.resolve({ response: 1 })
+      : globalThis.qaOriginalDialog(...args);
+  });
 
   // Generated canvas frames test actual local WebRTC transport, not OS capture.
   await leader.evaluate(() => {

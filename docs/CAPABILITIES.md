@@ -50,7 +50,7 @@ Updated 3 November 2026. “Implemented” means the source exists and is connec
 ## Verification environment
 
 - Node.js 24.22.1 on Apple Silicon macOS 14.5; Electron 45.2.1; Playwright 1.64.1 with installed Google Chrome.
-- `npm test`: 37 passing integration/recovery/process tests in the current local run. Original 29-test managed Linux checkpoint remains historical.
+- `npm test`: 40 passing integration/recovery/process/permission tests in the current local run. Original 29-test managed Linux checkpoint remains historical.
 - Network tests start the hub and clients inside the same test process environment. They use actual sockets, HTTP, WebSockets and filesystem storage.
 - `npm run desktop:smoke`: native source plus real rendered Chromium Portal/Wall acceptance passed with no renderer errors. Screenshots and result JSON are in ignored `output/playwright/`. Separate native UI acceptance verified OS capture and file opening. See [QA_MAC_2026-11-03.md](QA_MAC_2026-11-03.md).
 - Physical phones, a second physical client, trusted LAN certificate/QR and hardware display commissioning remain open. Local unsigned Mac directory package/launch pass after recovery from ENOSPC. No DMG or Developer ID signed/notarised release is claimed. Hosted Mac media acceptance is failing and must be resolved separately.
