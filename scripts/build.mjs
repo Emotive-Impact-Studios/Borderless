@@ -30,7 +30,7 @@ for (const path of [
   await cp(join(root, path), join(target, path), {
     recursive: true,
     verbatimSymlinks: true,
-    filter: (source) => !source.split(/[\\/]/).some(part =>
+    filter: (source) => source !== join(root, "wall-shell/gen") && !source.split(/[\\/]/).some(part =>
       ["node_modules", "target", ".build", ".godot", "bin", "obj"].includes(part)),
   });
 }

@@ -14,6 +14,7 @@ output/playwright*/
 native/**/target/
 wall-shell/target/
 wall-shell/frontend/
+wall-shell/gen/
 native/**/.build/
 native/**/bin/
 native/**/obj/
