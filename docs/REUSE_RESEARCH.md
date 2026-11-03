@@ -2,6 +2,8 @@
 
 Reviewed 3 November 2026 against upstream repositories, source files and licence text. Exact reviewed commits and pinned licence links are in [research/repositories.json](research/repositories.json). A reviewed HEAD is research provenance, not an instruction to ship an unreleased HEAD. No third-party source has been vendored in this revision; the native code here is newly written. Godot packages, when restored, retain their own licence obligations.
 
+A second pass covering 35 more repositories (Mac and Windows virtual displays, capture crates, Rust WebRTC, LAN discovery, Rust/C# bridges, Godot PDF and video, whiteboard ink, CRDTs and prior-art products) is in [research/OPEN_SOURCE_CANDIDATES.md](research/OPEN_SOURCE_CANDIDATES.md), with pinned commits in [research/repositories-extended.json](research/repositories-extended.json).
+
 ## Highest-value reuse
 
 | Project | Licence inspected | Reuse/learning target | Integration destination and work still needed |
