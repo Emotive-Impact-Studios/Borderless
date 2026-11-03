@@ -49,6 +49,7 @@ export function openStore(dataDir) {
       device_id TEXT NOT NULL, name TEXT NOT NULL, role TEXT NOT NULL, csrf TEXT NOT NULL, colour TEXT NOT NULL,
       seat TEXT NOT NULL, expires INTEGER NOT NULL, revoked INTEGER NOT NULL DEFAULT 0);
     CREATE INDEX IF NOT EXISTS sessions_room ON sessions(room_id);
+    CREATE INDEX IF NOT EXISTS sessions_actor ON sessions(room_id,device_id);
     CREATE TABLE IF NOT EXISTS assets (id TEXT PRIMARY KEY, room_id TEXT NOT NULL REFERENCES rooms(id),
       owner_id TEXT NOT NULL, name TEXT NOT NULL, mime TEXT NOT NULL, size INTEGER NOT NULL, hash TEXT NOT NULL,
       created_at TEXT NOT NULL);
@@ -182,6 +183,31 @@ export function openStore(dataDir) {
     }
     return { valid: true, count, heads: Object.fromEntries(heads) };
   }
+  function retireInactiveSessions(at = Date.now()) {
+    return transaction(() => {
+      const rooms = db.prepare(`SELECT room_id FROM sessions WHERE revoked!=0 OR expires<=?
+        UNION SELECT c.room_id FROM commands c WHERE NOT EXISTS
+        (SELECT 1 FROM sessions s WHERE s.room_id=c.room_id AND s.device_id=c.device_id AND s.revoked=0 AND s.expires>?)`).all(at, at);
+      const retired = [];
+      for (const { room_id: roomId } of rooms) {
+        const commands = Number(db.prepare(`DELETE FROM commands WHERE room_id=? AND NOT EXISTS
+          (SELECT 1 FROM sessions s WHERE s.room_id=commands.room_id AND s.device_id=commands.device_id AND s.revoked=0 AND s.expires>?)`).run(roomId, at).changes);
+        const sessions = Number(db.prepare("DELETE FROM sessions WHERE room_id=? AND (revoked!=0 OR expires<=?)").run(roomId, at).changes);
+        const current = room(roomId);
+        if (current) {
+          const active = new Set(db.prepare("SELECT device_id FROM sessions WHERE room_id=?").all(roomId).map(s => s.device_id));
+          current.state.permissions = current.state.permissions.filter(deviceId => active.has(deviceId));
+          current.state.requests = current.state.requests.filter(request => active.has(request.deviceId));
+          current.state.deliveries = current.state.deliveries.filter(delivery => active.has(delivery.targetId));
+          current.state.streams = current.state.streams.filter(stream => active.has(stream.ownerId));
+          saveRoom(current);
+          audit(roomId, "hub", "sessions.retired", { sessions, commands });
+        }
+        retired.push({ roomId, sessions, commands });
+      }
+      return retired;
+    });
+  }
   return {
     db,
     key,
@@ -192,6 +218,7 @@ export function openStore(dataDir) {
     session,
     createSession,
     verifyAudit,
+    retireInactiveSessions,
     close() {
       db.close();
     },

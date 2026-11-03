@@ -6,6 +6,8 @@ Install root dependencies with `npm ci`, then `npm run desktop:install` and `npm
 
 The wrapper runs its embedded hub from `<Electron userData>/hub`. Optional `--hub=https://...` connects to an existing trusted hub. Remote HTTP is refused; local loopback HTTP remains available for development. The app does not load arbitrary external content into its privileged window or ignore certificate failures.
 
+The hub runs in an isolated Electron utility process so native capture and file-confirmation dialogs cannot stall other room clients. Graceful quit closes the hub and removes its process lock. Starting Borderless twice reuses its existing desktop instance. `--user-data-dir=<absolute path>` selects a separate desktop profile for disposable QA; do not point two profiles at the same hub data.
+
 Room menu includes display placement, a software wall spanning all display bounds and opt-in global desktop edge cues. Edge cues observe the global cursor near a display border and send an entry cue. They do not create a virtual monitor, capture or inject global input, move native application windows or implement seamless remote KVM.
 
 The screen picker requires consent. Native opening verifies room ownership/leader access, checks the downloaded file hash and asks the operator before launching its default application. It never runs an uploaded executable or constructs a shell command from a filename. Temporary native-open files are deleted on graceful exit; crash leftovers in the OS temp directory require normal OS retention policy.
@@ -26,7 +28,20 @@ npm --prefix desktop run package
 | Windows | NSIS installer | Authenticode signing, SmartScreen assessment, standard-user launch, firewall and display/capture testing. |
 | Linux | AppImage / deb | Distribution compatibility, sandbox support, X11/Wayland and PipeWire capture, package installation testing. |
 
-Do not label an unsigned build as a signed release. No signing keys or paid vendor accounts are created by these scripts. No platform installer was produced or launched in the managed Linux build environment.
+Do not label an unsigned build as a signed release. No signing keys or paid vendor accounts are created by these scripts. The source application has now launched and passed native/browser acceptance on an Apple Silicon Mac. Local macOS packaging hit `ENOSPC`; no local DMG or packaged-launch result is claimed. See [the Mac QA record](QA_MAC_2026-11-03.md) and current CI for the separate package gate.
+
+## Repeatable desktop acceptance
+
+```sh
+npm run desktop:smoke
+# After a Mac directory build, inspect its archive and test the packaged executable:
+node desktop/verify-package.mjs release/mac-arm64/Borderless.app/Contents/Resources/app.asar
+npm --prefix desktop run smoke -- "$PWD/release/mac-arm64/Borderless.app/Contents/MacOS/Borderless"
+```
+
+The smoke script uses locked Playwright 1.64.1, installed Google Chrome, a temporary desktop profile and its own ephemeral loopback port. It exercises the real Electron renderer, hub process, mobile-sized Portal, paired 4K Wall, classroom tools, transfer/download integrity and real local WebRTC transport with generated video. It checks native IPC cancellation with a dialog stub, renderer sandboxing, hub responsiveness while the native thread is blocked and graceful lock cleanup. It removes its private runtime state afterwards. Screenshots and a JSON result go under ignored `output/playwright/` (or `output/playwright-packaged/`). Generated video and phone emulation are distinct from OS capture consent and physical-device evidence.
+
+The Mac CI job runs source acceptance, builds an unsigned directory package, inspects its ASAR and runs the same acceptance against the packaged executable. Its outcome must be read from Actions after push; configuration alone is not a passing result. Windows/Linux native acceptance, Developer ID/notarisation and hardware hotplug remain separate gates.
 
 ## Native QA checklist
 

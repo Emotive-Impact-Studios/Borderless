@@ -159,6 +159,7 @@ function roomShell() {
 }
 function updateRoom() {
   if (!state) return;
+  updateSharingControls();
   document.documentElement.dataset.theme = state.theme;
   board?.update(state);
   if (view === "portal") {
@@ -205,6 +206,23 @@ function updateRoom() {
     renderWallQuiz();
   }
   sharing?.sync(state);
+}
+function updateSharingControls() {
+  const active = Boolean(sharing?.local);
+  for (const button of document.querySelectorAll('[data-action="screen.toggle"]')) {
+    const label = active ? "Stop sharing your screen" : view === "portal" ? "Share your live screen" : "Share your screen";
+    button.setAttribute("aria-label", label);
+    button.title = label;
+    button.setAttribute("aria-pressed", String(active));
+    button.disabled = Boolean(sharing?.starting);
+    button.classList.toggle("is-sharing", active);
+    if (button.closest(".floating-toolbar"))
+      button.innerHTML = active ? `${icon("close", 18)}<span>Stop sharing</span>` : icon("screen", 21);
+    else {
+      const text = button.querySelector("span");
+      if (text) text.textContent = label;
+    }
+  }
 }
 function renderPanel() {
   const el = document.querySelector("#side-panel");
@@ -1184,6 +1202,7 @@ async function boot() {
       updateRoom();
     });
     client.addEventListener("connection", (event) => connection(event.detail));
+    client.addEventListener("sharing", updateSharingControls);
     client.addEventListener("error", (event) =>
       toast(event.detail.error, true),
     );

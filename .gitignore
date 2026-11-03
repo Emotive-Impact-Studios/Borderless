@@ -8,3 +8,5 @@ certs/
 .DS_Store
 test-results/
 coverage/
+.playwright-cli/
+output/playwright*/

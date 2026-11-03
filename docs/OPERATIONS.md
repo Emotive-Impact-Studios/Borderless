@@ -4,6 +4,8 @@
 
 Use Node.js 24.15+ from the Node 24 LTS line. Install dependencies once with `npm ci`, then run `npm start`. The hub binds only `127.0.0.1:8443` by default. Open that address, create a room and keep the leader password. The runtime creates `.borderless/` containing its database, encrypted assets, storage key and process lock. None belong in Git.
 
+The repository pins Node 24.22.1 for Volta users. Other Node managers must select Node 24 explicitly. The native wrapper uses its own embedded Node runtime and stores its hub under the application's user data directory.
+
 The `.env.example` file documents configuration; the app does not automatically load `.env`. Set environment variables in your shell or service manager.
 
 ## Connect a phone or another computer
@@ -57,6 +59,8 @@ The desktop shell can choose a display or span a software window across connecte
 - **Clear:** Removes visible cards, ink, live screens, deliveries and the current quiz. Stored file bytes remain available until purge.
 - **Purge:** Removes the room's asset records, requests and contributions, pauses the room, and runs durable deletion jobs for uploaded bytes. If the filesystem refuses deletion, the leader sees the pending count and a retry action in Settings. Jobs also retry every 30 seconds and after restart. The metadata audit remains. See SECURITY for secure-erasure and backup limits.
 - **End:** Closes joining and revokes participant/display sessions. The current leader can still export metadata and audit.
+
+Sessions last twelve hours. Startup and 30-second maintenance remove expired/revoked session credentials and their command receipts. A current session retains its complete retry history. Retired devices lose pending drawing requests, drawing grants and inbox entries; their submitted notes, files, ink and quiz answers remain. Ending a room does not erase its metadata audit, and pruning SQL rows does not erase older backups. Room/audit retention policy remains a managed-deployment requirement.
 
 ## Exports versus backups
 

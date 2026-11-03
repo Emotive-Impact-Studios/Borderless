@@ -22,29 +22,38 @@ export class ScreenSharing {
     });
   }
   async start() {
+    if (this.starting) throw new Error("A screen selection is already open.");
     if (!navigator.mediaDevices?.getDisplayMedia)
       throw new Error(
         "Screen sharing needs a supported desktop browser and HTTPS or localhost. Use your phone to send files, draw and point.",
       );
     if (this.local) throw new Error("Your screen is already sharing.");
-    const stream = await navigator.mediaDevices.getDisplayMedia({
-      video: { frameRate: { ideal: 30, max: 60 } },
-      audio: true,
-    });
-    this.local = stream;
+    this.starting = true;
+    this.client.emit("sharing");
     try {
-      await this.client.command("stream.start", {
-        title: `${this.client.state.me.name}’s screen`,
-        connectionId: this.client.connectionId,
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: { ideal: 30, max: 60 } },
+        audio: true,
       });
-    } catch (error) {
-      this.stopLocal();
-      throw error;
+      this.local = stream;
+      this.client.emit("sharing");
+      try {
+        await this.client.command("stream.start", {
+          title: `${this.client.state.me.name}’s screen`,
+          connectionId: this.client.connectionId,
+        });
+      } catch (error) {
+        this.stopLocal();
+        throw error;
+      }
+      stream.getVideoTracks()[0].onended = () =>
+        this.stop().catch((error) => this.onError(error.message));
+      const state = await this.client.api("state");
+      this.sync(state);
+    } finally {
+      this.starting = false;
+      this.client.emit("sharing");
     }
-    stream.getVideoTracks()[0].onended = () =>
-      this.stop().catch((error) => this.onError(error.message));
-    const state = await this.client.api("state");
-    this.sync(state);
   }
   sync(state) {
     if (
@@ -207,6 +216,7 @@ export class ScreenSharing {
         track.stop();
       });
       this.local = null;
+      this.client.emit("sharing");
     }
   }
   async stop() {

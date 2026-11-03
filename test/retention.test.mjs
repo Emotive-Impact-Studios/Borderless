@@ -1,0 +1,72 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { fixture, room, participant, request, command, upload, snapshot, connect, event } from "./helpers.mjs";
+import { createApp } from "../server/app.mjs";
+
+test("retirement bounds inactive credentials and receipts while retaining active deduplication, contributions and audit", async (t) => {
+  const app = await fixture(t);
+  const { admin } = await room(app, { mode: "classroom" });
+  const expired = await participant(app, admin, "Expired");
+  const revoked = await participant(app, admin, "Revoked");
+  await command(app, expired, "note.add", { text: "Keep my contribution." });
+  await command(app, expired, "hand.raise");
+  await command(app, admin, "hand.approve", { deviceId: expired.id });
+  await command(app, revoked, "hand.raise");
+  const file = await upload(app, admin, "retained.txt", Buffer.from("Retained file bytes."));
+  await command(app, admin, "delivery.send", { assetId: file.body.assetId, targetId: expired.id });
+  const input = { type: "note.add", text: "A live leader retry.", commandId: randomUUID() };
+  const first = await request(app, `/api/rooms/${admin.roomId}/command`, { method: "POST", actor: admin, data: input });
+  assert.equal(first.status, 200);
+  app.store.db.prepare("UPDATE sessions SET expires=? WHERE device_id=?").run(Date.now() - 1, expired.id);
+  app.store.db.prepare("UPDATE sessions SET revoked=1 WHERE device_id=?").run(revoked.id);
+  const retired = app.store.retireInactiveSessions();
+  assert.equal(retired.length, 1);
+  assert.equal(retired[0].sessions, 2);
+  assert.equal(retired[0].commands, 3);
+  assert.equal(app.store.db.prepare("SELECT count(*) n FROM sessions").get().n, 1);
+  assert.equal(app.store.db.prepare("SELECT count(*) n FROM commands WHERE device_id IN (?,?)").get(expired.id, revoked.id).n, 0);
+  const state = await snapshot(app, admin);
+  assert.equal(state.items.length, 3);
+  assert.equal(state.items.some(item => item.ownerId === expired.id), true);
+  assert.deepEqual(state.permissions, []);
+  assert.deepEqual(state.requests, []);
+  assert.deepEqual(state.deliveries, []);
+  const retry = await request(app, `/api/rooms/${admin.roomId}/command`, { method: "POST", actor: admin, data: input });
+  assert.deepEqual(retry.body, first.body);
+  assert.equal((await snapshot(app, admin)).items.length, 3);
+  assert.equal((await request(app, `/api/rooms/${admin.roomId}/state`, { actor: expired })).status, 401);
+  assert.equal((await request(app, `/api/rooms/${admin.roomId}/assets/${file.body.assetId}`, { actor: admin })).body.toString(), "Retained file bytes.");
+  assert.equal(app.store.verifyAudit().valid, true);
+  assert.deepEqual(app.store.retireInactiveSessions(), []);
+});
+
+test("startup retires inactive sessions and their command receipts without reviving credentials", async (t) => {
+  const app = await fixture(t);
+  const { admin } = await room(app);
+  const guest = await participant(app, admin);
+  await command(app, guest, "note.add", { text: "Survive credential retirement." });
+  app.store.db.prepare("UPDATE sessions SET expires=0 WHERE device_id=?").run(guest.id);
+  await app.close();
+  const restarted = await createApp({ dataDir: app.dataDir, port: 0 });
+  t.after(() => restarted.close());
+  assert.equal(restarted.store.db.prepare("SELECT count(*) n FROM sessions WHERE device_id=?").get(guest.id).n, 0);
+  assert.equal(restarted.store.db.prepare("SELECT count(*) n FROM commands WHERE device_id=?").get(guest.id).n, 0);
+  assert.equal((await snapshot({ ...restarted, base: restarted.localURL }, admin)).items.length, 1);
+  assert.equal(restarted.store.verifyAudit().valid, true);
+});
+
+test("an expired socket receives no later room state before the heartbeat runs", async (t) => {
+  const app = await fixture(t);
+  const { admin } = await room(app);
+  const guest = await participant(app, admin);
+  const socket = await connect(app, guest);
+  t.after(() => socket.terminate());
+  await event(socket, data => data.type === "state");
+  socket.messages.length = 0;
+  app.store.db.prepare("UPDATE sessions SET expires=0 WHERE device_id=?").run(guest.id);
+  const closed = new Promise(resolve => socket.once("close", resolve));
+  await command(app, admin, "note.add", { text: "After expiry." });
+  assert.equal(await closed, 4001);
+  assert.equal(socket.messages.some(data => data.type === "state"), false);
+});

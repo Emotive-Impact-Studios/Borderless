@@ -8,6 +8,7 @@
   "description": "A shared canvas for every screen in the room.",
   "type": "module",
   "engines": { "node": ">=24.15.0 <25" },
+  "volta": { "node": "24.22.1" },
   "scripts": {
     "start": "node server/index.mjs",
     "dev": "node --watch server/index.mjs",
@@ -21,6 +22,7 @@
     "restore": "node scripts/restore.mjs",
     "desktop": "npm --prefix desktop start",
     "desktop:install": "npm --prefix desktop ci",
+    "desktop:smoke": "npm --prefix desktop run smoke",
     "release:verify": "node scripts/verify-release.mjs"
   },
   "dependencies": {

@@ -50,7 +50,7 @@ It includes a screen picker, explicit native file-open confirmation, display pla
 npm run verify
 ```
 
-This checks JavaScript and JSON, verifies the preserved original conversation, runs integration tests and produces a portable source distribution in `dist/`. It does not produce a signed native installer. `.github/workflows/ci.yml` runs the same checks; the desktop packaging workflow is manually triggered on real macOS, Windows and Linux runners.
+This checks JavaScript and JSON, verifies the preserved original conversation, runs integration/recovery tests and produces a portable source distribution in `dist/`. `npm run desktop:smoke` additionally exercises the real Electron app, a phone-sized Chrome Portal and paired Wall in disposable state. See [the Mac QA record](docs/QA_MAC_2026-11-03.md). CI also builds and tests an unsigned Mac directory package; the separate cross-platform installer workflow remains manual. No check produces a signed native release.
 
 ```sh
 npm run audit:verify

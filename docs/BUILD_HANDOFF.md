@@ -8,18 +8,22 @@ Read README, PRD, CAPABILITIES, ARCHITECTURE and DELIVERY. The original conversa
 
 A working Node 24 local-hub application with three browser views: shared Wall, participant Portal and leader Console. It includes room sessions and roles, invitations/pairing, real encrypted file transfer, notes and ownership, movement/resizing/layout commands, targeted file returns, touch/motion pointer source, shared ink, classroom hand raising, quizzes, live screen-capture/WebRTC source, governance, five themes, arrival shaders, SQLite audit, export, backup/restore and signed-package verification.
 
-The optional Electron source adds native capture selection, display placement/spanning, explicit local file opening and global edge cues. Source packaging and native CI definitions are included. No native signed installer, virtual display driver, physical frame lock, active failover or enterprise identity is claimed.
+The Electron source adds native capture selection, display placement/spanning, explicit local file opening and global edge cues. Its hub now runs in an isolated utility process so macOS dialogs cannot suspend everyone else's room connection. Inactive session credentials and command receipts have bounded lifetimes, with startup/periodic retirement and process-crash tests. No native signed installer, virtual display driver, physical frame lock, active failover or enterprise identity is claimed.
 
 ## Local checks at this checkpoint
 
-- Node 24.22.1; root dependencies installed with the committed lockfile.
-- 29 HTTP/WebSocket/storage/recovery tests passed in the final local `npm run verify` run. Syntax/manifests and the portable source build also passed.
-- Tests exercise real socket traffic, bytes on disk, AES-GCM integrity, per-room isolation, authorisation, CSRF, item versions, classroom permission, quiz privacy, targeted signalling, revocation, restart, backup/restore and release verification.
+- Local project: `/Users/augustusedem/Borderless`, branch `feat/borderless-platform`, containing draft PR #1. No pre-existing local files were overwritten. The clone began at `3ee217e3109c3cb0eb595bfa2ae53743dd433776`.
+- Apple Silicon Mac, macOS 14.5 and Xcode 16.2. Node 24.22.1 installed with Volta and pinned in package.json. Root and desktop dependencies installed; Electron 45.2.1 and Playwright 1.64.1.
+- 37 tests passed in `npm run verify`, including three desktop process lifecycle tests, three retention/expiry tests and two actual SIGKILL recovery tests. Syntax/manifests and portable source build also passed.
+- Tests exercise real socket traffic, bytes on disk, AES-GCM integrity, per-room isolation, authorisation, CSRF, item versions, classroom permission, quiz privacy, targeted signalling, revocation, restart, backup/restore, release verification and crash boundaries.
 - Original conversation checksum matches `4a22132962e087c51190bd4366baed686a2b63eac4afac76261198ecb983e5e1`.
-- Native wrapper syntax was checked and locked Electron dependencies installed. Linux unsigned directory packaging passed. Its Electron 45.2.1 / Node 24.22.1 runtime opened SQLite and served HTTP successfully in non-GUI mode. The ASAR contains the app and server and excludes runtime keys/data. GUI launch, capture, macOS/Windows packaging and signed platform release verification remain pending.
-- `npm audit --omit=dev` reported zero known vulnerabilities at verification time; this is not a security certification.
-- Connected Chrome could not reach the managed process (`ERR_CONNECTION_REFUSED`). No real rendered UI, physical iPhone/Android, captured WebRTC media, mDNS or multi-display hardware result is claimed.
-- Hosted CI results must be read from the PR after push; local test output is not a remote CI conclusion.
+- `npm run desktop:smoke` passed real Electron/Chrome acceptance: sandboxed launch, hub responsiveness with a blocked native thread, keyboard room-mode selection, 390px Portal, paired 4K Wall, notes/files, pointer, approved ink, undo/SVG, quiz, hash-checked return, native-open cancellation stub and generated WebRTC pixels to two Wall tabs sharing a cookie. Graceful quit releases its temporary hub lock. Local screenshots and JSON receipts are in ignored `output/playwright/`.
+- Separate native UI testing exercised the real screen picker, cancellation and consented capture of the Borderless window. Chrome received live 1450×920 frames on the same Mac. Real native file-open Cancel and explicit opening into TextEdit passed. See [QA_MAC_2026-11-03.md](QA_MAC_2026-11-03.md) for evidence and limits.
+- Local macOS directory packaging failed with `ENOSPC`. Its incomplete `release/` and this run's redundant Electron ZIP cache were removed. At least 3 GB free has been requested before another local installer attempt. No local Mac package, DMG, signing or notarisation is claimed.
+- The earlier managed Linux checkpoint passed an unsigned directory build and embedded SQLite/HTTP checks. That result predates the new utility-process implementation; it is historical evidence only. Windows/Linux GUI acceptance remains open.
+- `npm audit --omit=dev`: zero known production vulnerabilities. The separate desktop build-tool audit has 15 moderate transitive findings; review before release. No automatic major downgrade was applied.
+- No physical iPhone/Android, second physical machine, trusted LAN QR, system-audio, mDNS, hotplug or frame-lock evidence is claimed.
+- Mac CI now includes source acceptance, unsigned directory packaging, ASAR inspection and packaged acceptance. Read its actual result after push; configuration and local tests are not a hosted CI conclusion.
 
 The final verification record can update the counts here if further tests are added. Do not infer unrecorded platform success from these checks.
 
@@ -28,6 +32,11 @@ The final verification record can update the counts here if further tests are ad
 ```sh
 npm ci
 npm run verify
+npm run desktop:install
+npm run desktop
+# Disposable, automated native/browser acceptance (installed Google Chrome required):
+npm run desktop:smoke
+# Standalone hub alternative:
 npm start
 ```
 
@@ -35,9 +44,11 @@ Run from a real desktop for browser/native work. For phone access, follow OPERAT
 
 ## Next priorities
 
-1. G2/G3 real-browser and two-device validation, including an iPhone, a classroom cycle and two simultaneous wall/leader tabs.
-2. G4 native launch/package checks on Mac/Windows/Linux. Validate permission refusal and stop paths, native-opening cancellation and display hotplug.
-3. WP09 retention and process-crash hardening. Durable cleanup/retry, startup orphan reconciliation and visible pending deletion outcomes are implemented and fault-tested; bounded command/session retention remains.
-4. WP10–14 true virtual displays, input handoff and commissioned panoramic hardware. Keep this work distinct from the implemented edge cue.
+1. Read the new Mac CI run, fix any packaging/packaged-runtime failure, and repeat local packaging once disk space permits. Keep unsigned build evidence separate from signing/notarisation and releases.
+2. Broaden G2 gestures/accessibility: image drop/flick, move/resize, reduced motion, all themes, zoom, keyboard/focus, permission revocation and reconnect UX. The core classroom flow and simultaneous media receivers have rendered evidence now.
+3. Complete G3 with a physical iPhone/Android and second physical client over trusted LAN HTTPS, including QR trust/join and real screen/audio delivery.
+4. Complete G4 on Windows/Linux and actual Mac display placement, hotplug/sleep, edge cues and OS privacy refusal. Local file-open cancellation/opening and source capture have passed on Mac.
+5. WP09 next: room/content/audit retention policy and broader crash/load/backup drills. Session/receipt retention and the upload/purge SIGKILL boundaries are implemented and tested; they do not constitute physical erasure.
+6. Continue WP10–14 native display/window transfer and hardware commissioning, then the remaining full-scope packages. Keep these distinct from desktop edge cues and the current bounded canvas.
 
 All remaining work has acceptance criteria in DELIVERY. The product name remains Borderless. Do not silently rename it, replace the preserved source or describe aspirational native features as complete.

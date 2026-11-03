@@ -217,6 +217,10 @@ export async function createApp(options = {}) {
   }
   function send(ws, payload) {
     if (ws.readyState !== WebSocket.OPEN) return;
+    if (ws.session.expires <= Date.now()) {
+      ws.close(4001, "Your session has ended.");
+      return;
+    }
     if (ws.bufferedAmount > 1024 * 1024) {
       ws.close(1013, "Connection is too slow. Reconnect for a fresh snapshot.");
       return;
@@ -229,12 +233,12 @@ export async function createApp(options = {}) {
     const members = devices(roomId);
     for (const ws of live.get(roomId) || []) {
       const current = store.db
-        .prepare("SELECT * FROM sessions WHERE token_hash=? AND revoked=0")
-        .get(ws.session.token_hash);
+        .prepare("SELECT * FROM sessions WHERE token_hash=? AND revoked=0 AND expires>?")
+        .get(ws.session.token_hash, Date.now());
       if (current) {
         ws.session = current;
         send(ws, { type: "state", state: snapshotFor(room, current, members) });
-      }
+      } else ws.close(4001, "Your session has ended.");
     }
   }
   function ephemeral(roomId, event, except) {
@@ -1384,6 +1388,7 @@ export async function createApp(options = {}) {
   }, 10000);
   heartbeat.unref();
   // Video streams are transient. A restarted hub never advertises a dead stream as live.
+  store.retireInactiveSessions();
   for (const row of store.db.prepare("SELECT id FROM rooms").all()) {
     const room = store.room(row.id);
     if (room.state.streams.length) {
@@ -1406,11 +1411,13 @@ export async function createApp(options = {}) {
       .run(filename, "__hub__", "orphan.after.restart");
   await drainCleanup();
   const cleanupTimer = setInterval(() => {
-    drainCleanup()
+    Promise.resolve()
+      .then(() => store.retireInactiveSessions())
+      .then(() => drainCleanup())
       .then(() => {
         if (!closing) for (const roomId of live.keys()) broadcast(roomId);
       })
-      .catch(() => {});
+      .catch((error) => console.warn("Hub maintenance delayed:", error.message));
   }, 30000);
   cleanupTimer.unref();
   try {

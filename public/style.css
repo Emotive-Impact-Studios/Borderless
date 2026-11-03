@@ -1438,6 +1438,15 @@ small {
   background: var(--accent);
   color: var(--ink);
 }
+.floating-toolbar button.is-sharing {
+  width: auto;
+  gap: 5px;
+  padding: 0 9px;
+  background: var(--surface);
+  color: #a13f32;
+  font-size: 11px;
+  white-space: nowrap;
+}
 .tool-divider {
   width: 1px;
   height: 17px;

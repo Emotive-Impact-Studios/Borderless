@@ -3,7 +3,7 @@
   "productName":"Borderless",
   "electronVersion":"45.2.1",
   "directories":{"output":"release"},
-  "files":["package.json","server/**/*","public/**/*","desktop/main.mjs","desktop/preload.cjs","node_modules/**/*"],
+  "files":["package.json","server/**/*","public/**/*","desktop/main.mjs","desktop/hub-process.mjs","desktop/preload.cjs","node_modules/**/*"],
   "asar":true,
   "mac":{"target":["dmg"],"category":"public.app-category.productivity","hardenedRuntime":true,"entitlements":"desktop/entitlements.mac.plist","entitlementsInherit":"desktop/entitlements.mac.plist","extendInfo":{"NSScreenCaptureUsageDescription":"Share a selected screen or window with the people in your Borderless room."}},
   "win":{"target":["nsis"]},

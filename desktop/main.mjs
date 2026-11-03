@@ -8,13 +8,14 @@ import {
   ipcMain,
   dialog,
   shell,
+  utilityProcess,
 } from "electron";
 import { fileURLToPath } from "node:url";
 import { join, extname } from "node:path";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
-import { createApp } from "../server/app.mjs";
+import { startHubProcess } from "./hub-process.mjs";
 
 let hub,
   mainWindow,
@@ -24,7 +25,20 @@ let hub,
 const windows = new Set();
 const preload = fileURLToPath(new URL("./preload.cjs", import.meta.url));
 const remote = process.argv.find((arg) => arg.startsWith("--hub="))?.slice(6);
+const profile = process.argv.find((arg) => arg.startsWith("--user-data-dir="))?.slice(16);
+if (profile) app.setPath("userData", profile);
 let origin;
+const ownsInstance = app.requestSingleInstanceLock();
+if (!ownsInstance) app.quit();
+app.on("second-instance", () => {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    if (origin) mainWindow = newWindow(`${origin}/`);
+    return;
+  }
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+});
 function authorised(event) {
   try {
     return (
@@ -172,6 +186,7 @@ function rebuildMenu() {
 app
   .whenReady()
   .then(async () => {
+    if (!ownsInstance) return;
     if (remote) {
       const url = new URL(remote);
       if (
@@ -184,7 +199,17 @@ app
         throw new Error("Remote room hubs require trusted HTTPS.");
       origin = url.origin;
     } else {
-      hub = await createApp({ dataDir: join(app.getPath("userData"), "hub") });
+      hub = await startHubProcess(utilityProcess.fork, join(app.getPath("userData"), "hub"), {
+        onUnexpectedExit: async () => {
+          await dialog.showMessageBox({
+            type: "error",
+            title: "The room hub stopped",
+            message: "Restart Borderless to reconnect the room.",
+            detail: "Your saved room data remains on this computer. Follow the crash recovery instructions if the hub reports a stale lock.",
+          });
+          app.quit();
+        },
+      });
       origin = new URL(hub.localURL).origin;
     }
     // Chromium still shows its source picker. macOS permissions and certificate checks are not bypassed.
@@ -241,6 +266,7 @@ app
     rebuildMenu();
     screen.on("display-added", rebuildMenu);
     screen.on("display-removed", rebuildMenu);
+    screen.on("display-metrics-changed", rebuildMenu);
     let lastEdge = "";
     edgeTimer = setInterval(() => {
       if (!edgeEnabled || !mainWindow || mainWindow.isDestroyed() || !wallURL())
