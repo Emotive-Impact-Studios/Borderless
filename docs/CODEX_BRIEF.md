@@ -1,6 +1,6 @@
 # Codex build brief: Borderless
 
-**This is the entry point for any builder.** Read it top to bottom before writing code. Order of authority: [VISION.md](VISION.md) (what the app is), then this brief (how to build it, in what order), then [PRD.md](PRD.md) v3 (detailed requirements). If anything else in the repository disagrees, these three win. Do not change the product, the order or the stack without the user's written agreement.
+**This is the entry point for any builder.** Read it top to bottom before writing code. Also read [DECISIONS.md](DECISIONS.md) for what the user has decided, seen and is still deciding, and look at the concept images and prototype in `docs/design/`. Order of authority: [VISION.md](VISION.md) (what the app is), then this brief (how to build it, in what order), then [PRD.md](PRD.md) v3 (detailed requirements). If anything else in the repository disagrees, these three win. Do not change the product, the order or the stack without the user's written agreement.
 
 ## 1. The app
 

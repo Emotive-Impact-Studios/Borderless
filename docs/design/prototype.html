@@ -1,0 +1,346 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: the Wall fills the stage; a laptop and a phone sit in front of it, as people do in the room. */
+:root {
+  --page: #EEF0F3; --wall: #FAFAFA; --grid: #E5E7EB; --surface: #FFFFFF; --ink: #1D1D1F; --muted: #6E6E73;
+  --accent: #0066CC; --line: rgba(29,29,31,.10); --shadow: 0 24px 48px rgba(16,24,40,.12), 0 2px 6px rgba(16,24,40,.08);
+  --device: #1D1D1F; --deviceScreen: #F5F5F7; --live: #E5484D;
+  --display: "Inter", -apple-system, "SF Pro Display", "Segoe UI", sans-serif;
+  --body: "Inter", -apple-system, "SF Pro Text", "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --c1: #0A84FF; --c2: #FF375F; --c3: #FF9F0A; --c4: #30B07A;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --page: #0B0C0F; color-scheme: dark } }
+:root[data-theme="dark"] { --page: #0B0C0F; color-scheme: dark }
+body { background: var(--page); color: var(--ink); font-family: var(--body); margin: 0; }
+.look-studio { --wall: #0E0F13; --grid: #1B1D24; --surface: rgba(28,30,38,.82); --ink: #F2F3F5; --muted: #9A9FAD; --accent: #5AC8FA;
+  --line: rgba(255,255,255,.10); --shadow: 0 24px 60px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.06); --deviceScreen: #15161B;
+  --c1: #5AC8FA; --c2: #FF5FD2; --c3: #FFC145; --c4: #8AF27A; }
+.look-executive { --wall: #F6F1E9; --grid: transparent; --surface: #FFFFFF; --ink: #0F172A; --muted: #6B6459; --accent: #B45309;
+  --line: rgba(107,100,89,.22); --shadow: 0 18px 40px rgba(60,40,10,.10), 0 1px 3px rgba(60,40,10,.08); --deviceScreen: #FBF8F3;
+  --display: "Playfair Display", Georgia, serif; --c1: #1E3A8A; --c2: #9F1239; --c3: #B45309; --c4: #166534; }
+
+.shell { max-width: 1280px; margin: 0 auto; padding-block: 20px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 16px; }
+.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand b { font: 700 22px/1 var(--body); letter-spacing: -.02em; color: #1D1D1F; }
+:root[data-theme="dark"] .brand b { color: #F2F3F5 }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .brand b { color: #F2F3F5 } }
+.brand span { font-size: 13px; color: #6E6E73; }
+.looks { display: flex; gap: 6px; background: rgba(127,127,127,.12); padding: 4px; border-radius: 999px; }
+.looks button { border: 0; background: transparent; color: inherit; font: 500 13px var(--body); padding: 8px 14px; border-radius: 999px; cursor: pointer; color: #6E6E73; }
+.looks button[aria-pressed="true"] { background: #fff; color: #1D1D1F; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.looks button:focus-visible, button:focus-visible { outline: 2px solid #0A84FF; outline-offset: 2px; }
+
+.stage { color: var(--ink); position: relative; display: grid; grid-template-columns: 1fr; gap: 18px; }
+.wall { position: relative; aspect-ratio: 16 / 9; width: 100%; max-width: 100%; border-radius: 18px; overflow: hidden; background: var(--wall);
+  background-image: radial-gradient(var(--grid) 1px, transparent 1.2px); background-size: 28px 28px; box-shadow: 0 30px 80px rgba(0,0,0,.18), 0 0 0 10px #111, 0 0 0 11px #2a2a2a; color: var(--ink); transition: background-color .4s; }
+.devices { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, .7fr); gap: 24px; align-items: end; }
+
+.win { position: absolute; background: var(--surface); border-radius: 14px; box-shadow: var(--shadow); display: flex; flex-direction: column; overflow: hidden; backdrop-filter: blur(18px);
+  transition: box-shadow .18s, transform .18s; touch-action: none; }
+.win.focused { transform: scale(1.02); z-index: 20; }
+.bar { height: 34px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--line); cursor: grab; font-size: 13px; }
+.bar .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--o); flex: none; }
+.bar .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.bar .who { margin-left: auto; color: var(--muted); white-space: nowrap; }
+.bar .live { font: 600 10px/1 var(--body); letter-spacing: .06em; color: #fff; background: var(--live); padding: 4px 6px; border-radius: 4px; }
+.bar .act { opacity: 0; border: 0; background: transparent; color: var(--muted); font: 500 12px var(--body); cursor: pointer; padding: 4px 6px; border-radius: 6px; }
+.win:hover .act, .win:focus-within .act { opacity: 1; }
+.bar .act:hover { background: var(--line); color: var(--ink); }
+.win.is-live { outline: 2px solid var(--o); outline-offset: -2px; }
+.body { flex: 1; min-height: 0; padding: 14px 16px; overflow: hidden; }
+.note .body { font: 500 clamp(12px, 1.5vw, 20px)/1.35 var(--body); }
+.slide .body { display: grid; align-content: center; gap: 6px; }
+.slide h3 { margin: 0; font: 700 clamp(14px, 2vw, 26px)/1.1 var(--display); letter-spacing: -.01em; text-wrap: balance; }
+.slide p { margin: 0; color: var(--muted); font-size: clamp(10px, 1.1vw, 14px); }
+.sheet table { color: inherit; width: 100%; border-collapse: collapse; font: 500 clamp(9px, 1vw, 13px)/1.2 var(--mono); font-variant-numeric: tabular-nums; }
+.sheet td { border-bottom: 1px solid var(--line); padding: 4px 2px; }
+.sheet td:last-child { text-align: right; }
+.photo .body { padding: 0; }
+.photo canvas, .design canvas { width: 100%; height: 100%; display: block; }
+
+.qr { position: absolute; right: 2%; bottom: 3%; display: flex; gap: 10px; align-items: center; background: var(--surface); border-radius: 12px; padding: 8px 12px 8px 8px; box-shadow: var(--shadow); opacity: .55; font-size: 11px; color: var(--muted); }
+.qr i { width: 38px; height: 38px; background: conic-gradient(var(--ink) 25%, transparent 0 50%, var(--ink) 0 75%, transparent 0) 0 0 / 9px 9px; border-radius: 4px; opacity: .85; }
+.qr b { display: block; font: 600 15px/1.1 var(--mono); color: var(--ink); letter-spacing: .12em; }
+.entry { position: absolute; left: 0; top: 0; width: 6px; height: 100%; background: linear-gradient(var(--c1), transparent); opacity: 0; transition: opacity .2s; }
+.entry.on { opacity: .8; animation: breathe 1.2s ease-in-out infinite; }
+@keyframes breathe { 50% { opacity: .35 } }
+.spark { position: absolute; width: 14px; height: 14px; margin: -7px; border-radius: 50%; background: var(--o); box-shadow: 0 0 24px 8px var(--o); opacity: 0; pointer-events: none; }
+.spark.on { opacity: 1; animation: pulse .6s ease-in-out infinite alternate; }
+@keyframes pulse { to { transform: scale(1.6); opacity: .5 } }
+
+/* Laptop */
+.laptop { display: grid; justify-items: center; }
+.lid { position: relative; width: 100%; aspect-ratio: 16 / 10; max-width: 100%; background: var(--device); border-radius: 14px 14px 4px 4px; padding: 2.2%; box-sizing: border-box; }
+.screen { position: relative; width: 100%; height: 100%; background: var(--deviceScreen); border-radius: 4px; overflow: hidden; }
+.edge { position: absolute; top: 0; left: 0; right: 0; height: 5px; background: linear-gradient(90deg, transparent, var(--c1), transparent); opacity: 0; transition: opacity .2s; }
+.edge.on { opacity: 1; animation: breathe 1.2s ease-in-out infinite; }
+.edgehint { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); font-size: 11px; color: var(--muted); white-space: nowrap; }
+.base { width: 100%; height: 12px; background: linear-gradient(#cfd1d6, #9a9da4); border-radius: 0 0 14px 14px; }
+.lapwin { left: 18%; top: 26%; width: 56%; height: 58%; --o: var(--c1); }
+.lapwin .bar { cursor: grab; }
+.dockrow { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); display: flex; gap: 6px; }
+.chip { border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: 500 12px var(--body); padding: 7px 12px; border-radius: 999px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+.chip:hover { border-color: var(--accent); }
+.chip[disabled] { opacity: .45; cursor: default; }
+
+/* Phone */
+.phone { position: relative; width: 100%; max-width: 230px; aspect-ratio: 9 / 19.5; justify-self: center; background: var(--device); border-radius: 36px; padding: 10px; box-sizing: border-box; }
+.pscreen { position: relative; width: 100%; height: 100%; background: var(--deviceScreen); border-radius: 28px; overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; padding: 22px 14px 14px; box-sizing: border-box; gap: 10px; }
+.pscreen h4 { margin: 0; font: 600 15px/1.2 var(--display); }
+.pscreen .hint { font-size: 11px; color: var(--muted); }
+.card { position: relative; align-self: center; border-radius: 18px; overflow: hidden; background: var(--surface); box-shadow: var(--shadow); touch-action: none; cursor: grab; transition: transform .25s cubic-bezier(.2,.9,.3,1.2); --o: var(--c2); }
+.card canvas { width: 100%; aspect-ratio: 4 / 3; display: block; }
+.card div { padding: 8px 10px; font-size: 12px; font-weight: 600; }
+.toast { position: absolute; left: 50%; bottom: 64px; transform: translate(-50%, 8px); background: var(--ink); color: var(--surface); font-size: 12px; padding: 8px 12px; border-radius: 999px; opacity: 0; transition: .25s; white-space: nowrap; }
+.toast.on { opacity: 1; transform: translate(-50%, 0); }
+.pbtns { display: flex; gap: 6px; }
+.pbtns .chip { flex: 1; }
+
+.fx { position: absolute; inset: 0; pointer-events: none; z-index: 50; width: 100%; height: 100%; }
+.note-strip { font-size: 12.5px; color: #6E6E73; line-height: 1.5; max-width: 70ch; }
+@media (max-width: 720px) { .devices { grid-template-columns: 1fr; } .phone { max-width: 200px; } .bar .who { display: none } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="shell">
+  <header class="top">
+    <div class="brand"><b>borderless</b><span>Interactive prototype · simulated, not the real app</span></div>
+    <div class="looks" role="group" aria-label="Look">
+      <button type="button" data-look="whiteboard" aria-pressed="true">Whiteboard</button>
+      <button type="button" data-look="studio" aria-pressed="false">Studio</button>
+      <button type="button" data-look="executive" aria-pressed="false">Executive</button>
+    </div>
+  </header>
+
+  <div class="stage look-whiteboard" id="stage">
+    <section class="wall" id="wall" aria-label="Room Wall">
+      <div class="entry" id="entry"></div>
+      <div class="qr" aria-hidden="true"><i></i><span>Join the room<b>TE54D3</b></span></div>
+    </section>
+    <div class="devices">
+      <div class="laptop">
+        <div class="lid"><div class="screen" id="lap">
+          <div class="edge" id="edge"></div>
+          <div class="edgehint">Drag the window up past this edge</div>
+          <article class="win design lapwin is-live" id="lapwin" tabindex="0" aria-label="Moodboard, live in a design tool">
+            <div class="bar"><span class="dot"></span><span class="t">Moodboard · Figma</span><span class="live">LIVE</span></div>
+            <div class="body" style="padding:0"><canvas data-live="design"></canvas></div>
+          </article>
+          <div class="dockrow">
+            <button class="chip" id="sendEdge" type="button">Send over the edge</button>
+            <button class="chip" id="stopLive" type="button" disabled>Stop sharing</button>
+          </div>
+        </div></div>
+        <div class="base"></div>
+      </div>
+      <div class="phone"><div class="pscreen" id="phone">
+        <div><h4>Send to the Wall</h4><div class="hint">Flick the photo up, or tap Send</div></div>
+        <div class="card" id="card" tabindex="0" aria-label="Photo: site visit"><canvas data-photo="1"></canvas><div>Site visit.jpg</div></div>
+        <div class="pbtns"><button class="chip" id="sendPhone" type="button">Send</button></div>
+        <div class="toast" id="toast">Saved to Photos</div>
+      </div></div>
+    </div>
+    <canvas class="fx" id="fx" aria-hidden="true"></canvas>
+  </div>
+  <p class="note-strip">Try it: drag the laptop's window up past its top edge, flick the photo up from the phone, move windows on the Wall, and use “Send to phone” on a Wall window. Everything here is a simulation of the intended feel, built to choose a direction. Real capture, transfer and the extended display are what the build delivers.</p>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const stage = $('#stage'), wall = $('#wall'), fx = $('#fx'), ctx = fx.getContext('2d');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const css = v => getComputedStyle(stage).getPropertyValue(v).trim();
+let z = 10;
+
+// Looks
+document.querySelectorAll('[data-look]').forEach(b => b.onclick = () => {
+  stage.className = 'stage look-' + b.dataset.look;
+  document.querySelectorAll('[data-look]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+});
+
+// Wall windows
+function addWin({ kind, title, who, o, x, y, w, h, html, live }) {
+  const el = document.createElement('article');
+  el.className = `win ${kind}${live ? ' is-live' : ''}`;
+  el.style.cssText = `left:${x}%;top:${y}%;width:${w}%;height:${h}%;--o:var(${o});z-index:${++z}`;
+  el.tabIndex = 0;
+  el.setAttribute('aria-label', `${title}, from ${who}`);
+  el.innerHTML = `<div class="bar"><span class="dot"></span><span class="t">${title}</span>${live ? '<span class="live">LIVE</span>' : ''}<span class="who">${who}</span>${kind !== 'design' ? '<button class="act" type="button">Send to phone</button>' : ''}</div><div class="body">${html}</div>`;
+  wall.appendChild(el);
+  draggable(el, el.querySelector('.bar'));
+  el.querySelector('.act')?.addEventListener('click', e => { e.stopPropagation(); sendBack(el); });
+  el.querySelectorAll('canvas').forEach(paintCanvas);
+  return el;
+}
+function draggable(el, handle) {
+  handle.addEventListener('pointerdown', e => {
+    if (e.target.closest('button')) return;
+    const r = wall.getBoundingClientRect(), sx = e.clientX, sy = e.clientY, ox = parseFloat(el.style.left), oy = parseFloat(el.style.top);
+    el.style.zIndex = ++z; el.classList.add('focused'); handle.setPointerCapture(e.pointerId);
+    const move = ev => { el.style.left = clamp(ox + (ev.clientX - sx) / r.width * 100, 0, 100 - parseFloat(el.style.width)) + '%';
+      el.style.top = clamp(oy + (ev.clientY - sy) / r.height * 100, 0, 100 - parseFloat(el.style.height)) + '%'; };
+    const up = () => { el.classList.remove('focused'); handle.removeEventListener('pointermove', move); };
+    handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', up, { once: true });
+  });
+}
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+addWin({ kind: 'slide', title: 'Q3 roadmap.pdf', who: 'Maya', o: '--c4', x: 4, y: 6, w: 38, h: 40,
+  html: '<h3>Ship the shared room</h3><p>Page 4 of 12 · Live phone flick, window handoff, room audio</p>' });
+addWin({ kind: 'sheet', title: 'Budget.xlsx', who: 'Sam', o: '--c3', x: 46, y: 8, w: 30, h: 36, live: true,
+  html: '<table><tr><td>Displays</td><td>£4,820</td></tr><tr><td>Licences</td><td>£1,150</td></tr><tr><td>Install</td><td>£2,300</td></tr><tr><td>Total</td><td data-total>£8,270</td></tr></table>' });
+addWin({ kind: 'note', title: 'Note', who: 'Alex', o: '--c2', x: 79, y: 10, w: 18, h: 30, html: 'Agree the pilot room by Friday.' });
+
+// Live-looking content (simulated)
+function paintCanvas(c) {
+  const g = c.getContext('2d'), dpr = devicePixelRatio || 1;
+  const size = () => { const r = c.getBoundingClientRect(); c.width = Math.max(1, r.width * dpr); c.height = Math.max(1, r.height * dpr); };
+  size(); new ResizeObserver(size).observe(c);
+  if (c.dataset.photo) {
+    const draw = () => { const w = c.width, h = c.height, grd = g.createLinearGradient(0, 0, 0, h);
+      grd.addColorStop(0, '#8EC5FF'); grd.addColorStop(.55, '#FAD7A1'); grd.addColorStop(1, '#3A4B3F'); g.fillStyle = grd; g.fillRect(0, 0, w, h);
+      g.fillStyle = '#2F3B33'; g.beginPath(); g.moveTo(0, h * .75); for (let i = 0; i <= 8; i++) g.lineTo(w * i / 8, h * (.62 + .12 * Math.sin(i * 1.7))); g.lineTo(w, h); g.lineTo(0, h); g.fill();
+      g.fillStyle = 'rgba(255,240,200,.9)'; g.beginPath(); g.arc(w * .72, h * .3, h * .09, 0, 7); g.fill(); };
+    draw(); new ResizeObserver(draw).observe(c); return;
+  }
+  (function tick(t) {
+    if (!c.isConnected) return;
+    const w = c.width, h = c.height, light = getComputedStyle(c).getPropertyValue('--surface').trim();
+    g.fillStyle = light || '#fff'; g.fillRect(0, 0, w, h);
+    const cols = ['--c1', '--c2', '--c3', '--c4'].map(css);
+    for (let i = 0; i < 6; i++) { const bw = w / 7, x = bw * .5 + i * bw * 1.02, v = .35 + .3 * Math.sin(t / 700 + i * 1.3);
+      g.fillStyle = cols[i % 4]; g.globalAlpha = .9; roundRect(g, x, h * (1 - v) - h * .08, bw * .8, h * v, 6 * dpr); }
+    g.globalAlpha = 1; g.strokeStyle = cols[0]; g.lineWidth = 2 * dpr; g.beginPath();
+    for (let x = 0; x <= w; x += 6) g.lineTo(x, h * .25 + Math.sin(x / 40 + t / 400) * h * .06); g.stroke();
+    if (!reduce) requestAnimationFrame(tick);
+  })(0);
+}
+function roundRect(g, x, y, w, h, r) { g.beginPath(); g.roundRect ? g.roundRect(x, y, w, h, r) : g.rect(x, y, w, h); g.fill(); }
+document.querySelectorAll('canvas[data-live], canvas[data-photo]').forEach(paintCanvas);
+setInterval(() => { const t = document.querySelector('[data-total]'); if (t) t.textContent = '£' + (8270 + Math.round(Math.random() * 400)).toLocaleString('en-GB'); }, 1600);
+
+// Particle layer
+let parts = [];
+function sizeFx() { const r = stage.getBoundingClientRect(), d = devicePixelRatio || 1; fx.width = r.width * d; fx.height = r.height * d; ctx.setTransform(d, 0, 0, d, 0, 0); }
+sizeFx(); addEventListener('resize', sizeFx);
+function local(rect) { const s = stage.getBoundingClientRect(); return { x: rect.left - s.left, y: rect.top - s.top, w: rect.width, h: rect.height }; }
+function burst(from, to, colour, mode, ms = 900) {
+  return new Promise(done => {
+    if (reduce) return done();
+    const n = 140, now = performance.now();
+    for (let i = 0; i < n; i++) parts.push({ sx: from.x + Math.random() * from.w, sy: from.y + Math.random() * from.h,
+      tx: to.x + Math.random() * to.w, ty: to.y + Math.random() * to.h, t0: now + Math.random() * ms * .35, d: ms * (.55 + Math.random() * .4),
+      r: 1.2 + Math.random() * 2.4, c: colour, mode, sw: (Math.random() - .5) * 160 });
+    setTimeout(done, ms);
+  });
+}
+(function loop(t) {
+  const s = stage.getBoundingClientRect(); ctx.clearRect(0, 0, s.width, s.height);
+  parts = parts.filter(p => t < p.t0 + p.d + 60);
+  for (const p of parts) {
+    const k = clamp((t - p.t0) / p.d, 0, 1); if (k <= 0) continue;
+    const e = 1 - Math.pow(1 - k, 3);
+    let x = p.sx + (p.tx - p.sx) * e, y = p.sy + (p.ty - p.sy) * e;
+    if (p.mode === 'vortex') { const a = (1 - e) * 6; x += Math.cos(a + p.sw) * 40 * (1 - e); y += Math.sin(a + p.sw) * 40 * (1 - e); }
+    else x += Math.sin(e * Math.PI) * p.sw * .4;
+    ctx.globalAlpha = Math.sin(k * Math.PI) * .95; ctx.fillStyle = p.c; ctx.shadowColor = p.c; ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.arc(x, y, p.r, 0, 7); ctx.fill();
+  }
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0; requestAnimationFrame(loop);
+})(0);
+
+function land(el) {
+  el.animate(reduce ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, transform: 'scale(.86)', filter: 'blur(6px)' },
+    { opacity: 1, transform: 'scale(1.03)', filter: 'blur(0)', offset: .7 }, { transform: 'scale(1)' }], { duration: reduce ? 150 : 420, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  ripple(el);
+}
+function ripple(el) {
+  if (reduce) return;
+  const r = el.getBoundingClientRect();
+  for (const other of wall.querySelectorAll('.win')) { if (other === el) continue;
+    const o = other.getBoundingClientRect(), dx = o.left + o.width / 2 - (r.left + r.width / 2), dy = o.top + o.height / 2 - (r.top + r.height / 2), d = Math.hypot(dx, dy) || 1;
+    other.animate([{ transform: 'translate(0,0)' }, { transform: `translate(${dx / d * 8}px,${dy / d * 8}px)` }, { transform: 'translate(0,0)' }], { duration: 420, delay: Math.min(220, d / 4), easing: 'ease-out' }); }
+}
+function freeSpot(w, h) {
+  const taken = [...wall.querySelectorAll('.win')].map(e => [parseFloat(e.style.left), parseFloat(e.style.top), parseFloat(e.style.width), parseFloat(e.style.height)]);
+  for (let y = 4; y <= 100 - h - 10; y += 4) for (let x = 3; x <= 100 - w - 3; x += 3)
+    if (!taken.some(([a, b, c, d]) => x < a + c + 1.5 && x + w + 1.5 > a && y < b + d + 2 && y + h + 2 > b)) return [x, y];
+  return [3 + Math.random() * 20, 50];
+}
+
+// C1: laptop window over the edge
+const lapwin = $('#lapwin'), edge = $('#edge'), entry = $('#entry'), stopBtn = $('#stopLive'), sendEdge = $('#sendEdge');
+let wallLive = null;
+lapwin.style.left = '22%'; lapwin.style.top = '30%';
+lapwin.querySelector('.bar').addEventListener('pointerdown', e => {
+  const lap = $('#lap').getBoundingClientRect(), sx = e.clientX, sy = e.clientY, ox = parseFloat(lapwin.style.left), oy = parseFloat(lapwin.style.top);
+  lapwin.querySelector('.bar').setPointerCapture(e.pointerId);
+  const move = ev => { const ny = oy + (ev.clientY - sy) / lap.height * 100; lapwin.style.left = clamp(ox + (ev.clientX - sx) / lap.width * 100, 0, 44) + '%'; lapwin.style.top = Math.max(ny, -30) + '%';
+    const armed = ny < 6; edge.classList.toggle('on', armed); entry.classList.toggle('on', armed); };
+  const up = () => { lapwin.querySelector('.bar').removeEventListener('pointermove', move);
+    if (parseFloat(lapwin.style.top) < 2) cross(); else { lapwin.style.top = clamp(parseFloat(lapwin.style.top), 6, 40) + '%'; edge.classList.remove('on'); entry.classList.remove('on'); } };
+  lapwin.querySelector('.bar').addEventListener('pointermove', move); lapwin.querySelector('.bar').addEventListener('pointerup', up, { once: true });
+});
+sendEdge.onclick = () => { if (!wallLive) { edge.classList.add('on'); entry.classList.add('on'); setTimeout(cross, 350); } };
+async function cross() {
+  if (wallLive) return;
+  const from = local(lapwin.getBoundingClientRect());
+  lapwin.animate([{ opacity: 1, transform: 'scaleY(1)' }, { opacity: 0, transform: 'scaleY(1.25) translateY(-20%)', filter: 'blur(4px)' }], { duration: 450, fill: 'forwards', easing: 'ease-in' });
+  const [x, y] = freeSpot(40, 46), wr = wall.getBoundingClientRect(), s = stage.getBoundingClientRect();
+  const to = { x: wr.left - s.left + wr.width * x / 100, y: wr.top - s.top + wr.height * y / 100, w: wr.width * .4, h: wr.height * .46 };
+  await burst(from, to, css('--c1'), 'pull', 800);
+  wallLive = addWin({ kind: 'design', title: 'Moodboard · Figma', who: 'You', o: '--c1', x, y, w: 40, h: 46, live: true, html: '<canvas data-live="design"></canvas>' });
+  wallLive.querySelector('.body').style.padding = '0';
+  land(wallLive); edge.classList.remove('on'); entry.classList.remove('on'); stopBtn.disabled = false; sendEdge.disabled = true;
+}
+stopBtn.onclick = () => { if (!wallLive) return;
+  wallLive.animate([{ opacity: 1 }, { opacity: 0, transform: 'scale(.94)' }], { duration: 220 }).onfinish = () => wallLive.remove();
+  setTimeout(() => { wallLive = null; }, 230);
+  lapwin.getAnimations().forEach(a => a.cancel()); lapwin.style.top = '30%'; lapwin.style.left = '22%';
+  stopBtn.disabled = true; sendEdge.disabled = false; };
+
+// C2: phone flick
+const card = $('#card'), phone = $('#phone'), toast = $('#toast');
+let sending = false;
+card.addEventListener('pointerdown', e => {
+  if (sending) return;
+  const sy = e.clientY, sx = e.clientX, t0 = performance.now(); card.setPointerCapture(e.pointerId); card.style.transition = 'none';
+  const move = ev => { card.style.transform = `translate(${(ev.clientX - sx) * .4}px,${Math.min(0, ev.clientY - sy)}px) scale(1.04)`; };
+  const up = ev => { card.removeEventListener('pointermove', move); card.style.transition = '';
+    const dy = sy - ev.clientY, v = dy / (performance.now() - t0), sideways = Math.abs(ev.clientX - sx) > dy;
+    if (dy > 60 && v > .45 && !sideways) flick(); else card.style.transform = ''; };
+  card.addEventListener('pointermove', move); card.addEventListener('pointerup', up, { once: true });
+});
+$('#sendPhone').onclick = () => { if (!sending) flick(); };
+async function flick() {
+  sending = true;
+  const from = local(card.getBoundingClientRect());
+  card.style.transform = 'translateY(-160%) scale(.8)'; card.style.opacity = '0';
+  const [x, y] = freeSpot(26, 40), wr = wall.getBoundingClientRect(), s = stage.getBoundingClientRect();
+  const spark = document.createElement('div'); spark.className = 'spark on'; spark.style.setProperty('--o', css('--c2'));
+  spark.style.left = (x + 13) + '%'; spark.style.top = (y + 20) + '%'; wall.appendChild(spark);
+  const to = { x: wr.left - s.left + wr.width * x / 100, y: wr.top - s.top + wr.height * y / 100, w: wr.width * .26, h: wr.height * .4 };
+  await burst(from, to, css('--c2'), 'vortex', 950);
+  spark.remove();
+  const el = addWin({ kind: 'photo', title: 'Site visit.jpg', who: 'Priya', o: '--c2', x, y, w: 26, h: 40, html: '<canvas data-photo="1"></canvas>' });
+  land(el);
+  setTimeout(() => { card.style.transition = 'none'; card.style.transform = 'translateY(30px)'; card.style.opacity = '0';
+    requestAnimationFrame(() => { card.style.transition = ''; card.style.transform = ''; card.style.opacity = ''; sending = false; }); }, 500);
+}
+
+// C3 (send-back): Wall to phone
+async function sendBack(el) {
+  const from = local(el.getBoundingClientRect()), to = local(phone.getBoundingClientRect());
+  to.x += to.w * .25; to.w *= .5; to.y += to.h * .3; to.h *= .3;
+  el.animate([{ transform: 'scale(1)' }, { transform: 'scale(.97)' }, { transform: 'scale(1)' }], { duration: 300 });
+  await burst(from, to, getComputedStyle(el).getPropertyValue('--o') || css('--c1'), 'pull', 750);
+  toast.textContent = `${el.querySelector('.t').textContent} saved to phone`; toast.classList.add('on');
+  setTimeout(() => toast.classList.remove('on'), 1800);
+}
+</script>
+</html>
