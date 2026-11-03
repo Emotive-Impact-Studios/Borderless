@@ -228,7 +228,7 @@ public struct CaptureWindow: Identifiable {
         configuration.width = width - width % 2
         let height = max(2, min(2160, Int(Double(width) * ratio)))
         configuration.height = height - height % 2
-        configuration.minimumFrameInterval = CMTime(value: 1, timescale: 30)
+        configuration.minimumFrameInterval = CMTime(value: 1, timescale: 60)
         configuration.queueDepth = 6
         configuration.pixelFormat = kCVPixelFormatType_32BGRA
         configuration.capturesAudio = false

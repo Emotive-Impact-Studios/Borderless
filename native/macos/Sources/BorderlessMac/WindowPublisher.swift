@@ -105,7 +105,7 @@ import LiveKit
         guard generation == attempt else { return }
         // A retired SDK room owns its track/transceiver lifecycle. A new
         // authorised media generation gets a fresh track, seeded from real capture.
-        let track = LocalVideoTrack.createBufferTrack(options: BufferCaptureOptions(fps: 30))
+        let track = LocalVideoTrack.createBufferTrack(options: BufferCaptureOptions(fps: 60))
         self.track = track
         try await track.start()
         guard generation == attempt else { try? await track.stop(); return }
@@ -117,7 +117,9 @@ import LiveKit
         try await room.connect(url: grant.url, token: grant.token)
         guard generation == attempt else { await room.disconnect(); return }
         _ = try await room.localParticipant.publish(videoTrack: track,
-            options: VideoPublishOptions(simulcast: false, preferredCodec: .h264))
+            options: VideoPublishOptions(
+                screenShareEncoding: VideoEncoding(maxBitrate: 8_000_000, maxFps: 60),
+                simulcast: false, preferredCodec: .h264))
         guard generation == attempt else { await room.disconnect(); return }
         mediaName = grant.room
     }
