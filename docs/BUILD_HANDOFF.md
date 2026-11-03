@@ -14,7 +14,16 @@ A working Node 24 local-hub application with three browser views: shared Wall, p
 
 The Electron source adds native capture selection, display placement/spanning, explicit local file opening and global edge cues. Its hub runs in an isolated utility process so macOS dialogs cannot suspend everyone else's room connection. Inactive credentials/receipts have bounded lifetimes with process-crash tests. Reconnect now refreshes authority before Live, retries one lost acknowledgement under the original receipt/identity and preserves open drafts. Keyboard canvas/tab controls, focus restoration, live reduced motion and representative theme contrast pass rendered acceptance. No native signed installer, virtual display driver, physical frame lock, active failover or enterprise identity is claimed.
 
-## Local checks at this checkpoint
+## Spatial workspace checkpoint
+
+- The user-endorsed direction is implemented as the first spatial shell: full-window canvas, compact overlay controls, closed-by-default local utility windows, safe inline text previews and shared movable/resizable/focusable live windows alongside notes/files. Existing saved room content and credentials restore in the updated Mac app. This is a foundation for the direction, not final product/design acceptance.
+- `npm run verify` passes 50 tests. Three new spatial tests exercise owner/leader authority, version conflicts, focus receipt idempotency, saved bounds through restart and the full 60-item/six-stream arrangement.
+- The source passes 28 real Mac/Chrome smoke checks with `BORDERLESS_QA_ICE_MODE=loopback`. New checks cover full canvas bounds, independent utility movement/resizing/dismissal/reopening and live-window geometry/focus/restore while retaining the same video element and MediaStream and decoding further frames. Existing file, flick, classroom, recovery, motion and colour checks remain. The fixture rewrites host candidate addresses to loopback only inside the disposable test; it is excluded from the shipped runtime.
+- Default and unicast interface-address media currently fail on this Mac despite successful offer/answer/candidate exchange. Repeating the prior dashboard checkpoint `c5b4f38` reproduces the failure. Loopback transport is controlled evidence for real same-machine media and layout only; normal network/LAN/OS privacy and ICE failure recovery remain open. Saved diagnostic reports are ignored under `output/playwright/`.
+- The spatial unsigned arm64 directory build contains 392 inspected ASAR entries; all eight changed runtime files match source byte for byte. The packaged executable also passes all 28 checks with the explicit loopback fixture, including native Quit and hub-lock release. Updated DMG/hosted receipts must be recorded after their actual results; historical receipts below describe the earlier dashboard build.
+- Personal-desktop patching, consented recipient selection and true native desktop-edge handoff remain incomplete. They are the next experience work, ahead of peripheral administration. Do not substitute a browser simulation or a floating room tile for these features.
+
+## Historical recovery/accessibility checkpoint
 
 - Local project: `/Users/augustusedem/Borderless`, branch `feat/borderless-platform`, containing draft PR #1. No pre-existing local files were overwritten. The clone began at `3ee217e3109c3cb0eb595bfa2ae53743dd433776`.
 - Apple Silicon Mac, macOS 14.5 and Xcode 16.2. Node 24.22.1 installed with Volta and pinned in package.json. Root and desktop dependencies installed; Electron 45.2.1 and Playwright 1.64.1.
@@ -50,11 +59,10 @@ Run from a real desktop for browser/native work. For phone access, follow OPERAT
 
 ## Next priorities
 
-1. Keep the hosted code checkpoint and the local unsigned DMG receipts separate from Developer ID/notarisation, quarantined installation and release publication. No merge/release has been performed. Check any later head's CI before relying on it.
-2. Continue G2 with VoiceOver/full keyboard and document/media preview breadth. Representative keyboard/focus, live reduced motion, settled colour samples, draft/authority reconnect and explicit recovery now pass 26 source/package/DMG checks. This does not certify WCAG or physical touch. ICE-failure recovery still needs work beyond socket reconnect.
-3. Complete G3 with a physical iPhone/Android and second physical client over trusted LAN HTTPS, including QR trust/join and real screen/audio delivery.
-4. Complete G4 on Windows/Linux and actual Mac display placement, hotplug/sleep, edge cues and OS privacy refusal. Local file-open cancellation/opening and source capture have passed on Mac.
-5. WP09 next: room/content/audit retention policy and broader crash/load/backup drills. Session/receipt retention and the upload/purge SIGKILL boundaries are implemented and tested; they do not constitute physical erasure.
-6. Continue WP10–14 native display/window transfer and hardware commissioning, then the remaining full-scope packages. Keep these distinct from desktop edge cues and the current bounded canvas.
+1. Complete WP22: consented personal-desktop live-window patching, destination/ownership/stop interactions and the connected phone flick journey. Show the actual running experience for user review. Preserve unsent drafts and existing data.
+2. Investigate normal interface-address WebRTC and ICE-failure recovery; qualify trusted HTTPS/QR, capture/audio and gestures with a physical phone and second physical client. The loopback fixture cannot satisfy G3.
+3. Continue WP10–14 native display/window-edge handoff and hardware commissioning. A real OS window must cross into an extended display with safe return; room-window focus is separate.
+4. Complete VoiceOver/full keyboard, preview/codec and Windows/Linux/display hotplug breadth, then signing/notarisation and quarantined installation. Keep exact-head CI and unsigned local receipts distinct from release acceptance. No merge/release has been performed.
+5. Continue the remaining full-scope packages in DELIVERY after the spatial experience: room/content/audit retention, broader crash/load/backup drills, managed identity/updates and measured hardware/HA work.
 
 All remaining work has acceptance criteria in DELIVERY. The product name remains Borderless. Do not silently rename it, replace the preserved source or describe aspirational native features as complete.

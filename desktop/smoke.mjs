@@ -14,7 +14,8 @@ const packagedExecutable = process.argv[2];
 // The hosted Mac has no interactive Local Network/mDNS commissioning. Keep its
 // same-machine transport check unicast; production and default local QA retain
 // Chromium's normal candidate privacy and discovery behaviour.
-const unicastLab = process.env.BORDERLESS_QA_ICE_MODE === "unicast";
+const loopbackLab = process.env.BORDERLESS_QA_ICE_MODE === "loopback";
+const unicastLab = loopbackLab || process.env.BORDERLESS_QA_ICE_MODE === "unicast";
 const labArguments = unicastLab ? ["--disable-features=WebRtcHideLocalIpsWithMdns"] : [];
 const profile = await mkdtemp(join(tmpdir(), "borderless-desktop-qa-"));
 const output = join(root, packagedExecutable ? "output/playwright-packaged" : "output/playwright");
@@ -36,6 +37,7 @@ const watch = (page) => {
 function installSocketDiagnostics() {
   const NativeSocket = window.WebSocket;
   window.qaSockets = [];
+  window.qaSignals = [];
   window.WebSocket = class extends NativeSocket {
     constructor(...args) {
       super(...args);
@@ -43,15 +45,37 @@ function installSocketDiagnostics() {
       this.addEventListener("message", event => {
         const data = JSON.parse(event.data);
         if (data.type === "hello") this.qaConnectionId = data.connectionId;
+        if (data.type === "rtc" || data.type === "error") window.qaSignals.push({ direction: "received", kind: data.kind, error: data.error, hasCandidate: Boolean(data.payload?.candidate) });
       });
+    }
+    send(value) {
+      const data = JSON.parse(value);
+      if (data.type === "rtc") window.qaSignals.push({ direction: "sent", kind: data.kind, hasCandidate: Boolean(data.payload?.candidate) });
+      super.send(value);
     }
   };
 }
-function installPeerDiagnostics() {
+function installPeerDiagnostics(loopback = false) {
   const NativePeer = window.RTCPeerConnection;
   window.qaPeers = [];
   window.RTCPeerConnection = class extends NativePeer {
-    constructor(...args) { super(...args); window.qaPeers.push(this); }
+    constructor(...args) { super(...args); window.qaPeers.push(this); this.qaCandidateInputs = []; }
+    async addIceCandidate(candidate) {
+      const entry = { hasCandidate: Boolean(candidate?.candidate) };
+      this.qaCandidateInputs.push(entry);
+      // Explicit same-machine fixture for hosts whose local-network policy
+      // blocks interface-address traffic. Ports and real media stay intact.
+      // Never installed in the product or used as LAN/discovery evidence.
+      if (loopback && candidate?.candidate) {
+        const fields = candidate.candidate.split(" ");
+        if (fields[7] === "host") {
+          fields[4] = "127.0.0.1";
+          candidate = { ...candidate, candidate: fields.join(" ") };
+        }
+      }
+      try { await super.addIceCandidate(candidate); entry.accepted = true; }
+      catch (error) { entry.error = error.message; throw error; }
+    }
   };
 }
 const check = (name) => { checks.push(name); console.log(`✓ ${name}`); };
@@ -124,7 +148,55 @@ try {
   await leader.getByText("Live", { exact: true }).waitFor();
   const origin = new URL(leader.url()).origin;
   const roomId = new URL(leader.url()).pathname.split("/")[2];
-  await leader.evaluate(installPeerDiagnostics);
+  await leader.evaluate(installPeerDiagnostics, loopbackLab);
+
+  const canvasBounds = () => leader.locator("#canvas-stage").boundingBox();
+  const fullCanvas = await canvasBounds();
+  const viewport = await leader.evaluate(() => ({ width: innerWidth, height: innerHeight }));
+  assert.ok(fullCanvas.width >= viewport.width * .99 && fullCanvas.height >= viewport.height * .99);
+  assert.equal(await leader.locator(".utility-window:visible").count(), 0);
+  await leader.getByRole("button", { name: "People", exact: true }).click();
+  const peopleWindow = leader.getByRole("region", { name: "People window", exact: true });
+  const originalUtility = await peopleWindow.boundingBox();
+  const utilityTitle = await leader.getByRole("button", { name: "Move People window", exact: true }).boundingBox();
+  await leader.mouse.move(utilityTitle.x + 80, utilityTitle.y + 15);
+  await leader.mouse.down();
+  await leader.mouse.move(utilityTitle.x - 40, utilityTitle.y + 55, { steps: 8 });
+  await leader.mouse.up();
+  const utilityHandle = await leader.getByRole("button", { name: "Resize People window", exact: true }).boundingBox();
+  await leader.mouse.move(utilityHandle.x + 8, utilityHandle.y + 8);
+  await leader.mouse.down();
+  await leader.mouse.move(utilityHandle.x + 38, utilityHandle.y + 48, { steps: 8 });
+  await leader.mouse.up();
+  const movedUtility = await peopleWindow.boundingBox();
+  assert.ok(movedUtility.x < originalUtility.x - 100 && movedUtility.y > originalUtility.y + 30);
+  assert.ok(movedUtility.width > originalUtility.width + 20 && movedUtility.height > originalUtility.height + 30);
+  await leader.getByRole("button", { name: "Room settings", exact: true }).click();
+  assert.equal(await leader.locator(".utility-window:visible").count(), 2);
+  assert.deepEqual(await canvasBounds(), fullCanvas);
+  await leader.getByRole("button", { name: "Close Room settings window", exact: true }).click();
+  await leader.getByRole("button", { name: "Close People window", exact: true }).click();
+  await leader.getByRole("button", { name: "People", exact: true }).click();
+  assert.deepEqual(await peopleWindow.boundingBox(), movedUtility);
+  await leader.getByRole("button", { name: "Move People window", exact: true }).focus();
+  await leader.keyboard.press("ArrowLeft");
+  assert.ok((await peopleWindow.boundingBox()).x < movedUtility.x);
+  await leader.keyboard.press("Escape");
+  assert.equal(await peopleWindow.isVisible(), false);
+  const savedUtility = { ...movedUtility, x: movedUtility.x - 10 };
+  await leader.reload();
+  await leader.getByText("Live", { exact: true }).waitFor();
+  await leader.evaluate(installPeerDiagnostics, loopbackLab);
+  assert.equal(await leader.locator(".utility-window:visible").count(), 0);
+  await leader.getByRole("button", { name: "People", exact: true }).click();
+  const reopenedUtility = await peopleWindow.boundingBox();
+  for (const dimension of ["x", "y", "width", "height"])
+    assert.ok(Math.abs(reopenedUtility[dimension] - savedUtility[dimension]) < 1);
+  await leader.getByRole("button", { name: "Close People window", exact: true }).click();
+  await leader.getByRole("button", { name: "Hide controls", exact: true }).click();
+  assert.deepEqual(await canvasBounds(), fullCanvas);
+  await leader.getByRole("button", { name: "Show controls", exact: true }).click();
+  check("full-size workspace; independent movable/resizable utilities retain geometry and dismiss by keyboard");
 
   // Reproduce a modal blocking Electron's main loop without depending on TCC or
   // capturing the operator's desktop. The hub must answer before main unblocks.
@@ -154,13 +226,14 @@ try {
   // Model the display operator accepting this room's browser network permission.
   // This is scoped to the disposable hub origin; OS permissions remain unchanged.
   await wallContext.grantPermissions(["local-network-access"], { origin });
-  await wallContext.addInitScript(installPeerDiagnostics);
+  await wallContext.addInitScript(installPeerDiagnostics, loopbackLab);
   await wallContext.addInitScript(installSocketDiagnostics);
   const wall = await wallContext.newPage();
   watch(wall);
   await wall.goto(pairing);
   await wall.locator("#wall-invite img").waitFor();
   assert.equal(await wall.getByRole("button", { name: "Invite people", exact: true }).count(), 0);
+  assert.equal(await wall.getByRole("toolbar", { name: "Canvas tools", exact: true }).isVisible(), false);
   check("390px Portal joins by invitation and 4K read-only Wall pairs separately");
 
   await portal.getByRole("tab", { name: "Send", exact: true }).focus();
@@ -198,10 +271,15 @@ try {
   assert.equal(await wall.getByRole("img", { name: "drop.png", exact: true }).evaluate(async image => { await image.decode(); return image.naturalWidth === 1; }), true);
   const card = leader.locator(".canvas-item").filter({ has: leader.getByRole("button", { name: "Open lab.txt", exact: true }) });
   const itemId = await card.getAttribute("data-item");
-  const waitVersion = async (version) => leader.waitForFunction(({ itemId, version }) => {
-    const item = document.querySelector(`[data-item="${itemId}"]`);
-    return Boolean(item) && item.dataset.version !== version;
-  }, { itemId, version });
+  await leader.waitForFunction(() => document.querySelector('.text-preview')?.textContent.includes("Borderless"));
+  assert.equal(await card.locator(".text-preview").textContent(), bytes.toString());
+  const waitVersion = async (version) => {
+    await leader.waitForFunction(({ itemId, version }) => {
+      const item = document.querySelector(`[data-item="${itemId}"]`);
+      return Boolean(item) && item.dataset.version !== version;
+    }, { itemId, version });
+    await card.evaluate(element => Promise.all(element.getAnimations().filter(animation => animation instanceof CSSTransition).map(animation => animation.finished.catch(() => {}))));
+  };
   const beforeLayout = await card.getAttribute("data-version");
   await leader.getByRole("button", { name: "Tidy up", exact: true }).click();
   await waitVersion(beforeLayout);
@@ -225,12 +303,16 @@ try {
   const keyMove = await card.getAttribute("data-version");
   const oldPosition = await card.evaluate(element => parseFloat(element.style.left));
   await card.focus();
+  const moveReply = leader.waitForResponse(response => response.url().endsWith("/command") && response.request().postDataJSON()?.type === "item.move");
   await leader.keyboard.press("ArrowRight");
+  assert.equal((await moveReply).status(), 200);
   await waitVersion(keyMove);
   assert.ok(await card.evaluate((element, old) => parseFloat(element.style.left) > old, oldPosition));
   const keyResize = await card.getAttribute("data-version");
   const oldWidth = await card.evaluate(element => parseFloat(element.style.width));
+  const resizeReply = leader.waitForResponse(response => response.url().endsWith("/command") && response.request().postDataJSON()?.type === "item.resize");
   await leader.keyboard.press("Alt+ArrowLeft");
+  assert.equal((await resizeReply).status(), 200);
   await waitVersion(keyResize);
   assert.ok(await card.evaluate((element, old) => parseFloat(element.style.width) < old, oldWidth));
   assert.equal(await card.evaluate(element => document.activeElement === element), true);
@@ -295,6 +377,7 @@ try {
   await portal.getByRole("tab", { name: "Draw", exact: true }).click();
   assert.equal(await portal.locator("#drawing-pad.draw-disabled").count(), 1);
   await portal.getByRole("button", { name: "Raise your hand", exact: true }).click();
+  await leader.getByRole("button", { name: "People", exact: true }).click();
   await leader.getByRole("button", { name: "Approve Lab learner", exact: true }).click();
   await portal.getByText("You have the floor. Make it yours.", { exact: true }).waitFor();
   await stroke(portal);
@@ -399,6 +482,17 @@ try {
   watch(guestCanvas);
   await guestCanvas.goto(`${origin}/room/${roomId}`);
   await guestCanvas.getByText("Live", { exact: true }).waitFor();
+  await guestCanvas.getByRole("button", { name: "People", exact: true }).click();
+  await guestCanvas.getByRole("button", { name: "Resize People window", exact: true }).focus();
+  for (let step = 0; step < 5; step++) {
+    await guestCanvas.keyboard.press("Shift+ArrowRight");
+    await guestCanvas.keyboard.press("Shift+ArrowDown");
+  }
+  const mobileUtility = await guestCanvas.getByRole("region", { name: "People window", exact: true }).boundingBox();
+  assert.ok(mobileUtility.x >= 0 && mobileUtility.y >= 0 && mobileUtility.x + mobileUtility.width <= 390 && mobileUtility.y + mobileUtility.height <= 844);
+  assert.equal(await guestCanvas.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await guestCanvas.screenshot({ path: join(output, "canvas-390.png") });
+  await guestCanvas.keyboard.press("Escape");
   await portal.waitForFunction(id => document.activeElement?.dataset.id === id, focusedContribution);
   const foreignCard = guestCanvas.locator(".canvas-item").filter({ has: guestCanvas.getByRole("img", { name: "drop.png", exact: true }) });
   const foreignVersion = await foreignCard.getAttribute("data-version");
@@ -445,6 +539,7 @@ try {
   });
 
   // Generated canvas frames test actual local WebRTC transport, not OS capture.
+  await leader.getByRole("button", { name: "Close People window", exact: true }).click();
   await leader.evaluate(() => {
     navigator.mediaDevices.getDisplayMedia = async () => {
       const canvas = document.createElement("canvas");
@@ -461,6 +556,38 @@ try {
   await leader.getByRole("button", { name: "Share your screen", exact: true }).click();
   await leader.getByRole("button", { name: "Stop sharing your screen", exact: true }).waitFor();
   await wall.waitForFunction(() => { const v = document.querySelector(".stream-tile video"); return v?.videoWidth === 640 && v.readyState >= 2; });
+  const liveWindow = leader.locator(".stream-item");
+  const liveTitle = await liveWindow.locator(".item-bar").boundingBox();
+  const liveVersion = await liveWindow.getAttribute("data-version");
+  await wall.evaluate(() => {
+    window.qaLiveVideo = document.querySelector(".stream-item video");
+    window.qaLiveMedia = qaLiveVideo.srcObject;
+    window.qaLiveFrames = qaLiveVideo.getVideoPlaybackQuality().totalVideoFrames;
+  });
+  await leader.mouse.move(liveTitle.x + 70, liveTitle.y + 15);
+  await leader.mouse.down();
+  await leader.mouse.move(liveTitle.x + 120, liveTitle.y + 55, { steps: 10 });
+  await leader.mouse.up();
+  await leader.waitForFunction(previous => document.querySelector(".stream-item").dataset.version !== previous, liveVersion);
+  const resizeVersion = await liveWindow.getAttribute("data-version");
+  const liveHandle = await liveWindow.locator(".resize-handle").boundingBox();
+  await leader.mouse.move(liveHandle.x + 8, liveHandle.y + 8);
+  await leader.mouse.down();
+  await leader.mouse.move(liveHandle.x - 30, liveHandle.y - 25, { steps: 10 });
+  await leader.mouse.up();
+  await leader.waitForFunction(previous => document.querySelector(".stream-item").dataset.version !== previous, resizeVersion);
+  const liveBounds = await liveWindow.evaluate(element => [element.style.left, element.style.top, element.style.width, element.style.height]);
+  await liveWindow.getByRole("button", { name: /^Focus / }).click();
+  await wall.waitForFunction(() => document.querySelector(".stream-item").style.width === "92%");
+  await liveWindow.getByRole("button", { name: /^Restore / }).click();
+  await wall.waitForFunction(bounds => {
+    const element = document.querySelector(".stream-item");
+    return JSON.stringify([element.style.left, element.style.top, element.style.width, element.style.height]) === JSON.stringify(bounds);
+  }, liveBounds);
+  await wall.waitForFunction(() => qaLiveVideo.getVideoPlaybackQuality().totalVideoFrames > qaLiveFrames);
+  assert.equal(await wall.evaluate(() => qaLiveVideo === document.querySelector(".stream-item video") && qaLiveVideo.srcObject === qaLiveMedia), true);
+  assert.equal(await wall.locator(".stream-item .item-focus, .stream-item .stream-stop").count(), 0);
+  check("shared live windows move/resize/focus/restore without replacing media or interrupting decoded frames");
   const secondWall = await wallContext.newPage();
   watch(secondWall);
   await secondWall.goto(`${origin}/wall/${roomId}`);
@@ -534,9 +661,9 @@ try {
     await wall.waitForFunction(theme => document.documentElement.dataset.theme === theme, theme);
     await portal.waitForFunction(theme => document.documentElement.dataset.theme === theme, theme);
     await leader.waitForFunction(theme => document.activeElement?.dataset.theme === theme, theme);
-    await contrast(leader, theme, [".panel-intro", ".theme-option.selected span", ".effects-options .selected", ".room-status", ".floating-toolbar button.active", ".note-text", ".item-caption"]);
+    await contrast(leader, theme, [".panel-intro", ".theme-option.selected span", ".effects-options .selected", ".room-status", ".floating-toolbar button.active", ".note-text", ".item-window-title"]);
     await contrast(portal, theme, [".portal-room > p", ".portal-tabs button:not(.selected)", ".throw-card h2", ".throw-card p", ".throw-card .btn.primary", ".throw-cue", ".avatar"]);
-    await contrast(wall, theme, ["#wall-invite small", ".note-text", ".item-caption"]);
+    await contrast(wall, theme, ["#wall-invite small", ".note-text", ".item-window-title"]);
   }
   check("representative text/control contrast meets 4.5:1 across all five themes; settings focus survives refresh");
   await leader.getByRole("button", { name: "Zoom in", exact: true }).click();
@@ -571,10 +698,13 @@ try {
   assert.deepEqual(errors, []);
   check("screenshots, phone width without overflow and no renderer console errors");
   await browser.close(); browser = null;
-  await application.close(); application = null;
+  const nativeQuit = application.waitForEvent("close");
+  await application.evaluate(({ app }) => { setTimeout(() => app.quit(), 0); });
+  await nativeQuit;
+  application = null;
   await assert.rejects(readFile(join(profile, "hub/hub.lock")), { code: "ENOENT" });
   check("native graceful quit releases the hub process and storage lock");
-  await writeFile(join(output, "desktop-smoke.json"), JSON.stringify({ at: new Date().toISOString(), platform: process.platform, arch: process.arch, build: packagedExecutable ? "packaged" : "source", ice: unicastLab ? "unobfuscated host candidates in disposable same-machine lab" : "Chromium default", checks, contrastChecks, expectedNetworkErrors, errors, limits: ["Generated video is not OS capture consent evidence.", "Phone viewport is Chromium emulation, not a physical phone.", "Representative computed-colour samples and keyboard checks are not a full WCAG or assistive-technology audit.", "Native file confirmation is stubbed for cancellation.", "Room-network consent is approved for this disposable native/browser lab; OS Local Network permission is separate.", ...(unicastLab ? ["CI does not qualify mDNS, OS Local Network consent or physical LAN connectivity."] : [])] }, null, 2));
+  await writeFile(join(output, "desktop-smoke.json"), JSON.stringify({ at: new Date().toISOString(), platform: process.platform, arch: process.arch, build: packagedExecutable ? "packaged" : "source", ice: loopbackLab ? "explicit loopback host-candidate fixture; real same-machine media only" : unicastLab ? "unobfuscated host candidates in disposable same-machine lab" : "Chromium default", checks, contrastChecks, expectedNetworkErrors, errors, limits: ["Generated video is not OS capture consent evidence.", "Phone viewport is Chromium emulation, not a physical phone.", "Representative computed-colour samples and keyboard checks are not a full WCAG or assistive-technology audit.", "Native file confirmation is stubbed for cancellation.", "Room-network consent is approved for this disposable native/browser lab; OS Local Network permission is separate.", ...(unicastLab ? ["Controlled candidate fixtures do not qualify mDNS, OS Local Network consent or physical LAN connectivity."] : [])] }, null, 2));
 } catch (error) {
   const diagnostics = [];
   for (const [index, page] of pages.entries()) {
@@ -585,9 +715,11 @@ try {
       text: document.body.innerText,
       focus: { tag: document.activeElement?.tagName, action: document.activeElement?.dataset.action, id: document.activeElement?.dataset.id, theme: document.activeElement?.dataset.theme },
       sockets: (window.qaSockets || []).map(socket => ({ state: socket.readyState, connectionId: socket.qaConnectionId })),
+      signals: window.qaSignals,
       video: [...document.querySelectorAll("video")].map(v => ({ width: v.videoWidth, height: v.videoHeight, readyState: v.readyState })),
       peers: await Promise.all((window.qaPeers || []).map(async p => ({
         connection: p.connectionState, ice: p.iceConnectionState, gathering: p.iceGatheringState, signalling: p.signalingState,
+        candidates: p.qaCandidateInputs,
         stats: [...(await p.getStats()).values()].filter(s => ["candidate-pair", "inbound-rtp", "outbound-rtp", "local-candidate", "remote-candidate"].includes(s.type)).map(s => ({
           type: s.type, state: s.state, candidateType: s.candidateType, protocol: s.protocol, nominated: s.nominated,
           mdnsAddress: s.address?.endsWith(".local"),

@@ -18,6 +18,7 @@ import {
   passwordMatches,
 } from "./store.mjs";
 import { assetStorage, safeName, mimeFor } from "./assets.mjs";
+import { minimumSurfaceSize, raiseSurface, focusSurface, arrangeScene } from "./spatial.mjs";
 import {
   fail,
   text,
@@ -312,11 +313,14 @@ export async function createApp(options = {}) {
           createdAt: now(),
           version: 1,
         });
+        raiseSurface(state, state.items.at(-1));
         break;
       }
       case "item.move":
       case "item.resize":
       case "item.remove":
+      case "item.focus":
+      case "item.raise":
       case "item.edit": {
         requireContributor(s, room);
         const item = state.items.find((i) => i.id === input.itemId);
@@ -329,16 +333,22 @@ export async function createApp(options = {}) {
           );
         if (command === "item.remove")
           state.items = state.items.filter((i) => i.id !== item.id);
+        if (item.restoreBounds && ["item.move", "item.resize"].includes(command))
+          fail(409, "Restore the window before moving or resizing it.");
         if (command === "item.move") {
           item.x = number(input.x, 0, 1 - item.w);
           item.y = number(input.y, 0, 1 - item.h);
           item.version++;
+          raiseSurface(state, item);
         }
         if (command === "item.resize") {
-          item.w = number(input.w, 0.12, 1 - item.x);
-          item.h = number(input.h, 0.12, 1 - item.y);
+          item.w = number(input.w, minimumSurfaceSize, 1 - item.x);
+          item.h = number(input.h, minimumSurfaceSize, 1 - item.y);
           item.version++;
+          raiseSurface(state, item);
         }
+        if (command === "item.focus") focusSurface(state, item);
+        if (command === "item.raise") { raiseSurface(state, item); item.version++; }
         if (command === "item.edit") {
           if (item.kind !== "note") fail(400, "Only notes can be edited here.");
           item.text = text(input.text, 4000, "Note");
@@ -351,32 +361,14 @@ export async function createApp(options = {}) {
         requireLeader(s);
         choice(input.layout, ["grid", "focus", "free"], "Layout");
         state.layout = input.layout;
-        const count = state.items.length;
-        if (input.layout === "grid" && count) {
-          const cols = Math.ceil(Math.sqrt((count * 16) / 9)),
-            rows = Math.ceil(count / cols);
-          state.items.forEach((item, i) =>
-            Object.assign(item, {
-              x: (i % cols) / cols + 0.012,
-              y: Math.floor(i / cols) / rows + 0.02,
-              w: 1 / cols - 0.024,
-              h: 1 / rows - 0.04,
-              version: item.version + 1,
-            }),
-          );
-        }
+        const count = state.items.length + state.streams.length;
+        if (input.layout === "grid" && count) arrangeScene(state);
         if (input.layout === "focus" && count) {
           const item =
-            state.items.find((i) => i.id === input.itemId) ||
-            state.items.at(-1);
-          Object.assign(item, {
-            x: 0.06,
-            y: 0.06,
-            w: 0.88,
-            h: 0.88,
-            version: item.version + 1,
-          });
-          state.items = [...state.items.filter((i) => i.id !== item.id), item];
+            state.streams.find((i) => i.id === input.streamId) ||
+            state.items.find((i) => i.id === input.itemId) || state.items.at(-1) || state.streams.at(-1);
+          if (!item.restoreBounds) focusSurface(state, item);
+          else raiseSurface(state, item);
         }
         break;
       }
@@ -664,7 +656,39 @@ export async function createApp(options = {}) {
           ownerName: s.name,
           title: text(input.title || `${s.name}’s screen`, 120, "Title"),
           colour: s.colour,
+          x: .14 + state.streams.length % 3 * .12,
+          y: .16 + state.streams.length % 3 * .1,
+          w: .5,
+          h: .5,
+          version: 1,
         });
+        raiseSurface(state, state.streams.at(-1));
+        break;
+      }
+      case "stream.move":
+      case "stream.resize":
+      case "stream.focus":
+      case "stream.raise": {
+        requireContributor(s, room);
+        const stream = state.streams.find(value => value.id === input.streamId);
+        if (!stream) fail(404, "This screen share has already stopped.");
+        owned(stream, s);
+        if (input.version !== stream.version) fail(409, "This screen window changed on another device. Try again with the latest version.");
+        if (stream.restoreBounds && ["stream.move", "stream.resize"].includes(command))
+          fail(409, "Restore the window before moving or resizing it.");
+        if (command === "stream.focus") focusSurface(state, stream);
+        else {
+          if (command === "stream.move") {
+            stream.x = number(input.x, 0, 1 - stream.w);
+            stream.y = number(input.y, 0, 1 - stream.h);
+          }
+          if (command === "stream.resize") {
+            stream.w = number(input.w, minimumSurfaceSize, 1 - stream.x);
+            stream.h = number(input.h, minimumSurfaceSize, 1 - stream.y);
+          }
+          raiseSurface(state, stream);
+          stream.version++;
+        }
         break;
       }
       case "stream.stop": {
@@ -680,6 +704,7 @@ export async function createApp(options = {}) {
     // Metadata only: do not replicate note contents, drawing points or quiz answers into the audit log.
     store.audit(room.id, s.device_id, command, {
       itemId: input.itemId,
+      streamId: input.streamId,
       deviceId: input.deviceId,
       revision: state.revision + 1,
     });
@@ -1048,6 +1073,7 @@ export async function createApp(options = {}) {
               createdAt: created,
               version: 1,
             });
+            raiseSurface(current.state, current.state.items.at(-1));
             store.audit(roomId, s.device_id, "asset.uploaded", {
               assetId,
               size: info.size,

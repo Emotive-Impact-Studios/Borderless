@@ -14,6 +14,7 @@ import {
 import { RoomClient, createRoom } from "./client.js";
 import { Board } from "./board.js";
 import { ScreenSharing } from "./rtc.js";
+import { UtilityWindows } from "./windows.js";
 
 const app = document.querySelector("#app"),
   dialog = document.querySelector("#modal"),
@@ -21,9 +22,9 @@ const app = document.querySelector("#app"),
 let client,
   board,
   sharing,
+  utilityWindows,
   state,
   view = "room",
-  panel = "people",
   tool = "select",
   status = "connecting",
   transferBusy = false,
@@ -118,21 +119,18 @@ function errorPage(message) {
 function roomShell() {
   const admin = state.me.role === "admin",
     display = view === "wall";
-  app.innerHTML = `<div class="workspace ${display ? "display-mode" : ""}">
-    <aside class="rail">${brand}<div class="rail-line"></div><nav aria-label="Room navigation">
-      <button class="rail-button active" data-action="panel.canvas" title="Canvas" aria-label="Canvas">${icon("grid", 22)}<span>Canvas</span></button>
-      <button class="rail-button" data-action="panel.people" title="People" aria-label="People">${icon("people", 22)}<span>People</span></button>
-      ${admin ? `<button class="rail-button" data-action="panel.activity" title="Activity" aria-label="Activity">${icon("clock", 22)}<span>Activity</span></button>` : ""}
-    </nav><div class="rail-bottom">${admin ? `<button class="rail-button" data-action="panel.settings" title="Room settings" aria-label="Room settings">${icon("settings", 22)}<span>Settings</span></button>` : ""}<a class="rail-button" href="/portal/${state.id}" title="Open mobile portal" aria-label="Open mobile portal">${icon("pointer", 22)}<span>Portal</span></a><button class="avatar my-avatar" data-action="my.device" title="Your device" style="--avatar:${state.me.colour}">${esc(state.me.name[0].toUpperCase())}</button></div></aside>
-    <div class="workspace-main"><header class="workspace-header"><div class="room-title"><div class="eyebrow" id="room-type">${esc(displayName(state.mode))}</div><h1>${esc(state.name)}<span class="room-status" id="room-status">Connecting</span></h1></div><div class="header-actions"><div class="avatar-stack" id="avatar-stack"></div>${admin ? button("invite.open", "Invite people", "plus", "outline") : ""}<a class="btn primary open-wall" href="/wall/${state.id}" target="_blank" rel="noopener">${icon("wall", 18)}<span>Open wall</span>${icon("arrow", 16)}</a>${button("fullscreen", "Full screen", "expand", "icon-only", 'aria-label="Full screen"')}</div></header>
-    <section class="canvas-section"><div class="canvas-topline"><div class="canvas-heading"><span class="canvas-label">THE SHARED CANVAS</span><span class="muted">/</span><span id="canvas-item-count">0 contributions</span></div><div class="canvas-utilities"><span class="theme-label" id="theme-label">Studio</span>${admin ? button("layout.grid", "Tidy up", "grid", "small") : ""}</div></div>
-      <div class="canvas-stage" id="canvas-stage" aria-label="Shared room canvas" tabindex="0"></div>
-      <div class="canvas-bottomline"><span>${icon("lock", 12)} <span id="local-status">Stored on this hub</span></span><span id="room-clock"></span><span class="zoom-controls"><button data-action="zoom.out" aria-label="Zoom out">−</button><span id="zoom-value">100%</span><button data-action="zoom.in" aria-label="Zoom in">+</button><button data-action="zoom.fit" aria-label="Fit canvas">${icon("expand", 14)}</button></span></div>
-    </section>
-    <div class="room-bottom"><div><span class="live-pulse"></span><strong id="room-footer-title">Your room is taking shape.</strong><p>Big things start with a little sharing.</p></div><div class="bottom-actions">${button("upload", "Send a file", "upload", "outline")}${button("note.add", "Add a thought", "plus", "primary")}</div></div>
-    </div>
-    <aside class="room-panel"><div id="side-panel"></div></aside>
-    <div class="floating-toolbar" role="toolbar" aria-label="Canvas tools"><button data-action="tool.select" class="active" title="Select & move" aria-label="Select & move">${icon("pointer", 21)}</button><button data-action="tool.pen" title="Draw on the canvas" aria-label="Draw on the canvas">${icon("pen", 21)}</button><button data-action="tool.pointer" title="Laser pointer" aria-label="Laser pointer">${icon("circle", 21)}</button><span class="tool-divider"></span><button data-action="note.add" title="Add a thought" aria-label="Add a thought">${icon("note", 21)}</button><button data-action="upload" title="Send a file" aria-label="Send a file">${icon("upload", 21)}</button><button data-action="screen.toggle" title="Share your screen" aria-label="Share your screen">${icon("screen", 21)}</button><span class="tool-divider"></span><button data-action="ink.undo" title="Undo your last stroke" aria-label="Undo your last stroke">${icon("undo", 21)}</button></div>
+  app.innerHTML = `<div class="workspace spatial-workspace ${display ? "display-mode" : ""}">
+    <main class="room-surface"><div class="canvas-stage" id="canvas-stage" aria-label="Shared room canvas" tabindex="0"></div></main>
+    <header class="room-hud" ${display ? "hidden" : ""}>
+      <div class="room-identity"><a href="/" class="room-home" aria-label="Borderless home">b.</a><button class="room-menu-button" data-action="panel.room" aria-label="Room menu" aria-expanded="false"><h1>${esc(state.name)}</h1>${icon("chevron", 14)}</button><span class="room-status" id="room-status">Connecting</span></div>
+      <nav class="room-actions" aria-label="Room controls">${button("panel.people", "People", "people", "small", 'aria-expanded="false"')}${admin ? button("invite.open", "Invite people", "plus", "small") + button("panel.settings", "Room settings", "settings", "icon-only small", 'aria-label="Room settings" aria-expanded="false"') : ""}${button("ui.toggle", "Hide controls", "eye", "icon-only small", 'aria-label="Hide controls"')}</nav>
+    </header>
+    <div class="utility-layer" ${display ? "hidden" : ""}></div><p id="utility-keyboard-help" class="sr-only">Use arrow keys on a window title to move it. Use arrow keys on its resize button to change its size. Hold Shift for larger steps.</p>
+    <div class="scene-status" ${display ? "hidden" : ""}><span id="canvas-item-count">0 contributions</span><span id="theme-label">Studio</span><span id="local-status">Stored on this hub</span></div>
+    <div class="scene-view" ${display ? "hidden" : ""}><span class="zoom-controls"><button data-action="zoom.out" aria-label="Zoom out">${icon("minus", 15)}</button><span id="zoom-value">100%</span><button data-action="zoom.in" aria-label="Zoom in">${icon("plus", 15)}</button><button data-action="zoom.fit" aria-label="Fit canvas">${icon("expand", 15)}</button></span><button class="icon-btn" data-action="fullscreen" aria-label="Full screen">${icon("expand", 18)}</button></div>
+    <span id="room-type" hidden>${esc(displayName(state.mode))}</span><span id="room-footer-title" hidden></span><div id="avatar-stack" hidden></div>
+    <div class="floating-toolbar" role="toolbar" aria-label="Canvas tools"><button data-action="tool.select" class="active" title="Select & move" aria-label="Select & move">${icon("pointer", 20)}</button><button data-action="tool.pen" title="Draw on the canvas" aria-label="Draw on the canvas">${icon("pen", 20)}</button><button data-action="tool.pointer" title="Laser pointer" aria-label="Laser pointer">${icon("circle", 20)}</button><button data-action="ink.undo" title="Undo your last stroke" aria-label="Undo your last stroke">${icon("undo", 20)}</button><span class="tool-divider"></span><button data-action="note.add" title="Add a thought" aria-label="Add a thought">${icon("note", 20)}</button><button data-action="upload" title="Send a file" aria-label="Send a file">${icon("upload", 20)}</button><button data-action="screen.toggle" title="Share your screen" aria-label="Share your screen">${icon("screen", 20)}</button>${admin ? `<button data-action="layout.grid" title="Arrange windows" aria-label="Tidy up">${icon("grid", 20)}</button>` : ""}</div>
+    <button class="show-controls icon-btn" data-action="ui.toggle" aria-label="Show controls" hidden>${icon("eye", 20)}</button>
     <div class="connection-banner" id="connection-banner" hidden role="alert"></div>
     ${display ? `<div class="wall-invite" id="wall-invite"></div><button class="wall-fullscreen icon-btn" data-action="fullscreen" aria-label="Full screen">${icon("expand", 24)}</button>` : ""}</div>`;
   board = new Board(document.querySelector("#canvas-stage"), client, {
@@ -145,18 +143,18 @@ function roomShell() {
     (streamId) => document.querySelector(`[data-stream="${streamId}"] video`),
     (message) => toast(message, true),
   );
+  if (!display) utilityWindows = new UtilityWindows(document.querySelector(".utility-layer"), state.id, updateWindowControls);
   updateRoom();
   if (display) loadInvite();
-  const clock = () => {
-    const el = document.querySelector("#room-clock");
-    if (el)
-      el.textContent = new Date().toLocaleTimeString("en-GB", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-  };
-  clock();
-  setInterval(clock, 60000);
+}
+
+const windowTitles = { people: "People", settings: "Room settings", activity: "Activity", room: "Room" };
+function updateWindowControls() {
+  for (const button of document.querySelectorAll('[data-action^="panel."]')) {
+    const open = utilityWindows?.isOpen(button.dataset.action.slice(6));
+    button.setAttribute("aria-expanded", String(Boolean(open)));
+    button.classList.toggle("selected", Boolean(open));
+  }
 }
 function updateRoom() {
   if (!state) return;
@@ -228,15 +226,17 @@ function updateSharingControls() {
   }
 }
 function renderPanel() {
-  const el = document.querySelector("#side-panel");
-  if (el) preserveFocus(el, renderPanelContents);
+  for (const entry of utilityWindows?.windows.values() || [])
+    if (!entry.root.hidden) preserveFocus(entry.body, () => renderPanelContents(entry.body, entry.id));
 }
-function renderPanelContents() {
-  const el = document.querySelector("#side-panel");
-  if (!el) return;
+function renderPanelContents(el, kind) {
   const admin = state.me.role === "admin";
-  if (panel === "settings" && admin) {
-    el.innerHTML = `<div class="panel-heading"><h2>Set the scene.</h2><span>ROOM SETTINGS</span></div><p class="panel-intro">A space that fits the way you work.</p><div class="setting-section"><h3>Look & feel</h3><div class="theme-grid">${Object.entries(
+  if (kind === "room") {
+    el.innerHTML = `<p class="panel-intro">${esc(state.name)} · ${esc(displayName(state.mode))}</p><div class="room-window-actions"><a class="btn outline full" href="/wall/${state.id}" target="_blank" rel="noopener">${icon("wall")}Open wall</a><a class="btn outline full" href="/portal/${state.id}">${icon("pointer")}Open mobile portal</a>${button("my.device", "Your device", "people", "full subtle")}${admin ? button("panel.activity", "Activity", "clock", "full subtle") : ""}${button("ink.export", "Save whiteboard", "download", "full subtle")}</div><p class="form-hint">Move the windows by their title bars. Room tools open over the canvas and can be closed.</p>`;
+    return;
+  }
+  if (kind === "settings" && admin) {
+    el.innerHTML = `<p class="panel-intro">Changes apply to everyone in this room.</p><div class="setting-section"><h3>Theme</h3><div class="theme-grid">${Object.entries(
       themeNames,
     )
       .map(
@@ -248,7 +248,7 @@ function renderPanelContents() {
       )}</div></div><div class="setting-section"><h3>Make an entrance</h3><div class="segmented effects-options">${["ripple", "liquid", "particles", "none"].map((effect) => `<button data-action="effect" data-effect="${effect}" class="${state.effect === effect ? "selected" : ""}">${effect[0].toUpperCase() + effect.slice(1)}</button>`).join("")}</div></div><div class="setting-section"><h3>Take it with you</h3>${button("room.export", "Export session", "download", "full outline")}${button("ink.export", "Save whiteboard as SVG", "pen", "full subtle")}${button("audit.export", "Export verified audit", "clock", "full subtle")}</div><div class="setting-section danger-zone"><h3>Room controls</h3>${button("room.lock", state.locked ? "Resume contributions" : "Pause contributions", state.locked ? "unlock" : "lock", "full outline")}${button("room.clear", "Clear the canvas", "trash", "full subtle")}${state.cleanupPending ? button("room.cleanup", `Retry ${state.cleanupPending} pending file deletions`, "return", "full outline") : ""}${button("room.purge", "Purge files & pause room", "lock", "full danger")}${button("room.end", "End this session", "close", "full danger")}</div>`;
     return;
   }
-  if (panel === "activity" && admin) {
+  if (kind === "activity" && admin) {
     el.innerHTML = `<div class="panel-heading"><h2>The room’s story.</h2><span>AUDIT TRAIL</span></div><p class="panel-intro">Verified events, kept on this hub.</p><div class="activity-list">${
       activity.length
         ? activity
@@ -686,18 +686,20 @@ document.addEventListener("click", async (event) => {
   if (!state) return;
   try {
     if (action.startsWith("panel.")) {
-      panel = action.split(".")[1];
-      if (panel === "canvas") panel = "people";
-      document
-        .querySelectorAll(".rail-button")
-        .forEach((b) => b.classList.toggle("active", b === target));
-      document
-        .querySelector(".room-panel")
-        ?.classList.toggle("mobile-open", action !== "panel.canvas");
-      if (panel === "activity") {
+      const kind = action.split(".")[1];
+      if (!utilityWindows || !windowTitles[kind]) return;
+      if (["settings", "activity"].includes(kind) && state.me.role !== "admin") return;
+      if (kind === "activity" && !utilityWindows.isOpen(kind)) {
         activity = (await client.api("audit")).events;
       }
-      renderPanel();
+      utilityWindows.open(kind, windowTitles[kind], renderPanelContents, target);
+      return;
+    }
+    if (action === "ui.toggle") {
+      const root = document.querySelector(".spatial-workspace");
+      const hidden = root.classList.toggle("controls-hidden");
+      document.querySelector(".show-controls").hidden = !hidden;
+      document.querySelector(hidden ? "#canvas-stage" : '[data-action="ui.toggle"]')?.focus({ preventScroll: true });
       return;
     }
     if (action === "invite.open") return await inviteModal();
@@ -957,6 +959,15 @@ document.addEventListener("click", async (event) => {
       else await sharing.start();
       return;
     }
+    if (action === "surface.focus") {
+      const element = target.closest("[data-item],[data-stream]");
+      if (element) await board.focus(element);
+      return;
+    }
+    if (action === "stream.stop") {
+      await client.command("stream.stop", { streamId: target.dataset.id });
+      return;
+    }
     if (action === "stream.audio") {
       const video = document.querySelector(
         `[data-stream="${target.dataset.id}"] video`,
@@ -1128,6 +1139,12 @@ document.addEventListener("keydown", (event) => {
     activatePortalTab(names[next], true);
   }
   if (event.key === "Escape") {
+    if (!dialog.open) {
+      const utility = event.target.closest("[data-window]");
+      if (utility) utilityWindows?.close(utility.dataset.window);
+      const root = document.querySelector(".controls-hidden");
+      if (root) { root.classList.remove("controls-hidden"); root.querySelector(".show-controls").hidden = true; }
+    }
     if (pointerActive) client?.send({ type: "pointer", x: .5, y: .5, active: false });
     pointerActive = false;
     document.querySelector("#pointer-pad")?.classList.remove("pressed");
@@ -1288,6 +1305,7 @@ async function boot() {
   } catch (error) {
     client.close();
     board?.destroy();
+    utilityWindows?.destroy();
     if (error.status === 401) await joinPage({ expired: true });
     else errorPage(error.message);
   }

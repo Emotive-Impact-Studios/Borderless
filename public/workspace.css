@@ -1,0 +1,203 @@
+/* The room is the workspace. Chrome overlays it; no region reserves a sidebar. */
+.workspace.spatial-workspace {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--canvas);
+  --window-shadow: 0 10px 32px #17251b22;
+}
+.spatial-workspace .room-surface,
+.spatial-workspace .canvas-stage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+}
+.spatial-workspace .room-hud {
+  position: absolute;
+  inset: 16px 16px auto;
+  z-index: 25;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  pointer-events: none;
+}
+.spatial-workspace .room-identity,
+.spatial-workspace .room-actions,
+.spatial-workspace .scene-view,
+.spatial-workspace .floating-toolbar {
+  background: var(--surface);
+  border: 0;
+  box-shadow: 0 3px 16px #17251b18;
+  border-radius: 12px;
+  pointer-events: auto;
+}
+.spatial-workspace .room-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  max-width: min(52%, 520px);
+  min-height: 48px;
+}
+.spatial-workspace .room-home {
+  color: var(--ink);
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: -.04em;
+  line-height: 1;
+}
+.spatial-workspace .room-menu-button {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+  padding: 4px 0;
+  text-align: left;
+}
+.spatial-workspace .room-menu-button h1 {
+  font-size: 14px;
+  line-height: 1.4;
+  letter-spacing: -.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.spatial-workspace .room-status { flex-shrink: 0; font-size: 10px; }
+.spatial-workspace .room-actions { display: flex; gap: 4px; padding: 4px; }
+.spatial-workspace .room-actions .btn { min-height: 40px; padding: 9px 12px; }
+.spatial-workspace .room-actions .icon-only { width: 40px; padding: 9px; }
+.spatial-workspace .room-actions .selected,
+.spatial-workspace .room-menu-button.selected { color: var(--strong); }
+.spatial-workspace .scene-status {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 2px 10px;
+  color: var(--muted);
+  font-size: 11px;
+  pointer-events: none;
+}
+.spatial-workspace #local-status { grid-column: 1 / -1; font-size: 10px; }
+.spatial-workspace .scene-view { position: absolute; right: 16px; bottom: 16px; z-index: 20; display: flex; align-items: center; padding: 4px; gap: 6px; }
+.spatial-workspace .zoom-controls { gap: 6px; font-size: 11px; }
+.spatial-workspace .zoom-controls button { width: 26px; height: 32px; display: grid; place-items: center; }
+.spatial-workspace .floating-toolbar {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 25;
+  padding: 6px;
+  gap: 4px;
+  display: flex;
+  align-items: center;
+}
+.spatial-workspace .floating-toolbar button { width: 38px; height: 38px; color: var(--muted); }
+.spatial-workspace .floating-toolbar button.active { color: var(--accent-ink); background: var(--accent); }
+.spatial-workspace .floating-toolbar button.is-sharing { width: auto; padding: 0 10px; color: var(--danger); }
+.spatial-workspace.display-mode .floating-toolbar { display: none; }
+.spatial-workspace .show-controls { position: absolute; right: 16px; top: 16px; z-index: 110; background: var(--surface); box-shadow: var(--window-shadow); }
+.spatial-workspace.controls-hidden .room-hud,
+.spatial-workspace.controls-hidden .floating-toolbar,
+.spatial-workspace.controls-hidden .scene-status,
+.spatial-workspace.controls-hidden .scene-view,
+.spatial-workspace.controls-hidden .utility-layer { visibility: hidden; pointer-events: none; }
+.spatial-workspace .utility-layer { position: absolute; inset: 0; z-index: 30; pointer-events: none; }
+.utility-window {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 12px;
+  box-shadow: var(--window-shadow);
+  overflow: hidden;
+  pointer-events: auto;
+}
+.utility-titlebar { display: flex; align-items: center; flex-shrink: 0; gap: 4px; min-height: 44px; background: var(--bg); padding: 4px 6px 4px 12px; }
+.utility-drag { flex: 1; min-width: 0; text-align: left; padding: 6px 0; font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; touch-action: none; cursor: grab; }
+.utility-drag:active { cursor: grabbing; }
+.utility-content { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 18px 20px 26px; scrollbar-width: thin; scrollbar-color: var(--muted) transparent; }
+.utility-resize { position: absolute; right: 0; bottom: 0; width: 24px; height: 24px; background: var(--surface); color: var(--muted); display: grid; place-items: center; cursor: nwse-resize; touch-action: none; border-radius: 6px 0 0; }
+.utility-content .panel-heading { display: none; }
+.utility-content .panel-intro { margin: 0 0 16px; font-size: 12px; }
+.utility-content .setting-section { margin: 20px 0 0; padding-top: 16px; }
+.utility-content .people-list { margin-top: 0; }
+.utility-content .person { padding: 12px 0; }
+.utility-content .person small { font-size: 11px; }
+.utility-content .person strong { font-size: 12px; }
+.utility-content .eyebrow { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 600; }
+.utility-content .tool-cards { gap: 14px; }
+.utility-content .tool-cards small { font-size: 11px; }
+.utility-content .panel-footnote { margin-top: 20px; font-size: 11px; }
+.room-window-actions { display: grid; gap: 8px; }
+.spatial-workspace .canvas-item { display: flex; flex-direction: column; min-width: 0; min-height: 0; border: 0; border-radius: 10px; box-shadow: var(--window-shadow); overflow: hidden; transform: none; }
+.spatial-workspace .canvas-item:hover { transform: none; }
+.spatial-workspace .item-bar { position: relative; inset: auto; display: flex; flex-shrink: 0; min-height: 34px; gap: 8px; padding: 4px 7px 4px 10px; background: var(--surface); color: var(--ink); font-size: 11px; cursor: grab; }
+.spatial-workspace .item-window-title { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 550; }
+.spatial-workspace .item-owner { color: var(--muted); flex-shrink: 0; max-width: 22%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spatial-workspace .item-bar button { display: grid; place-items: center; flex-shrink: 0; width: 26px; height: 26px; padding: 4px; border-radius: 5px; }
+.spatial-workspace .item-bar button:hover { color: var(--ink); background: var(--bg); }
+.spatial-workspace .item-preview { position: relative; flex: 1; min-height: 0; width: 100%; overflow: hidden; }
+.spatial-workspace .note-text { height: 100%; padding: 16px 18px; font-family: inherit; font-size: clamp(14px, 1.4vw, 20px); line-height: 1.6; letter-spacing: 0; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.spatial-workspace .text-preview { margin: 0; width: 100%; height: 100%; padding: 14px 16px 24px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.65; color: var(--ink); text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; overflow: auto; scrollbar-width: thin; scrollbar-color: var(--muted) transparent; }
+.spatial-workspace.display-mode .note-text { font-size: clamp(18px, 1.3vw, 44px); }
+.spatial-workspace.display-mode .text-preview { font-size: clamp(12px, .6vw, 24px); }
+.spatial-workspace .preview-limit { position: absolute; bottom: 0; left: 0; right: 0; padding: 4px 12px; background: var(--surface); color: var(--muted); font-size: 10px; }
+.spatial-workspace .document-preview { min-height: 100%; padding: 20px; }
+.spatial-workspace .document-preview span { font-size: 22px; }
+.spatial-workspace .resize-handle { opacity: .55; z-index: 3; }
+.spatial-workspace .window-focused .resize-handle { display: none; }
+.spatial-workspace .stream-tile { position: absolute; background: #101513; color: var(--ink); min-height: 0; pointer-events: auto; }
+.spatial-workspace .stream-tile video { flex: 1; min-height: 0; width: 100%; height: 0; max-height: none; object-fit: contain; background: #101513; }
+.spatial-workspace .stream-audio { z-index: 2; font-size: 11px; padding: 5px 8px; bottom: 10px; right: 10px; }
+.spatial-workspace .canvas-empty { gap: 12px; pointer-events: none; padding: 24px; }
+.spatial-workspace .canvas-empty h2 { font-size: clamp(25px, 3vw, 42px); letter-spacing: -.03em; }
+.spatial-workspace .canvas-empty p { font-size: 14px; max-width: 45ch; }
+.spatial-workspace .empty-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; pointer-events: auto; }
+.spatial-workspace .wall-invite { z-index: 20; border: 0; box-shadow: var(--window-shadow); }
+.spatial-workspace .wall-quiz { z-index: 21; }
+.spatial-workspace ::selection { background: var(--accent); color: var(--accent-ink); }
+.spatial-workspace input,
+.spatial-workspace textarea { caret-color: var(--strong); }
+@media (max-width: 900px) {
+  .spatial-workspace .scene-status { max-width: 150px; }
+  .spatial-workspace #local-status { display: none; }
+  .spatial-workspace .scene-view { bottom: 76px; }
+  .spatial-workspace .room-identity { max-width: 48%; }
+  .spatial-workspace .item-owner { display: none; }
+}
+@media (max-width: 600px) {
+  .spatial-workspace .room-hud { inset: 12px 12px auto; flex-wrap: wrap; gap: 8px; }
+  .spatial-workspace .room-identity { max-width: 100%; }
+  .spatial-workspace .room-actions { margin-left: auto; }
+  .spatial-workspace .room-actions .btn { min-height: 36px; padding: 7px 9px; }
+  .spatial-workspace .room-actions .icon-only { width: 36px; }
+  .spatial-workspace .scene-status,
+  .spatial-workspace .scene-view { display: none; }
+  .spatial-workspace .floating-toolbar { bottom: 12px; max-width: calc(100% - 24px); }
+  .spatial-workspace .floating-toolbar button { width: 34px; height: 38px; }
+  .spatial-workspace .floating-toolbar button.is-sharing span { display: none; }
+  .spatial-workspace .tool-divider { display: none; }
+  .utility-content { padding: 16px 16px 28px; }
+}
+@media (pointer: coarse) {
+  .utility-titlebar { min-height: 50px; }
+  .utility-close { width: 44px; height: 44px; }
+  .utility-resize { width: 36px; height: 36px; }
+  .spatial-workspace .room-actions .btn { min-height: 44px; }
+  .spatial-workspace .floating-toolbar { display: grid; grid-template-columns: repeat(4, 44px); gap: 4px; }
+  .spatial-workspace .floating-toolbar button { width: 44px; height: 44px; }
+  .spatial-workspace .tool-divider { display: none; }
+}

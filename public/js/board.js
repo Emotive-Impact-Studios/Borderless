@@ -15,8 +15,9 @@ export class Board {
     this.mode = "select";
     this.zoom = 1;
     this.nodes = new Map();
+    this.previews = new Map();
     this.pointers = new Map();
-    element.innerHTML = `<p id="canvas-keyboard-help" class="sr-only">Press Enter or Space to open a contribution. Owners and room leaders can use arrow keys to move it, Alt and arrow keys to resize, and Shift for larger steps.</p><div class="canvas-world"><div class="items-layer"></div><svg class="ink-layer" viewBox="0 0 1920 1080" preserveAspectRatio="none" aria-hidden="true"></svg><div class="pointer-layer"></div><canvas class="effects-layer" aria-hidden="true"></canvas></div><div class="canvas-empty"></div><div class="stream-dock"></div><div class="board-drop-overlay">${icon("upload", 44)}<h2>Make the leap.</h2><p>Drop your files onto the shared canvas.</p></div><div class="sr-only board-announcement" role="status" aria-live="polite" aria-atomic="true"></div>`;
+    element.innerHTML = `<p id="canvas-keyboard-help" class="sr-only">Press Enter or Space to open a contribution or focus a live screen. Owners and room leaders can use arrow keys to move it, Alt and arrow keys to resize, and Shift for larger steps. Restore a focused window before arranging it.</p><div class="canvas-world"><div class="items-layer"></div><svg class="ink-layer" viewBox="0 0 1920 1080" preserveAspectRatio="none" aria-hidden="true"></svg><div class="pointer-layer"></div><canvas class="effects-layer" aria-hidden="true"></canvas></div><div class="canvas-empty"></div><div class="board-drop-overlay">${icon("upload", 44)}<h2>Send to the room</h2><p>Drop a file into the shared space.</p></div><div class="sr-only board-announcement" role="status" aria-live="polite" aria-atomic="true"></div>`;
     this.world = element.querySelector(".canvas-world");
     this.items = element.querySelector(".items-layer");
     this.ink = element.querySelector(".ink-layer");
@@ -87,38 +88,54 @@ export class Board {
     this.mode = mode;
     this.element.dataset.tool = mode;
   }
+  surface(node) {
+    if (!node || !this.state) return null;
+    const kind = node.dataset.stream ? "stream" : "item";
+    const id = node.dataset.stream || node.dataset.item;
+    const value = (kind === "stream" ? this.state.streams : this.state.items).find(value => value.id === id);
+    return value ? { kind, value, reference: { [kind === "stream" ? "streamId" : "itemId"]: id } } : null;
+  }
+  canArrange(value) { return !this.display && (value.ownerId === this.state.me.id || this.state.me.role === "admin"); }
+  async focus(node) {
+    const surface = this.surface(node);
+    if (!surface || !this.canArrange(surface.value)) return;
+    try { await this.client.command(`${surface.kind}.focus`, { ...surface.reference, version: surface.value.version }); }
+    catch (error) { toast(error.message, true); }
+  }
   keydown = async (event) => {
-    const node = event.target.closest("[data-item]");
+    const node = event.target.closest("[data-item],[data-stream]");
     if (!node || event.target !== node || !this.state || event.ctrlKey || event.metaKey) return;
     if (["Enter", " "].includes(event.key)) {
       event.preventDefault();
-      this.onSelect(node.dataset.item);
+      if (node.dataset.stream) this.focus(node);
+      else this.onSelect(node.dataset.item);
       return;
     }
     const direction = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
     if (!direction) return;
     event.preventDefault();
-    const item = this.state.items.find(item => item.id === node.dataset.item);
+    const surface = this.surface(node), item = surface?.value;
     const announce = message => { this.element.querySelector(".board-announcement").textContent = message; };
     if (!item) return;
-    if (this.display || (item.ownerId !== this.state.me.id && this.state.me.role !== "admin")) {
+    if (!this.canArrange(item)) {
       announce("Only the owner or room leader can arrange this contribution.");
       return;
     }
+    if (item.restoreBounds) { announce("Restore the window before moving or resizing it."); return; }
     if (this.keyPending) return;
     const step = event.shiftKey ? 0.05 : 0.01;
     const [dx, dy] = direction.map(value => value * step);
     const resize = event.altKey;
     const geometry = resize ? {
-      w: Math.max(.12, Math.min(1 - item.x, item.w + dx)),
-      h: Math.max(.12, Math.min(1 - item.y, item.h + dy)),
+      w: Math.max(.08, Math.min(1 - item.x, item.w + dx)),
+      h: Math.max(.08, Math.min(1 - item.y, item.h + dy)),
     } : {
       x: Math.max(0, Math.min(1 - item.w, item.x + dx)),
       y: Math.max(0, Math.min(1 - item.h, item.y + dy)),
     };
     this.keyPending = true;
     try {
-      await this.client.command(resize ? "item.resize" : "item.move", { itemId: item.id, version: item.version, ...geometry });
+      await this.client.command(`${surface.kind}.${resize ? "resize" : "move"}`, { ...surface.reference, version: item.version, ...geometry });
       announce(resize
         ? `${item.title} resized to ${Math.round(geometry.w * 100)} by ${Math.round(geometry.h * 100)} percent.`
         : `${item.title} moved to ${Math.round(geometry.x * 100)} percent across, ${Math.round(geometry.y * 100)} percent down.`);
@@ -165,15 +182,20 @@ export class Board {
       this.client.send({ type: "pointer", x, y, active: true });
       return;
     }
-    const target = event.target.closest("[data-item]");
+    const target = event.target.closest("[data-item],[data-stream]");
     if (target) {
-      const item = this.state.items.find((i) => i.id === target.dataset.item);
-      if (item.ownerId !== this.state.me.id && this.state.me.role !== "admin") {
-        this.onSelect(item.id);
+      if (!event.target.closest(".item-bar,.resize-handle")) return;
+      const surface = this.surface(target), item = surface?.value;
+      if (!item) return;
+      if (!this.canArrange(item)) {
+        if (surface.kind === "item") this.onSelect(item.id);
         return;
       }
+      if (item.restoreBounds) return;
       this.drag = {
         item,
+        kind: surface.kind,
+        reference: surface.reference,
         el: target,
         x,
         y,
@@ -182,6 +204,8 @@ export class Board {
         resize: Boolean(event.target.closest(".resize-handle")),
       };
       target.classList.add("moving");
+      target.style.zIndex = 100;
+      target.focus({ preventScroll: true });
       this.element.setPointerCapture(event.pointerId);
       event.preventDefault();
     }
@@ -209,8 +233,8 @@ export class Board {
     if (this.drag) {
       const d = this.drag;
       if (d.resize) {
-        d.w = Math.max(0.12, Math.min(1 - d.item.x, d.item.w + x - d.x));
-        d.h = Math.max(0.12, Math.min(1 - d.item.y, d.item.h + y - d.y));
+        d.w = Math.max(0.08, Math.min(1 - d.item.x, d.item.w + x - d.x));
+        d.h = Math.max(0.08, Math.min(1 - d.item.y, d.item.h + y - d.y));
         d.el.style.width = `${d.w * 100}%`;
         d.el.style.height = `${d.h * 100}%`;
       } else {
@@ -248,19 +272,20 @@ export class Board {
       d.el.classList.remove("moving");
       try {
         if (d.resize && d.w)
-          await this.client.command("item.resize", {
-            itemId: d.item.id,
+          await this.client.command(`${d.kind}.resize`, {
+            ...d.reference,
             version: d.item.version,
             w: d.w,
             h: d.h,
           });
         else if (d.targetX !== undefined)
-          await this.client.command("item.move", {
-            itemId: d.item.id,
+          await this.client.command(`${d.kind}.move`, {
+            ...d.reference,
             version: d.item.version,
             x: d.targetX,
             y: d.targetY,
           });
+        else await this.client.command(`${d.kind}.raise`, { ...d.reference, version: d.item.version });
       } catch (error) {
         toast(error.message, true);
         this.update(this.client.state);
@@ -305,6 +330,8 @@ export class Board {
       if (!ids.has(itemId)) {
         if (node.contains(document.activeElement)) this.element.focus({ preventScroll: true });
         node.remove();
+        this.previews.get(itemId)?.abort();
+        this.previews.delete(itemId);
         this.nodes.delete(itemId);
       }
     state.items.forEach((item, index) => {
@@ -320,7 +347,7 @@ export class Board {
         this.nodes.set(item.id, node);
         this.items.append(node);
       }
-      node.style.zIndex = index + 1;
+      if (this.drag?.item.id !== item.id) node.style.zIndex = item.z ?? index + 1;
       node.setAttribute("aria-label", `${item.title}, by ${item.ownerName}`);
       node.style.setProperty("--owner-colour", item.colour);
       if (this.drag?.item.id !== item.id)
@@ -330,7 +357,8 @@ export class Board {
           width: `${item.w * 100}%`,
           height: `${item.h * 100}%`,
         });
-      if (node.dataset.version !== String(item.version)) {
+      const signature = JSON.stringify([item.title, item.text, item.assetId, item.mime, item.ownerName, this.canArrange(item)]);
+      if (node.dataset.content !== signature) {
         const focusedAction = node.contains(document.activeElement) ? document.activeElement.dataset.action : null;
         const asset = this.client.assetURL(item.assetId);
         let preview = "";
@@ -342,12 +370,20 @@ export class Board {
           preview = `<video src="${asset}" controls playsinline preload="metadata" aria-label="${esc(item.title)}"></video>`;
         else if (item.mime.startsWith("audio/"))
           preview = `<div class="audio-preview">${icon("play", 32)}<audio src="${asset}" controls preload="metadata" aria-label="${esc(item.title)}"></audio></div>`;
+        else if (item.mime === "text/plain")
+          preview = `<pre class="text-preview">Loading preview…</pre><span class="preview-limit" hidden>Preview of the first 16 KB. Open the file to read more.</span>`;
         else
           preview = `<div class="document-preview"><span>${esc(item.title.split(".").at(-1).toUpperCase())}</span><strong>${esc(item.title)}</strong><small>${bytes(item.size)} · Open to view</small></div>`;
-        node.innerHTML = `<div class="item-bar"><span class="owner-dot"></span><span>${esc(item.ownerName)}</span><button class="item-open" data-action="item.open" data-id="${item.id}" aria-label="Open ${esc(item.title)}">${icon("expand", 14)}</button></div><div class="item-preview">${preview}</div><div class="item-caption">${esc(item.title)}</div><span class="resize-handle" aria-hidden="true"></span>`;
-        node.dataset.version = item.version;
+        const arrange = this.canArrange(item);
+        node.innerHTML = `<div class="item-bar"><span class="owner-dot"></span><span class="item-window-title">${esc(item.title)}</span><span class="item-owner">${esc(item.ownerName)}</span>${arrange ? `<button class="item-focus" data-action="surface.focus" data-id="${item.id}" data-kind="item">${icon("expand", 14)}</button>` : ""}<button class="item-open" data-action="item.open" data-id="${item.id}" aria-label="Open ${esc(item.title)}">${icon("file", 14)}</button></div><div class="item-preview">${preview}</div>${arrange ? '<span class="resize-handle" aria-hidden="true"></span>' : ""}`;
+        node.dataset.content = signature;
+        if (item.mime === "text/plain") this.previewText(node, item);
         if (focusedAction === "item.open") node.querySelector(".item-open").focus({ preventScroll: true });
       }
+      node.dataset.version = item.version;
+      node.classList.toggle("window-focused", Boolean(item.restoreBounds));
+      const focus = node.querySelector(".item-focus");
+      if (focus) { focus.setAttribute("aria-label", `${item.restoreBounds ? "Restore" : "Focus"} ${item.title}`); focus.setAttribute("aria-pressed", String(Boolean(item.restoreBounds))); }
       if (isNew && !first)
         this.effects.play(
           item.x + item.w / 2,
@@ -356,24 +392,64 @@ export class Board {
           state.effect,
         );
     });
+    const visibleStreams = state.streams.filter(stream => ["admin", "wall"].includes(state.me.role) || stream.ownerId === state.me.id);
     const empty = this.element.querySelector(".canvas-empty");
     empty.hidden =
       state.items.length > 0 ||
-      state.streams.length > 0 ||
+      visibleStreams.length > 0 ||
       state.strokes.length > 0;
-    empty.innerHTML = `<div class="canvas-empty-art"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><span>${icon("spark", 30)}</span></div><div class="eyebrow">A little space. A lot of possibility.</div><h2>Every idea belongs here.</h2><p>${this.display ? "Join the room to send a file, share a screen or add your perspective." : "Drop a file, leave a thought, or bring your screen into the room."}</p>${!this.display ? '<button class="text-btn" data-action="note.add">Add the first thought ' + icon("arrow", 16) + "</button>" : ""}`;
+    if (!empty.dataset.rendered) {
+      empty.innerHTML = `<h2>Make this space yours.</h2><p>${this.display ? "Join the room from your phone or laptop to contribute." : "Drop a file or bring a live window into the room."}</p>${!this.display ? '<div class="empty-actions"><button class="btn outline" data-action="upload">' + icon("upload", 18) + 'Send a file</button><button class="btn outline" data-action="screen.toggle">' + icon("screen", 18) + 'Share your screen</button></div>' : ""}`;
+      empty.dataset.rendered = "true";
+    }
     this.paintInk();
-    const dock = this.element.querySelector(".stream-dock");
-    const streamIds = new Set(state.streams.map((x) => x.id));
+    const dock = this.items;
+    const streamIds = new Set(visibleStreams.map((x) => x.id));
     for (const tile of dock.querySelectorAll("[data-stream]"))
-      if (!streamIds.has(tile.dataset.stream)) tile.remove();
-    for (const stream of state.streams) {
-      if (dock.querySelector(`[data-stream="${stream.id}"]`)) continue;
-      const tile = document.createElement("div");
-      tile.className = "stream-tile";
-      tile.dataset.stream = stream.id;
-      tile.innerHTML = `<div class="stream-label"><span class="live-pulse"></span>${esc(stream.title)}</div><video autoplay playsinline muted aria-label="${esc(stream.title)}"></video><button class="stream-audio" data-action="stream.audio" data-id="${stream.id}">Enable audio</button>`;
-      dock.append(tile);
+      if (!streamIds.has(tile.dataset.stream)) {
+        if (tile.contains(document.activeElement)) this.element.focus({ preventScroll: true });
+        tile.remove();
+      }
+    for (const stream of visibleStreams) {
+      let tile = dock.querySelector(`[data-stream="${stream.id}"]`);
+      if (!tile) {
+        tile = document.createElement("article");
+        tile.className = "stream-tile canvas-item stream-item";
+        tile.dataset.stream = stream.id;
+        tile.tabIndex = 0;
+        tile.setAttribute("role", "group");
+        tile.setAttribute("aria-describedby", "canvas-keyboard-help");
+        const arrange = this.canArrange(stream);
+        tile.innerHTML = `<div class="item-bar"><span class="owner-dot"></span><span class="item-window-title">${esc(stream.title)}</span><span class="item-owner">Live</span>${arrange ? `<button class="item-focus" data-action="surface.focus" data-kind="stream" data-id="${stream.id}">${icon("expand", 14)}</button><button class="stream-stop" data-action="stream.stop" data-id="${stream.id}" aria-label="Stop sharing ${esc(stream.title)}">${icon("close", 14)}</button>` : ""}</div><video autoplay playsinline muted aria-label="${esc(stream.title)}"></video><button class="stream-audio" data-action="stream.audio" data-id="${stream.id}">Enable audio</button>${arrange ? '<span class="resize-handle" aria-hidden="true"></span>' : ""}`;
+        dock.append(tile);
+      }
+      tile.setAttribute("aria-label", `${stream.title}, live window by ${stream.ownerName}`);
+      tile.style.setProperty("--owner-colour", stream.colour);
+      if (this.drag?.item.id !== stream.id)
+        Object.assign(tile.style, { left: `${stream.x * 100}%`, top: `${stream.y * 100}%`, width: `${stream.w * 100}%`, height: `${stream.h * 100}%`, zIndex: stream.z });
+      tile.dataset.version = stream.version;
+      tile.classList.toggle("window-focused", Boolean(stream.restoreBounds));
+      const focus = tile.querySelector(".item-focus");
+      if (focus) { focus.setAttribute("aria-label", `${stream.restoreBounds ? "Restore" : "Focus"} ${stream.title}`); focus.setAttribute("aria-pressed", String(Boolean(stream.restoreBounds))); }
+    }
+  }
+  async previewText(node, item) {
+    this.previews.get(item.id)?.abort();
+    const controller = new AbortController();
+    this.previews.set(item.id, controller);
+    const preview = node.querySelector(".text-preview");
+    try {
+      if (!item.size) { preview.textContent = "Empty text file"; return; }
+      const response = await fetch(this.client.assetURL(item.assetId), { headers: { Range: "bytes=0-16383" }, signal: controller.signal });
+      if (!response.ok) throw new Error("Preview unavailable. Open the file to read it.");
+      const contents = await response.text();
+      if (controller.signal.aborted || !preview.isConnected) return;
+      preview.textContent = contents;
+      node.querySelector(".preview-limit").hidden = item.size <= 16384;
+    } catch (error) {
+      if (!controller.signal.aborted && preview.isConnected) preview.textContent = "Preview unavailable. Open the file to read it.";
+    } finally {
+      if (this.previews.get(item.id) === controller) this.previews.delete(item.id);
     }
   }
   paintInk() {
@@ -399,5 +475,7 @@ export class Board {
     this.input.abort();
     clearInterval(this.sweep);
     this.effects.destroy();
+    for (const controller of this.previews.values()) controller.abort();
+    this.previews.clear();
   }
 }

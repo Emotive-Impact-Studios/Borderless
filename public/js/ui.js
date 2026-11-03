@@ -7,6 +7,7 @@ export const esc = (value) =>
       ],
   );
 const paths = {
+  minus: "M5 12h14",
   plus: "M12 5v14M5 12h14",
   arrow: "M5 12h14m-6-6 6 6-6 6",
   up: "M12 19V5m-6 6 6-6 6 6",
