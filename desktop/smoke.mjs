@@ -123,12 +123,18 @@ try {
     element.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: transfer }));
   }, png);
   await wall.getByRole("img", { name: "drop.png", exact: true }).waitFor();
-  assert.equal(await wall.getByRole("img", { name: "drop.png", exact: true }).evaluate(image => image.complete && image.naturalWidth === 1), true);
-  await leader.getByRole("button", { name: "Tidy up", exact: true }).click();
+  assert.equal(await wall.getByRole("img", { name: "drop.png", exact: true }).evaluate(async image => { await image.decode(); return image.naturalWidth === 1; }), true);
   const card = leader.locator(".canvas-item").filter({ has: leader.getByRole("button", { name: "Open lab.txt", exact: true }) });
   const itemId = await card.getAttribute("data-item");
-  const waitVersion = async (version) => leader.waitForFunction(({ itemId, version }) => document.querySelector(`[data-item="${itemId}"]`)?.dataset.version !== version, { itemId, version });
+  const waitVersion = async (version) => leader.waitForFunction(({ itemId, version }) => {
+    const item = document.querySelector(`[data-item="${itemId}"]`);
+    return Boolean(item) && item.dataset.version !== version;
+  }, { itemId, version });
+  const beforeLayout = await card.getAttribute("data-version");
+  await leader.getByRole("button", { name: "Tidy up", exact: true }).click();
+  await waitVersion(beforeLayout);
   const version = await card.getAttribute("data-version");
+  await card.locator(".item-bar").waitFor({ state: "visible" });
   const header = await card.locator(".item-bar").boundingBox();
   await leader.mouse.move(header.x + 30, header.y + 8);
   await leader.mouse.down();

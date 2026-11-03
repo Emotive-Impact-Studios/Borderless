@@ -19,6 +19,7 @@ The host administrator remains privileged. Someone who can read the data directo
 - No direct public file storage path, uploaded scripts, arbitrary server file paths, shell interpolation or auto-execution of received files.
 - Escaped participant text and a self-hosted CSP with no third-party scripts, fonts or analytics.
 - Renderer sandbox, context isolation, disabled Node integration, narrow preload API, main-frame origin validation, explicit native file-open confirmation and extension allowlist.
+- Explicit trusted-main-frame consent for Chromium local-network/loopback permissions; independent macOS Local Network privacy remains enforced.
 - Ed25519 verification for explicitly supplied release packages. A signed manifest also constrains platform, version, size, hash and expiry.
 
 ## Known release boundaries
@@ -29,9 +30,9 @@ The host administrator remains privileged. Someone who can read the data directo
 4. **Device identity:** One quiz answer is per session/device identity. There is no school directory, student roster binding or proof that one human has not rejoined.
 5. **Active documents:** Basic filename/magic checks are not antivirus or content disarm. PDF and Office content can carry risk in the receiving application. Native opening is explicit and should be limited to trusted content.
 6. **Storage lifecycle:** File writes and SQLite commits are not one filesystem/database transaction. Startup reconciles abandoned `.part` and orphan ciphertext files. Purge commits removal of room access and durable cleanup jobs together, then attempts unlink before responding. Filesystem failures remain visible to the leader and retry automatically or manually. This is not certified hardware secure erasure and cannot recall participant downloads or backups.
-7. **Availability:** One local process and one SQLite writer; no HA, distributed failover, hostile-network DDoS claim or unattended enterprise retention. Command receipts and historical sessions need managed retention for long-running hubs.
+7. **Availability and retention:** One authoritative hub process and one SQLite writer; the desktop hub is isolated from native dialogs. No HA, distributed failover or hostile-network DDoS claim. Expired/revoked credentials and their command receipts retire at startup and every 30 seconds, preserving active-session retry receipts. Room/content/audit retention policy and unattended enterprise operation remain release gates. Logical SQL deletion does not erase old database pages or backups.
 8. **Media:** WebRTC uses local ICE candidates only. Do not assume it crosses isolated Wi-Fi clients, VLANs, NAT or firewalls. The source does not implement remote mouse/keyboard injection into shared desktop applications.
-9. **Native validation:** The wrapper source has not been launched, signed or notarised in this build environment. IPC boundaries must be exercised on real native builds before distribution.
+9. **Native validation:** Mac source and unsigned arm64 directory-package acceptance have passed locally, including real native capture/file confirmation and generated peer media to two Wall tabs. Hosted macOS 26 media permission handling is being verified separately. Physical phones, two physical hosts, display hotplug, Windows/Linux GUI, Developer ID signing and notarisation remain gates. See the Mac QA record.
 10. **Updates:** The CLI verifies signatures; it does not constitute a complete unattended updater, OS code signing, rollback system or trusted-key enrolment process.
 11. **Local network:** No runtime cloud services are configured. That does not make a Wi-Fi network air-gapped or guarantee an application receiving shared content has no independent internet access.
 
