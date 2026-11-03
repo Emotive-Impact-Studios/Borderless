@@ -39,6 +39,7 @@ import {
 } from "./protocol.mjs";
 
 const publicDir = resolve(fileURLToPath(new URL("../public", import.meta.url)));
+const sharedWebDir = resolve(fileURLToPath(new URL("../web/dist", import.meta.url)));
 const roomPattern = /^\/api\/rooms\/([a-zA-Z0-9_-]{8,48})(?:\/(.*))?$/;
 const cookieName = (roomId) => `borderless_${roomId}`;
 function cookie(req, name) {
@@ -122,13 +123,21 @@ export async function createApp(options = {}) {
   let uploading = 0,
     closing = false;
   let media;
+  let mediaHTTPOrigin = "";
   try { media = options.media ? new LiveMedia({
     ...options.media,
     readRoom: roomId => ({
       room: store.room(roomId),
       sessions: store.db.prepare("SELECT * FROM sessions WHERE room_id=?").all(roomId),
     }),
-  }) : null; } catch (error) { store.close(); unlock(); throw error; }
+  }) : null;
+    if (media) {
+      const endpoint = new URL(options.media.url);
+      if (!["ws:", "wss:"].includes(endpoint.protocol) || endpoint.username || endpoint.password) throw new Error("Invalid media URL");
+      endpoint.protocol = endpoint.protocol === "wss:" ? "https:" : "http:";
+      mediaHTTPOrigin = endpoint.origin;
+    }
+  } catch (error) { store.close(); unlock(); throw error; }
   const mediaRooms = new Set();
   const pendingMedia = new Set();
   let mediaJob;
@@ -786,7 +795,7 @@ export async function createApp(options = {}) {
     );
     res.setHeader(
       "Content-Security-Policy",
-      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' ws: wss:; frame-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'",
+      `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' ws: wss: ${mediaHTTPOrigin}; frame-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'`,
     );
     if (tls) res.setHeader("Strict-Transport-Security", "max-age=86400");
     if (!validOrigin(req))
@@ -1232,6 +1241,19 @@ export async function createApp(options = {}) {
     }
     if (path.startsWith("/api/")) fail(404, "API route not found.");
     if (!["GET", "HEAD"].includes(req.method)) fail(405, "Method not allowed.");
+    // The shared TypeScript app uses the same origin, cookies and room authority.
+    // Only the entry point and hashed build assets are exposed, never web sources.
+    if (path.startsWith("/app/")) {
+      const entry = /^\/app\/(wall|console)\/[a-zA-Z0-9_-]{8,48}\/?$/.test(path);
+      const asset = path.match(/^\/app\/assets\/([a-zA-Z0-9_.-]+\.(?:js|css))$/);
+      if (!entry && !asset) fail(404, "Page not found.");
+      let contents;
+      try { contents = await readFile(resolve(sharedWebDir, entry ? "index.html" : `assets/${asset[1]}`)); }
+      catch { fail(503, "Build the shared Wall with npm --prefix web run build."); }
+      const type = entry ? "text/html" : asset[1].endsWith(".css") ? "text/css" : "text/javascript";
+      res.writeHead(200, { "Content-Type": `${type}; charset=utf-8` });
+      return res.end(req.method === "HEAD" ? undefined : contents);
+    }
     const requested =
       /^\/screen\/[a-zA-Z0-9_-]{8,48}\/[a-f0-9-]{36}$/.test(path) ? "screen.html" :
       ["/", "/index.html"].includes(path) ||

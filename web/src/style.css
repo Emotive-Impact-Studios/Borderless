@@ -1,0 +1,24 @@
+@import '../../design-system/dist/tokens.css';
+@import '../../design-system/components/components.css';
+html, body, #wall, #windows { margin: 0; width: 100%; height: 100%; }
+body { overflow: hidden; }
+#empty { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; padding: var(--bl-space-8); text-align: center; pointer-events: none; }
+#empty h1 { font: var(--bl-wall-heading-weight) var(--bl-wall-heading-size)/var(--bl-wall-heading-line) var(--bl-font-sans); margin: 0; }
+#empty p { color: var(--bl-ink-muted); font-size: var(--bl-wall-label-size); }
+[hidden] { display: none !important; }
+#identity { position: absolute; right: var(--bl-space-6); bottom: var(--bl-space-6); }
+#tools { position: absolute; bottom: var(--bl-space-6); left: 50%; transform: translateX(-50%); transition: opacity var(--bl-dur-fast); }
+#tools[data-idle] { opacity: 0; pointer-events: none; }
+#tools:focus-within { opacity: 1; pointer-events: auto; }
+.bl-window video { width: 100%; height: 100%; display: block; object-fit: contain; background: var(--bl-surface-sunken); }
+.bl-window .bl-ornament { touch-action: none; }
+.bl-window[data-editable] .bl-ornament { cursor: grab; }
+.bl-window .bl-live { flex-shrink: 0; }
+.bl-window[data-live="paused"] .bl-live { color: var(--bl-ink-muted); }
+.bl-window .resize { position: absolute; right: 0; bottom: 0; width: var(--bl-space-8); height: var(--bl-space-8); opacity: 0; cursor: nwse-resize; touch-action: none; }
+.bl-window:hover .resize, .bl-window:focus-within .resize { opacity: 1; }
+.bl-window .resize:focus-visible { opacity: 1; }
+#pair-form { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: grid; gap: var(--bl-space-5); padding: var(--bl-space-7); border-radius: var(--bl-radius-window); max-width: 100%; }
+#pair-form h1 { margin: 0; font-size: var(--bl-wall-heading-size); }
+#pair-form input { font: inherit; padding: var(--bl-space-5); color: var(--bl-ink); background: var(--bl-surface); border: 0; border-radius: var(--bl-radius-sm); }
+#pair-form p { color: var(--bl-ink-muted); }

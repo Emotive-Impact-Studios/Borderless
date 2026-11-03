@@ -12,6 +12,8 @@ coverage/
 output/playwright*/
 .impeccable/review/
 native/**/target/
+wall-shell/target/
+wall-shell/frontend/
 native/**/.build/
 native/**/bin/
 native/**/obj/

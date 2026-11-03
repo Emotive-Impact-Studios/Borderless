@@ -32,6 +32,10 @@ run(dotnet,['build','native/dotnet/Borderless.Native.Tests']);
 run(process.execPath,['scripts/test-native-room.mjs']);
 // All Swift dependencies are public; avoid prompting for unrelated Keychain credentials.
 if(process.platform==='darwin')run('swift',['test','--disable-keychain'],join(root,'native/macos'));
+const wallShell=join(root,'wall-shell');
+run(cargo,['fmt','--check'],wallShell);
+run(cargo,['clippy','--locked','--all-targets','--','-D','warnings'],wallShell);
+run(cargo,['build','--locked'],wallShell);
 run(dotnet,['build','native/wall/Borderless.Wall.csproj']);
 if(process.env.BORDERLESS_GODOT) {
   run(process.env.BORDERLESS_GODOT,['--headless','--path',join(root,'native/wall'),'--editor','--import','--quit']);

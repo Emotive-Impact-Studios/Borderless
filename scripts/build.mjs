@@ -15,6 +15,9 @@ for (const path of [
   "test",
   "deploy",
   "native",
+  "web",
+  "wall-shell",
+  "design-system",
   ".github",
   "package.json",
   "package-lock.json",
@@ -26,6 +29,7 @@ for (const path of [
 ]) {
   await cp(join(root, path), join(target, path), {
     recursive: true,
+    verbatimSymlinks: true,
     filter: (source) => !source.split(/[\\/]/).some(part =>
       ["node_modules", "target", ".build", ".godot", "bin", "obj"].includes(part)),
   });

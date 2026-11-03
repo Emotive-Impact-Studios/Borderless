@@ -25,10 +25,10 @@ struct Preview: NSViewRepresentable {
                     Spacer()
                     Button(publisher.joined ? "Room connected" : "Join room…") { joining = true }
                         .disabled(publisher.busy || publisher.sharing)
-                    Button("Choose source…") { capture.chooseSource() }.disabled(publisher.sharing)
-                    Button("Window list…") { Task { await capture.chooseWindowFromList() } }.disabled(publisher.sharing)
-                    Button("Send to Wall") { Task { await publisher.share(capture) } }
-                        .disabled(!publisher.joined || publisher.sharing || publisher.busy || !capture.active || capture.frames == 0)
+                    Menu("Choose window…") {
+                        Button("Window list…") { Task { await capture.chooseWindowFromList() } }
+                        Button("macOS picker…") { capture.chooseSource() }
+                    }.disabled(publisher.sharing)
                     Button("Stop sharing") { Task { await publisher.stop(); await capture.stop() } }
                         .disabled(!capture.active && !publisher.sharing)
                 }.padding()
@@ -40,8 +40,13 @@ struct Preview: NSViewRepresentable {
                         .font(.caption.monospaced()).textSelection(.enabled)
                     Spacer()
                 }.padding([.horizontal, .bottom])
-                Text(publisher.status)
-                    .font(.caption).foregroundStyle(.secondary).padding(.bottom)
+                HStack {
+                    Text(publisher.status).font(.callout).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Send to Wall") { Task { await publisher.share(capture) } }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!publisher.joined || publisher.sharing || publisher.busy || !capture.active || capture.frames == 0)
+                }.padding(BL.Space.s5)
             }.sheet(isPresented: $joining) {
                 Form {
                     Text("Join the room").font(.headline)

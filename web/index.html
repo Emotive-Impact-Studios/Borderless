@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en-GB">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Borderless · Wall</title></head>
+<body class="bl" data-bl-theme="whiteboard">
+  <main id="wall" class="bl-wall bl-wall--grid" aria-label="Shared Wall">
+    <div id="empty"><h1>Room for everyone's work.</h1><p id="status" role="status">Connecting to the room…</p></div>
+    <div id="windows"></div>
+    <form id="pair-form" class="bl-glass" hidden>
+      <h1>Open your Wall</h1>
+      <label for="wall-link">Wall invitation link</label>
+      <input id="wall-link" type="url" required autocomplete="off" placeholder="Paste the link from your room leader">
+      <button class="bl-button bl-button--primary" type="submit">Open Wall</button>
+      <p id="pair-status" role="status">Use the one-use Wall invitation from your room.</p>
+    </form>
+    <aside class="bl-join bl-glass" id="identity"><span><b id="room-name">Borderless</b><span id="connection">Connecting</span></span></aside>
+    <nav class="bl-toolbar bl-glass" id="tools" aria-label="Wall tools"><button class="bl-button bl-button--small" id="fullscreen">Full screen</button></nav>
+  </main>
+  <script type="module" src="/src/main.ts"></script>
+</body></html>

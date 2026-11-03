@@ -7,6 +7,7 @@
   "author": "Emotive Impact Studios",
   "description": "A shared canvas for every screen in the room.",
   "type": "module",
+  "workspaces": ["web"],
   "engines": {
     "node": ">=24.15.0 <25"
   },
@@ -18,8 +19,8 @@
     "dev": "node --watch server/index.mjs",
     "test": "node scripts/run-tests.mjs",
     "check": "node scripts/check.mjs",
-    "build": "node scripts/build.mjs",
-    "verify": "npm run check && npm test && npm run build",
+    "build": "npm run build --workspace=borderless-web && node scripts/prepare-wall-shell.mjs && node scripts/build.mjs",
+    "verify": "npm run check && npm run build && npm test",
     "native:verify": "node scripts/verify-native.mjs",
     "native:mac:package": "node scripts/package-native-mac.mjs",
     "cert": "node scripts/cert.mjs",
