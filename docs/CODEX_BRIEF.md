@@ -85,6 +85,29 @@ The user's instruction: it "needs to look better than this". The current web UI 
 - No overlapping placements, no clipped titles, no controls left visible on the Wall at rest.
 - The user looks at it and says it looks right. Until then it is not done.
 
+### Sign-in and join screen
+
+The user's reference is a modern single-card sign-in modal: a white rounded card, one bold primary action, a quiet divider, then a stack of provider buttons. Build it in the Borderless style, better than the reference and with no third-party branding apart from the providers' own required marks. It replaces the current join page.
+
+**Who signs in.** Joining a room never needs an account: the conversation's promise is scan a QR code and you are in (source 11645), and PRD B04 forbids a mandatory cloud account for a local room. Accounts are for leaders, schools and organisations that want rooms, history and managed identity (PRD B28). So the card leads with joining and offers sign-in second.
+
+**Layout (Portal at 390 px, centred card on laptops, 440 px wide).**
+
+1. Card: white (`#FFFFFF` on the Whiteboard background), radius 24 px, padding 32 px, shadow 0 24px 64px at 14%. Close control (X, 44 px target) top right only when the card opens over a room.
+2. Borderless mark top left, 28 px.
+3. Heading, two lines, 30 px bold, tight leading: "Join the room in front of you." Subtext 16 px muted: "Scan the code on the screen, or enter it below."
+4. **Primary:** room code field (six characters, large 28 px tabular letters, auto-advance, paste-friendly) with a full-width dark pill button below it, 56 px high, radius 28 px, `#1D1D1F` with white text: "Join room". When the page was opened from a QR code, the code is pre-filled and the button reads "Join Studio room" with the room's real name.
+5. Name field above the button on first join only ("What should we call you?").
+6. Divider: thin line with centred 13 px muted text, "Leading a room? Sign in".
+7. **Provider buttons**, full-width light pills (`#F2F2F4`, 52 px high, radius 26 px, 12 px gap), icon left, label centred: "Continue with Apple", "Continue with Google", "Continue with Microsoft" (schools and organisations), "Continue with email". Order Apple first on Apple devices, Microsoft first when the room is a classroom.
+8. Footer: 12 px muted, centred: "By continuing you agree to the Terms and Privacy Policy." Links underlined.
+
+**States.** Loading (button shows a small spinner and keeps its width; fields lock). Wrong or expired code (inline red message under the field, the field shakes once unless reduced motion is on, focus returns to the field). Room full, room ended, or hub unreachable, each with its own plain message and a retry. Provider sign-in unavailable offline: the provider buttons grey out with "Sign-in needs internet. You can still join with a code." Keyboard: Tab order follows the visual order, Enter submits, Escape closes. Screen readers: the card is a labelled dialog and errors are announced.
+
+**Motion.** The card rises 12 px and fades in over 220 ms. On a successful join it scales down towards the top of the screen while the room fades in behind it, so joining feels like stepping into the space. Reduced motion uses a plain cross-fade.
+
+**What it needs (see decision D in section 6).** Join-by-code works today against the local hub. Leader accounts need an identity service: Sign in with Apple, Google and Microsoft (Entra ID, for schools), plus email magic links. Use an established provider (for example WorkOS AuthKit, Auth0 or Clerk) rather than writing OAuth by hand. The hub must still work fully offline for local rooms with the existing leader password. Facebook is left out: it adds little for meetings and schools.
+
 ## 5. Milestones
 
 Build in this order. Each milestone is a vertical slice that ends with **the user watching it work on real devices**. Passing tests is necessary, not sufficient. Every milestone with visible UI must also meet the visual acceptance in section 4. Record a short screen recording or photos of each acceptance and add it to BUILD_HANDOFF.md.
@@ -101,7 +124,7 @@ Build in this order. Each milestone is a vertical slice that ends with **the use
 
 ### Milestone 2: phone flick onto the native Wall, and send-back (core moment C2)
 
-- **Build:** native Wall viewers: images, multipage PDF (PDFium), video files with sound through the room output (EIRTeam.FFmpeg or platform decoder), text and notes. Arrival effects per PRD B39: particle vortex for phone throws, in the sender's colour, landing where the phone aimed. Free-space placement so new work never covers existing work. Portal flick on real phones with explicit Send as an alternative. Send-back from the Wall or Console to one chosen phone.
+- **Build:** native Wall viewers: images, multipage PDF (PDFium), video files with sound through the room output (EIRTeam.FFmpeg or platform decoder), text and notes. Arrival effects per PRD B39: particle vortex for phone throws, in the sender's colour, landing where the phone aimed. Free-space placement so new work never covers existing work. The new join card from section 4 replaces the current join page. Portal flick on real phones with explicit Send as an alternative. Send-back from the Wall or Console to one chosen phone.
 - **Done when:** on a real iPhone and a real Android phone, the user picks a photo and a PDF, flicks them up, sees them leave the phone and land on the Wall as real, readable, movable windows with their colour; then sends one back and finds it saved on the phone. A short or sideways swipe sends nothing.
 
 ### Milestone 3: someone's live window beside your own work (core moment C3, second half)
@@ -134,6 +157,7 @@ Ask once, recommend an option, and keep working on everything that does not depe
 - **A. Mac extended display (blocks milestone 4 on Mac).** Option 1: private `CGVirtualDisplay`, as DeskPad does. Works today and gives the true "drag over the edge" feel, but it is undocumented, can break in any macOS update and rules out the Mac App Store; direct distribution with notarisation is likely still possible. Option 2: a physical HDMI or USB display adapter, which is supported but needs hardware in the room. Option 3: no extended display on Mac; share windows only (milestone 1), which is not the edge moment. Recommendation: option 1 for the product, with option 2 documented for locked-down installations.
 - **B. Video file playback licensing (milestone 2).** H.264 decoding through FFmpeg carries patent questions for commercial distribution. Platform decoders (VideoToolbox, Media Foundation) avoid most of this. Recommendation: platform decoders first, LGPL FFmpeg only as a fallback.
 - **C. When to retire Electron.** Recommendation: after milestone 5.
+- **D. Leader accounts and sign-in.** Option 1: local leader password only (works today, no internet). Option 2: add Apple, Google, Microsoft and email sign-in through a hosted identity provider, with the local password kept for offline rooms. Option 2 means Borderless runs an online account service, with its costs and privacy obligations. Recommendation: build the new join card now (milestone 2) and add provider sign-in in milestone 7, keeping offline rooms working.
 
 ## 7. Do not drift
 
