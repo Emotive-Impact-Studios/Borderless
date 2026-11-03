@@ -30,7 +30,7 @@ npm --prefix desktop run package
 | Windows | NSIS installer | Authenticode signing, SmartScreen assessment, standard-user launch, firewall and display/capture testing. |
 | Linux | AppImage / deb | Distribution compatibility, sandbox support, X11/Wayland and PipeWire capture, package installation testing. |
 
-Do not label an unsigned build as a signed release. No signing keys or paid vendor accounts are created by these scripts. Source and unsigned packaged applications have passed native/browser acceptance on an Apple Silicon Mac. The initial `ENOSPC` directory build was retried successfully after space recovered, using the installed Electron distribution. No DMG, Developer ID signing or notarisation is claimed. See [the Mac QA record](QA_MAC_2026-11-03.md) and current CI for the separate hosted gate.
+Do not label an unsigned build as a signed release. No signing keys or paid vendor accounts are created by these scripts. Source, unsigned directory package and read-only mounted DMG applications have passed native/browser acceptance on an Apple Silicon Mac. The initial `ENOSPC` directory build was retried successfully after space recovered. Developer ID signing, notarisation and quarantined-download acceptance remain open. See [the Mac QA record](QA_MAC_2026-11-03.md) and current CI for the separate hosted gate.
 
 ## Repeatable desktop acceptance
 
@@ -41,6 +41,8 @@ node desktop/verify-package.mjs release/mac-arm64/Borderless.app/Contents/Resour
 npm --prefix desktop run smoke -- "$PWD/release/mac-arm64/Borderless.app/Contents/MacOS/Borderless"
 # Reuse the installed Electron runtime when building locally:
 CSC_IDENTITY_AUTO_DISCOVERY=false npm --prefix desktop run package -- --mac --arm64 --dir --publish never --config.electronDist=desktop/node_modules/electron/dist
+# Build a DMG from the existing .app (pass the .app itself, not its parent folder):
+CSC_IDENTITY_AUTO_DISCOVERY=false npm --prefix desktop run package -- --mac dmg --arm64 --prepackaged release/mac-arm64/Borderless.app --publish never
 ```
 
 The smoke script uses locked Playwright 1.64.1, installed Google Chrome, a temporary desktop profile and its own ephemeral loopback port. It exercises the real Electron renderer, hub process, mobile-sized Portal, paired 4K Wall, classroom tools, transfer/download integrity and real local WebRTC transport with generated video. It checks native IPC cancellation with a dialog stub, renderer sandboxing, hub responsiveness while the native thread is blocked and graceful lock cleanup. It removes its private runtime state afterwards. Screenshots and a JSON result go under ignored `output/playwright/` (or `output/playwright-packaged/`). Generated video and phone emulation are distinct from OS capture consent and physical-device evidence.
