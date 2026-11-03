@@ -14,12 +14,20 @@ const packagedExecutable = process.argv[2];
 const profile = await mkdtemp(join(tmpdir(), "borderless-desktop-qa-"));
 const output = join(root, packagedExecutable ? "output/playwright-packaged" : "output/playwright");
 await mkdir(output, { recursive: true });
-const checks = [], errors = [];
+const checks = [], errors = [], pages = [];
 let application, browser;
 const watch = (page) => {
+  pages.push(page);
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
 };
+function installPeerDiagnostics() {
+  const NativePeer = window.RTCPeerConnection;
+  window.qaPeers = [];
+  window.RTCPeerConnection = class extends NativePeer {
+    constructor(...args) { super(...args); window.qaPeers.push(this); }
+  };
+}
 const check = (name) => { checks.push(name); console.log(`✓ ${name}`); };
 const closeDialog = (page) => page.getByRole("button", { name: "Close dialog", exact: true }).click();
 async function stroke(page) {
@@ -37,6 +45,7 @@ try {
   });
   const leader = await application.firstWindow();
   watch(leader);
+  await leader.evaluate(installPeerDiagnostics);
   await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setContentSize(1440, 1000));
   await leader.getByRole("button", { name: "Create your room" }).waitFor();
   const native = await application.evaluate(({ app, BrowserWindow }) => ({
@@ -85,6 +94,7 @@ try {
   const pairing = await leader.locator("#modal textarea").inputValue();
   await closeDialog(leader);
   const wallContext = await browser.newContext({ viewport: { width: 3840, height: 2160 } });
+  await wallContext.addInitScript(installPeerDiagnostics);
   const wall = await wallContext.newPage();
   watch(wall);
   await wall.goto(pairing);
@@ -104,6 +114,49 @@ try {
   await portal.getByRole("button", { name: "Send to the canvas" }).click();
   await leader.getByRole("button", { name: "Open lab.txt", exact: true }).waitFor();
   check("Portal note and confirmed file upload reach both native Console and Wall");
+
+  // Exercise the browser drop pipeline with an inert, generated 1×1 PNG.
+  const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aUn8AAAAASUVORK5CYII=";
+  await leader.locator("#canvas-stage").evaluate((element, encoded) => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([Uint8Array.from(atob(encoded), c => c.charCodeAt(0))], "drop.png", { type: "image/png" }));
+    element.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: transfer }));
+  }, png);
+  await wall.getByRole("img", { name: "drop.png", exact: true }).waitFor();
+  assert.equal(await wall.getByRole("img", { name: "drop.png", exact: true }).evaluate(image => image.complete && image.naturalWidth === 1), true);
+  await leader.getByRole("button", { name: "Tidy up", exact: true }).click();
+  const card = leader.locator(".canvas-item").filter({ has: leader.getByRole("button", { name: "Open lab.txt", exact: true }) });
+  const itemId = await card.getAttribute("data-item");
+  const waitVersion = async (version) => leader.waitForFunction(({ itemId, version }) => document.querySelector(`[data-item="${itemId}"]`)?.dataset.version !== version, { itemId, version });
+  const version = await card.getAttribute("data-version");
+  const header = await card.locator(".item-bar").boundingBox();
+  await leader.mouse.move(header.x + 30, header.y + 8);
+  await leader.mouse.down();
+  await leader.mouse.move(header.x + 55, header.y + 35, { steps: 12 });
+  await leader.mouse.up();
+  await waitVersion(version);
+  const moved = await card.getAttribute("data-version");
+  const handle = await card.locator(".resize-handle").boundingBox();
+  await leader.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+  await leader.mouse.down();
+  await leader.mouse.move(handle.x - 15, handle.y - 18, { steps: 12 });
+  await leader.mouse.up();
+  await waitVersion(moved);
+  check("PNG drop/preview, grid arrangement, native mouse movement and resizing");
+
+  const flickChooser = portal.waitForEvent("filechooser");
+  await portal.getByRole("button", { name: "Choose a file" }).click();
+  await (await flickChooser).setFiles({ name: "flick.txt", mimeType: "text/plain", buffer: Buffer.from("Sent with an emulated touch flick.") });
+  await portal.locator("#throw-card").scrollIntoViewIfNeeded();
+  const throwBox = await portal.locator("#throw-card").boundingBox();
+  const touch = await portalContext.newCDPSession(portal);
+  const touchX = throwBox.x + throwBox.width * .1, touchY = throwBox.y + throwBox.height * .7;
+  await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: touchX, y: touchY }] });
+  await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: touchX, y: touchY - 100 }] });
+  await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await leader.getByRole("button", { name: "Open flick.txt", exact: true }).waitFor();
+  await touch.detach();
+  check("emulated touch flick commits a selected file through the Portal");
 
   await portal.getByRole("tab", { name: "Point", exact: true }).click();
   const pointer = await portal.locator("#pointer-pad").boundingBox();
@@ -142,6 +195,13 @@ try {
   await portal.locator(".quiz-option.correct").waitFor();
   await wall.locator(".wall-quiz-options .correct").waitFor();
   check("quiz submission stays private until the leader reveals shared results");
+
+  await leader.getByRole("button", { name: "Manage Lab learner", exact: true }).click();
+  await leader.getByRole("button", { name: "Revoke drawing", exact: true }).click();
+  await closeDialog(leader);
+  await portal.getByText("Ask the leader for a turn at the board.", { exact: true }).waitFor();
+  assert.equal(await portal.locator("#drawing-pad.draw-disabled").count(), 1);
+  check("leader revocation immediately relocks the participant drawing pad");
 
   await leader.getByRole("button", { name: "Open lab.txt", exact: true }).click();
   await leader.getByRole("button", { name: "Send to a device", exact: true }).click();
@@ -195,6 +255,28 @@ try {
   assert.equal(await leader.evaluate(() => globalThis.qaCapture.getVideoTracks()[0].readyState), "ended");
   check("generated video reaches two Wall tabs sharing one cookie; explicit stop ends tracks");
 
+  await leader.getByRole("button", { name: "Room settings", exact: true }).click();
+  for (const theme of ["studio", "executive", "synth", "command", "classroom"]) {
+    await leader.locator(`[data-action="theme"][data-theme="${theme}"]`).click();
+    await wall.waitForFunction(theme => document.documentElement.dataset.theme === theme, theme);
+    await portal.waitForFunction(theme => document.documentElement.dataset.theme === theme, theme);
+  }
+  await leader.getByRole("button", { name: "Zoom in", exact: true }).click();
+  assert.equal(await leader.locator("#zoom-value").textContent(), "110%");
+  await leader.getByRole("button", { name: "Fit canvas", exact: true }).click();
+  assert.equal(await leader.locator("#zoom-value").textContent(), "100%");
+  await leader.getByRole("button", { name: "Pause contributions", exact: true }).click();
+  await portal.getByText("The leader has paused contributions", { exact: true }).waitFor();
+  await leader.getByRole("button", { name: "Resume contributions", exact: true }).click();
+  await portal.getByText("Connected to the canvas", { exact: true }).waitFor();
+  await leader.getByRole("button", { name: "People", exact: true }).click();
+  check("five themes propagate to every interface; zoom/fit and pause/resume stay connected");
+
+  await Promise.all([leader, portal].map(async page => {
+    const last = page.locator(".toast").last();
+    if (await last.count()) await last.waitFor({ state: "detached", timeout: 7000 });
+  }));
+
   await leader.screenshot({ path: join(output, "console-1440.png") });
   await portal.screenshot({ path: join(output, "portal-390.png"), fullPage: true });
   await wall.screenshot({ path: join(output, "wall-4k.png") });
@@ -206,6 +288,26 @@ try {
   await assert.rejects(readFile(join(profile, "hub/hub.lock")), { code: "ENOENT" });
   check("native graceful quit releases the hub process and storage lock");
   await writeFile(join(output, "desktop-smoke.json"), JSON.stringify({ at: new Date().toISOString(), platform: process.platform, arch: process.arch, build: packagedExecutable ? "packaged" : "source", checks, errors, limits: ["Generated video is not OS capture consent evidence.", "Phone viewport is Chromium emulation, not a physical phone.", "Native file confirmation is stubbed for cancellation."] }, null, 2));
+} catch (error) {
+  const diagnostics = [];
+  for (const [index, page] of pages.entries()) {
+    if (page.isClosed()) continue;
+    await page.screenshot({ path: join(output, `failure-${index}.png`), timeout: 3000 }).catch(() => {});
+    diagnostics.push(await page.evaluate(async () => ({
+      path: location.pathname,
+      text: document.body.innerText,
+      video: [...document.querySelectorAll("video")].map(v => ({ width: v.videoWidth, height: v.videoHeight, readyState: v.readyState })),
+      peers: await Promise.all((window.qaPeers || []).map(async p => ({
+        connection: p.connectionState, ice: p.iceConnectionState, gathering: p.iceGatheringState, signalling: p.signalingState,
+        stats: [...(await p.getStats()).values()].filter(s => ["candidate-pair", "inbound-rtp", "outbound-rtp", "local-candidate", "remote-candidate"].includes(s.type)).map(s => ({
+          type: s.type, state: s.state, candidateType: s.candidateType, protocol: s.protocol, nominated: s.nominated,
+          bytesReceived: s.bytesReceived, bytesSent: s.bytesSent, framesEncoded: s.framesEncoded, framesDecoded: s.framesDecoded,
+        })),
+      }))),
+    })).catch(() => ({ unavailable: true })));
+  }
+  await writeFile(join(output, "failure.json"), JSON.stringify({ checks, errors, failure: error.message, diagnostics }, null, 2));
+  throw error;
 } finally {
   await browser?.close();
   await application?.close();

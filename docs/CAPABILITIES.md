@@ -11,11 +11,11 @@ Updated 3 November 2026. “Implemented” means the source exists and is connec
 | QR invitations and codes | Implemented | Locally generated QR image returned in integration test; physical scan outstanding. |
 | Separate display pairing | Implemented | One-use pairing, display role and refused writes tested; rendered Wall pairs in an independent browser context. |
 | Real file uploads and downloads | Implemented | Byte round-trip, SHA-256, encrypted disk contents, corruption rejection, MIME checks and room isolation tested. |
-| Drag/drop and mobile flick | Implemented in UI | Physical mouse/touch and accessibility checks outstanding. Explicit Send alternative included. |
+| Drag/drop and mobile flick | Rendered source/package acceptance passed | PNG DOM drop and emulated Chromium touch flick transfer actual bytes. Physical touch and accessibility breadth remain. Explicit Send alternative included. |
 | Images, PDF, inert text and Office download | Implemented in UI | Content endpoint and security headers tested; renderer/browser compatibility outstanding. |
 | Audio/video playback | Implemented in UI | Verified file delivery and byte ranges; codec support and room audio output untested. |
-| Notes, ownership, movement, resizing | Implemented | Commands, ownership, stale-version refusal and bounds tested. UI gesture verification outstanding. |
-| Grid and focus layout | Implemented | Server command and native coordinates; physical wall layout checks outstanding. |
+| Notes, ownership, movement, resizing | Implemented; rendered acceptance passed | Automated native mouse movement/resizing and notes pass; API tests cover ownership, stale versions and bounds. |
+| Grid and focus layout | Implemented | Grid arrangement exercised in rendered native flow; focus API tested. Physical wall layout checks remain. |
 | Return a file to a chosen device | Implemented; rendered acceptance passed | Recipient-specific inbox and actual Chromium download pass with matching SHA-256. Physical iPhone save flow untested. |
 | Multi-user touch pointers | Implemented | WebSocket identity/coordinates plus rendered Portal-to-Wall pointer start/stop pass. Physical touch and latency remain unmeasured. |
 | Relative gyroscope pointer | Implemented in UI | Permission-aware relative tilt and touch fallback; real motion hardware untested. No absolute spatial localisation. |
@@ -24,7 +24,7 @@ Updated 3 November 2026. “Implemented” means the source exists and is connec
 | Quiz and aggregate results | Implemented; rendered acceptance passed | Portal submits once; native leader reveals results on Portal and Wall. Integration tests cover privacy/stale answers. Identity remains per device, not person. |
 | Pause, resume, eviction, clear, purge, end | Implemented | Server authority, revocation, durable file deletion/retry and terminal session behaviour tested. |
 | Local WebRTC screen sharing | Same-Mac capture and transport verified | Native OS-picked Borderless window delivers 1450×920 video to Chrome. Generated video reaches two Wall tabs with shared cookie; visible Stop sharing ends tracks. Two physical clients/audio/codecs remain. |
-| Five themes and three GPU entry effects | Implemented in UI | Theme commands and source syntax checked. Rendered visual, contrast and reduced-motion checks outstanding. |
+| Five themes and three GPU entry effects | Implemented in UI | All five themes propagate through native Console, Portal and Wall in source/package smoke. Contrast, reduced motion and GPU-effect breadth remain. |
 | Reconnect and durable room recovery | Implemented | Restart persistence, surviving credentials/files/ink and stale stream reset tested. Browser reconnect UX unverified. |
 | Local SQLite audit chain | Implemented | Room-scoped chain, append-only triggers, export and corruption detection tested. Not immutable against the host administrator. |
 | Encrypted uploaded bytes | Implemented | AES-256-GCM, hash/size verification and corruption rejection tested. Key remains on this host. |
@@ -36,7 +36,7 @@ Updated 3 November 2026. “Implemented” means the source exists and is connec
 | Backup and restore | Implemented | Live database snapshot, encrypted asset verification, full restore and damaged-backup rejection tested. |
 | Signed update verification | Implemented as explicit CLI | Ed25519 signature, version, platform, expiry and file hash gates tested. No background binary replacement. |
 | Automated update installation / rollback | Not implemented | Requires signed platform artefacts, trusted key distribution and a staged updater. |
-| Electron desktop wrapper | Mac source acceptance passed | Sandboxed launch, isolated utility hub, modal responsiveness, restart and graceful exit tested. Earlier Linux directory build predates isolation change. Local Mac packaging hit ENOSPC; current Mac CI package outcome must be checked separately. |
+| Electron desktop wrapper | Mac source/package acceptance passed locally | Sandboxed launch, isolated utility hub, modal responsiveness and graceful exit pass in unsigned arm64 package; 388 ASAR entries inspected. Hosted macOS 26 media timeout remains under investigation. Windows/Linux GUI and signed release remain. |
 | Native application file opening | Mac cancellation/open verified | Real confirmation Cancel and explicit opening of the expected disposable text in TextEdit pass. Automated dialog-stub cancellation also checks IPC. Other OS applications/types remain. |
 | Desktop global edge cue | Source included | Electron cursor/display polling and room entry event; native test outstanding. Does not move an OS cursor to the wall. |
 | True OS virtual display and native window transfer | Not implemented | Windows IddCx/UMDF and supported macOS strategy require platform engineering, signing and hardware tests. |
@@ -53,5 +53,5 @@ Updated 3 November 2026. “Implemented” means the source exists and is connec
 - `npm test`: 37 passing integration/recovery/process tests in the current local run. Original 29-test managed Linux checkpoint remains historical.
 - Network tests start the hub and clients inside the same test process environment. They use actual sockets, HTTP, WebSockets and filesystem storage.
 - `npm run desktop:smoke`: native source plus real rendered Chromium Portal/Wall acceptance passed with no renderer errors. Screenshots and result JSON are in ignored `output/playwright/`. Separate native UI acceptance verified OS capture and file opening. See [QA_MAC_2026-11-03.md](QA_MAC_2026-11-03.md).
-- Physical phones, a second physical client, trusted LAN certificate/QR and hardware display commissioning remain open. Local Mac packaging failed for lack of disk space; no local DMG, signed/notarised build or packaged launch is claimed.
+- Physical phones, a second physical client, trusted LAN certificate/QR and hardware display commissioning remain open. Local unsigned Mac directory package/launch pass after recovery from ENOSPC. No DMG or Developer ID signed/notarised release is claimed. Hosted Mac media acceptance is failing and must be resolved separately.
 - Remote GitHub Actions conclusions are separate from local results. Check the PR before relying on hosted CI.
