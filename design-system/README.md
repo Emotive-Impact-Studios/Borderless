@@ -17,6 +17,7 @@ The design language for the Wall, the Portal (phones and laptops) and the Consol
 | `dist/tokens.json` | Everything, for any other consumer (the Godot or native Wall if kept). |
 | `components/components.css` | The component library as CSS classes (`bl-*`). |
 | `components/index.src.html` | Source of the reference page; built into `dist/showcase.html`. |
+| `docs/CODEX.md` | Start here if you are building: what this replaces in the Codex brief, and the rules. |
 | `docs/PRINCIPLES.md` | The rules, anatomy and states of each component, and the signature motion. |
 | `docs/RESEARCH.md` | What the language is based on. |
 | `docs/directions/` | The four directions shown to Edem. |
