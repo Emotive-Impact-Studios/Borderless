@@ -161,16 +161,16 @@ try {
   const utilityTitle = await leader.getByRole("button", { name: "Move People window", exact: true }).boundingBox();
   await leader.mouse.move(utilityTitle.x + 80, utilityTitle.y + 15);
   await leader.mouse.down();
-  await leader.mouse.move(utilityTitle.x - 40, utilityTitle.y + 55, { steps: 8 });
+  await leader.mouse.move(utilityTitle.x - 40, utilityTitle.y - 25, { steps: 8 });
   await leader.mouse.up();
   const utilityHandle = await leader.getByRole("button", { name: "Resize People window", exact: true }).boundingBox();
   await leader.mouse.move(utilityHandle.x + 8, utilityHandle.y + 8);
   await leader.mouse.down();
-  await leader.mouse.move(utilityHandle.x + 38, utilityHandle.y + 48, { steps: 8 });
+  await leader.mouse.move(utilityHandle.x + 38, utilityHandle.y - 32, { steps: 8 });
   await leader.mouse.up();
   const movedUtility = await peopleWindow.boundingBox();
-  assert.ok(movedUtility.x < originalUtility.x - 100 && movedUtility.y > originalUtility.y + 30);
-  assert.ok(movedUtility.width > originalUtility.width + 20 && movedUtility.height > originalUtility.height + 30);
+  assert.ok(movedUtility.x < originalUtility.x - 100 && movedUtility.y < originalUtility.y - 30);
+  assert.ok(movedUtility.width > originalUtility.width + 20 && movedUtility.height < originalUtility.height - 30);
   await leader.getByRole("button", { name: "Room settings", exact: true }).click();
   assert.equal(await leader.locator(".utility-window:visible").count(), 2);
   assert.deepEqual(await canvasBounds(), fullCanvas);
@@ -716,6 +716,8 @@ try {
       focus: { tag: document.activeElement?.tagName, action: document.activeElement?.dataset.action, id: document.activeElement?.dataset.id, theme: document.activeElement?.dataset.theme },
       sockets: (window.qaSockets || []).map(socket => ({ state: socket.readyState, connectionId: socket.qaConnectionId })),
       signals: window.qaSignals,
+      viewport: { width: innerWidth, height: innerHeight },
+      utilityBounds: [...document.querySelectorAll(".utility-window")].map(element => ({ id: element.dataset.window, bounds: element.getBoundingClientRect().toJSON() })),
       video: [...document.querySelectorAll("video")].map(v => ({ width: v.videoWidth, height: v.videoHeight, readyState: v.readyState })),
       peers: await Promise.all((window.qaPeers || []).map(async p => ({
         connection: p.connectionState, ice: p.iceConnectionState, gathering: p.iceGatheringState, signalling: p.signalingState,
