@@ -296,14 +296,18 @@ public struct CaptureWindow: Identifiable {
         }
     }
     public nonisolated func contentSharingPickerStartDidFailWithError(_ error: Error) {
-        Task { @MainActor [weak self] in self?.status = "Source picker unavailable: \(error.localizedDescription)" }
+        let message = error.localizedDescription
+        Task { @MainActor [weak self] in self?.status = "Source picker unavailable: \(message)" }
     }
     public nonisolated func stream(_ stream: SCStream, didStopWithError error: Error) {
+        // Materialise the Objective-C error before asynchronous teardown can
+        // invalidate the framework callback payload. Only the String crosses tasks.
+        let message = error.localizedDescription
         Task { @MainActor [weak self] in
             guard let self, self.stream === stream else { return }
             let stoppedGeneration = await self.endCapture(deactivatePicker: true)
             guard stoppedGeneration == self.generation else { return }
-            self.status = "Source stopped: \(error.localizedDescription)"
+            self.status = "Source stopped: \(message)"
         }
     }
 }

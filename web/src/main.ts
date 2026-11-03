@@ -39,6 +39,9 @@ function readState(input: unknown): State {
 function render(input: unknown) {
   state = readState(input);
   element('room-name').textContent = state.name;
+  // Translate the compatibility hub's room looks to the approved design tokens.
+  const looks: Record<string, string> = { classroom: 'whiteboard', studio: 'studio', executive: 'executive', command: 'tactical', synth: 'studio' };
+  document.body.dataset.blTheme = looks[state.theme ?? ''] ?? 'whiteboard';
   if (state.ended) { disconnect('This room has ended.'); return; }
   const present = new Set(state.streams.filter(s => s.canReceive).map(s => s.id));
   for (const [id, node] of nodes) if (!present.has(id)) { node.close(); nodes.delete(id); }

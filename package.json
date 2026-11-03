@@ -22,6 +22,7 @@
     "build": "npm run build --workspace=borderless-web && node scripts/prepare-wall-shell.mjs && node scripts/build.mjs",
     "verify": "npm run check && npm run build && npm test",
     "native:verify": "node scripts/verify-native.mjs",
+    "wall:mac:package": "node scripts/package-wall-mac.mjs",
     "native:mac:package": "node scripts/package-native-mac.mjs",
     "cert": "node scripts/cert.mjs",
     "audit:verify": "node scripts/audit.mjs",

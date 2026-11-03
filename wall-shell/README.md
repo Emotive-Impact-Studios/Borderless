@@ -15,3 +15,10 @@ Move its window to the intended display and use the shared Full screen control.
 Native display selection, kiosk recovery and signed updates remain later work.
 Compilation is separate from launching, WebKit media playback and real-display
 acceptance; see `docs/BUILD_HANDOFF.md` for current evidence.
+
+For a launchable local macOS app after the locked Cargo build, run
+`npm run wall:mac:package` from the repository root, then open
+`output/native/Borderless Wall.app`. This is ad-hoc development signing only.
+The bundle permits local networking for loopback development; it does not disable
+certificate validation or grant the remote page native commands. Use macOS
+Window → Move to [display] and the green fullscreen control for a second screen.

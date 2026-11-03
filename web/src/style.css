@@ -10,7 +10,8 @@ body { overflow: hidden; }
 #tools { position: absolute; bottom: var(--bl-space-6); left: 50%; transform: translateX(-50%); transition: opacity var(--bl-dur-fast); }
 #tools[data-idle] { opacity: 0; pointer-events: none; }
 #tools:focus-within { opacity: 1; pointer-events: auto; }
-.bl-window video { width: 100%; height: 100%; display: block; object-fit: contain; background: var(--bl-surface-sunken); }
+/* Keep WebKit video composited when paused styling or fullscreen changes layers. */
+.bl-window video { width: 100%; height: 100%; display: block; object-fit: contain; transform: translateZ(0); background: var(--bl-surface-sunken); }
 .bl-window .bl-ornament { touch-action: none; }
 .bl-window[data-editable] .bl-ornament { cursor: grab; }
 .bl-window .bl-live { flex-shrink: 0; }

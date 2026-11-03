@@ -59,13 +59,7 @@ import LiveKit
             let id = try await hub.startStream(title: "\(hub.snapshot?.name ?? "Borderless") · Mac window")
             guard generation == attempt else { try? await hub.stopStream(id); return }
             streamID = id
-            let video = LocalVideoTrack.createBufferTrack(options: BufferCaptureOptions(fps: 30))
-            track = video
-            try await video.start()
-            guard generation == attempt else { try? await video.stop(); return }
-            guard let capturer = video.capturer as? BufferCapturer else { throw HubError.message("The screen encoder is unavailable.") }
-            capture.setFrameConsumer { sample in capturer.capture(sample) }
-            try await connect(id: id, track: video, hub: hub, attempt: attempt)
+            try await connect(id: id, hub: hub, attempt: attempt)
             guard generation == attempt else { return }
             busy = false
             status = "Publishing to the Wall · receiver playback not yet confirmed"
@@ -74,10 +68,11 @@ import LiveKit
                     do {
                         try await Task.sleep(for: .seconds(2))
                         guard let self, self.generation == attempt else { return }
-                        guard capture.active else { await self.stop(); return }
-                        try await self.connect(id: id, track: video, hub: hub, attempt: attempt)
+                        guard capture.active else { self.monitor = nil; await self.stop(); return }
+                        try await self.connect(id: id, hub: hub, attempt: attempt)
                     } catch {
                         guard let self, self.generation == attempt, !Task.isCancelled else { return }
+                        self.monitor = nil // Do not cancel this task before its Stop request.
                         await self.stop()
                         self.status = "Sharing ended: \(error.localizedDescription)"
                         return
@@ -92,7 +87,7 @@ import LiveKit
         }
     }
 
-    private func connect(id: String, track: LocalVideoTrack, hub: HubSession, attempt: Int) async throws {
+    private func connect(id: String, hub: HubSession, attempt: Int) async throws {
         let grant = try await hub.media(id)
         guard generation == attempt else { return }
         guard grant.publisher else { throw HubError.message("The hub did not authorise publishing.") }
@@ -102,10 +97,16 @@ import LiveKit
             throw HubError.message("The hub returned an insecure media address.")
         }
         if mediaName == grant.room, mediaRoom?.connectionState == .connected { return }
-        let old = mediaRoom
-        mediaRoom = nil; mediaName = nil
+        let old = mediaRoom, oldTrack = track
+        capture?.setFrameConsumer(nil)
+        mediaRoom = nil; mediaName = nil; track = nil
         await old?.disconnect()
+        try? await oldTrack?.stop()
         guard generation == attempt else { return }
+        // A retired SDK room owns its track/transceiver lifecycle. A new
+        // authorised media generation gets a fresh track, seeded from real capture.
+        let track = LocalVideoTrack.createBufferTrack(options: BufferCaptureOptions(fps: 30))
+        self.track = track
         try await track.start()
         guard generation == attempt else { try? await track.stop(); return }
         if let capturer = track.capturer as? BufferCapturer {
