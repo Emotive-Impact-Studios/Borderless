@@ -348,9 +348,9 @@ try {
   await approve.click();
   const portalConnection = await portal.evaluate(() => qaSockets.at(-1).qaConnectionId);
   faulting.add(portal);
-  await portalContext.setOffline(true);
   await portal.evaluate(() => qaSockets.at(-1).close());
   await portal.getByRole("button", { name: "Reconnect now", exact: true }).waitFor({ state: "attached" });
+  await portalContext.setOffline(true);
   await leader.getByRole("button", { name: "Manage Lab learner", exact: true }).click();
   await leader.getByRole("button", { name: "Revoke drawing", exact: true }).click();
   await closeDialog(leader);
@@ -467,10 +467,12 @@ try {
   await secondWall.waitForFunction(() => { const v = document.querySelector(".stream-tile video"); return v?.videoWidth === 640 && v.readyState >= 2; });
   const wallConnection = await wall.evaluate(() => qaSockets.at(-1).qaConnectionId);
   faulting.add(wall); faulting.add(secondWall);
-  await wallContext.setOffline(true);
+  // Finish the real close handshake before blocking reconnect HTTP. Offline
+  // emulation can otherwise drop the close acknowledgement on background tabs.
   await Promise.all([wall, secondWall].map(page => page.evaluate(() => qaSockets.at(-1).close())));
   await wall.getByRole("button", { name: "Reconnect now", exact: true }).waitFor();
   await secondWall.getByRole("button", { name: "Reconnect now", exact: true }).waitFor();
+  await wallContext.setOffline(true);
   await leader.waitForFunction(() => qaPeers.length >= 2 && qaPeers.every(peer => peer.connectionState === "closed"));
   await wallContext.setOffline(false);
   await Promise.all([wall, secondWall].map(page => page.getByRole("button", { name: "Reconnect now", exact: true }).click()));
@@ -489,8 +491,9 @@ try {
   await wall.waitForFunction(() => document.querySelector(".stream-tile video")?.videoWidth === 640);
   const ownerConnection = await leader.evaluate(() => qaSockets.at(-1).qaConnectionId);
   faulting.add(leader);
-  await leader.context().setOffline(true);
   await leader.evaluate(() => qaSockets.at(-1).close());
+  await leader.getByRole("button", { name: "Reconnect now", exact: true }).waitFor();
+  await leader.context().setOffline(true);
   await wall.locator(".stream-tile").waitFor({ state: "detached" });
   assert.equal(await leader.evaluate(() => qaCapture.getVideoTracks()[0].readyState), "ended");
   await leader.context().setOffline(false);
@@ -581,6 +584,7 @@ try {
       path: location.pathname,
       text: document.body.innerText,
       focus: { tag: document.activeElement?.tagName, action: document.activeElement?.dataset.action, id: document.activeElement?.dataset.id, theme: document.activeElement?.dataset.theme },
+      sockets: (window.qaSockets || []).map(socket => ({ state: socket.readyState, connectionId: socket.qaConnectionId })),
       video: [...document.querySelectorAll("video")].map(v => ({ width: v.videoWidth, height: v.videoHeight, readyState: v.readyState })),
       peers: await Promise.all((window.qaPeers || []).map(async p => ({
         connection: p.connectionState, ice: p.iceConnectionState, gathering: p.iceGatheringState, signalling: p.signalingState,
