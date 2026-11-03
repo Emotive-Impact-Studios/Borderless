@@ -56,8 +56,22 @@ In short: **native where the operating system demands it, Rust for the engine an
 | Five looks, effects (B19-B20, B39) | Front end | Theme tokens and WebGL/WebGPU effects, shared by Wall, Console and Portal. |
 | Multihead and panoramic walls (B26, B35) | Wall shell | One window per display or one spanning window across a graphics card's combined display; frame lock comes from the graphics hardware, as it always must. |
 | Installers and updates (B27) | Tauri, native packaging | Signed and notarised apps with Tauri's signed updater; separately signed Windows driver. |
-| Phone apps later (B28, WP19) | LiveKit mobile SDKs | Native iPhone and Android apps for share sheets and phone screen sharing, using the same media and room protocol. |
+| Phone apps (B28, WP19) | React Native app, LiveKit mobile SDKs | One iPhone and Android app for share sheets, phone screen sharing and notifications, using the same media and room protocol (see Phone apps below). |
 | Audit, retention, identity, HA (B21-B23, B28) | Hub | Transactional SQLite to start; the hub can move to replicated storage later without changing clients. |
+
+## Phone apps (iPhone and Android)
+
+**Today:** there are no native phone apps. Phones use the web Portal: scan the QR code and you are in, with nothing to install. That already covers flicking files, pointing, drawing, quizzes and receiving files, and it stays forever as the zero-install way in (the conversation's promise, source 11645).
+
+**What only native apps can add:**
+- "Share to Borderless" from the Photos, Files or any app's share sheet.
+- Sharing the phone's own screen live to the Wall (ReplayKit on iPhone, MediaProjection on Android).
+- Stronger haptic feedback on the flick, a steadier gyro laser pointer, and finding rooms nearby on the local network.
+- Notifications when someone sends you a file, and saving straight into Photos or Files.
+
+**Recommendation:** one cross-platform app in **React Native (Expo)**, written in TypeScript so it shares the room protocol, gestures and visual design with the Wall, Console and Portal. Small native pieces where the OS requires them: an iOS share extension and ReplayKit broadcast extension, and Android's share target and MediaProjection. LiveKit has a React Native SDK with phone screen sharing. Flutter (named in the conversation, source 1447) also works and has a LiveKit SDK, but it would be a second UI language next to TypeScript.
+
+**When:** after the three core moments (milestone 6 or 7 in the brief), because the web Portal already delivers the phone flick, which is the phone's core moment. Physical iPhone and Android testing of the web Portal happens in milestone 2.
 
 ## What changes from the current plan
 
