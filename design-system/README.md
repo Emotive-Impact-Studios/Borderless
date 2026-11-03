@@ -2,7 +2,7 @@
 
 The design language for the Wall, the Portal (phones and laptops) and the Console. One token source feeds every platform. Live reference: open `dist/showcase.html`.
 
-> Status: v0.1, built on the recommended direction (**Glass**, with the owner-colour glow from **Light** and numbered labels from **Instrument** in the Tactical look). Edem is choosing between the four directions in `docs/directions/`. If a different direction wins, only `tokens/source.mjs` and `components/components.css` change.
+> Status: v0.1. Edem chose this direction on 3 November 2026: **Glass**, with the owner-colour glow from **Light** and numbered labels from **Instrument** in the Tactical look. The other directions are kept in `docs/directions/` for reference.
 
 ## Layout
 
