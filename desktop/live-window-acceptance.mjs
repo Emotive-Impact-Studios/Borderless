@@ -54,10 +54,20 @@ export async function liveWindowAcceptance({ root, executable, origin, invite, r
       const video = document.querySelector("#screen-video");
       return video?.videoWidth === 640 && video.readyState >= 2 && document.querySelector("#screen-status").textContent === "Live";
     });
-    const closeReceiver = async () => {
-      const closed = receiver.waitForEvent("close");
-      await receiver.getByRole("button", { name: "Close live window", exact: true }).click();
-      await closed;
+    const closeReceiver = async (button = "Close live window") => {
+      const closing = receiver;
+      // The click intentionally destroys its own page. Electron may report the
+      // destruction before Playwright receives the click acknowledgement.
+      await Promise.all([
+        closing.waitForEvent("close"),
+        closing.getByRole("button", { name: button, exact: true }).click().catch(error => {
+          if (!closing.isClosed() || !error.message.includes("Target page, context or browser has been closed")) throw error;
+        }),
+      ]);
+      // A crashed renderer or application is not a successful window close.
+      assert.equal(portal.isClosed(), false);
+      assert.equal(await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length), 1);
+      await portal.getByText("Live", { exact: true }).waitFor();
     };
     await sendInvitation();
     const before = await shareState();
@@ -147,8 +157,7 @@ export async function liveWindowAcceptance({ root, executable, origin, invite, r
     assert.equal(await leader.evaluate(() => qaCapture.getVideoTracks()[0].readyState), "live");
     await leader.waitForFunction(id => qaPeers.filter(peer => peer.remoteDeviceId === id).every(peer => peer.connectionState === "closed"), recipientId);
     await openReceiver(); await live();
-    const closed = receiver.waitForEvent("close");
-    await receiver.getByRole("button", { name: "Stop receiving", exact: true }).click(); await closed;
+    await closeReceiver("Stop receiving");
     await portal.getByRole("link", { name: "Open live window from Lab leader", exact: true }).waitFor({ state: "detached" });
     assert.equal(await leader.evaluate(() => qaCapture.getVideoTracks()[0].readyState), "live");
     check("closing a receiver preserves capture and accepted access; Stop receiving removes that recipient's grant");
