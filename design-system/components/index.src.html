@@ -1,0 +1,354 @@
+<title>Borderless Design Language</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=IBM+Plex+Mono:wght@500;600&family=Playfair+Display:wght@600;700&display=swap">
+<!--TOKENS-->
+<!--COMPONENTS-->
+<style>
+/* Layout: a single reference column; each section is a band on the Wall material, with a live specimen first and the rule beside it. */
+:root { --page-max: 1180px; }
+html, body { background: var(--bl-wall); }
+body { color: var(--bl-ink); font-family: var(--bl-font-sans); transition: background var(--bl-dur-slow); }
+.page { max-width: var(--page-max); margin: 0 auto; padding-block: 28px 80px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 64px; }
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 50; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding: 10px 10px 10px 18px; border-radius: var(--bl-radius-capsule); }
+.top > div { min-width: 0; }
+.top .bl-segmented { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.top .bl-segmented button { flex: none; padding: 0 12px; }
+@media (max-width: 520px) { .top { border-radius: 22px; } .top small { display: none; } }
+.top b { font: 700 17px/1 var(--bl-font-display); letter-spacing: -.02em; }
+.top small { color: var(--bl-ink-muted); font-size: 13px; margin-left: 8px; }
+.hero { display: grid; gap: 14px; max-width: 760px; }
+.eyebrow { font: 600 12px/1 var(--bl-font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--bl-ink-muted); }
+h1 { margin: 0; font: 700 clamp(36px, 6vw, 64px)/1.02 var(--bl-font-heading); letter-spacing: -.035em; text-wrap: balance; }
+h2 { margin: 0; font: 700 28px/1.1 var(--bl-font-heading); letter-spacing: -.022em; text-wrap: balance; }
+h3 { margin: 0; font: 600 15px/1.2 var(--bl-font-sans); }
+p { margin: 0; line-height: 1.5; color: var(--bl-ink-muted); max-width: 65ch; }
+.lede { font-size: 19px; }
+section { display: grid; gap: 22px; }
+.sec-head { display: grid; gap: 8px; }
+.panel { background: var(--bl-surface); border-radius: var(--bl-radius-xl); padding: 24px; box-shadow: var(--bl-elev-rest); min-width: 0; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 16px; }
+.principle { display: grid; gap: 6px; }
+.principle h3 { font-size: 17px; }
+.principle p { font-size: 15px; }
+code, .mono { font-family: var(--bl-font-mono); font-size: 12.5px; }
+.muted { color: var(--bl-ink-muted); }
+
+/* Wall specimen */
+.wall-wrap { border-radius: 22px; padding: 10px; background: #0d0d0f; box-shadow: 0 40px 90px rgba(0,0,0,.25); }
+.wall-spec { position: relative; aspect-ratio: 16 / 9; width: 100%; max-width: 100%; border-radius: 13px; container-type: inline-size; }
+.wall-spec .bl-window { font-size: 1.3cqw; }
+.wall-spec .bl-ornament { height: max(24px, 2.6cqw); font-size: max(10px, 1.15cqw); }
+.wall-spec .bl-ornament .bl-avatar { --size: max(16px, 1.9cqw); }
+.wall-spec .bl-live { height: max(14px, 1.5cqw); font-size: max(8px, .8cqw); }
+.art { position: absolute; inset: 0; background: radial-gradient(60% 80% at 20% 30%, #5b8cff, transparent 60%), radial-gradient(60% 70% at 85% 70%, #ff7a59, transparent 60%), radial-gradient(50% 60% at 60% 20%, #b45cff, transparent 60%), #3d4bd6; }
+.art::before, .art::after { content: ""; position: absolute; left: 8%; border-radius: 6px; background: rgba(255,255,255,.92); }
+.art::before { bottom: 30%; width: 60%; height: 15%; } .art::after { bottom: 14%; width: 42%; height: 9%; }
+.photo { position: absolute; inset: 0; background: linear-gradient(#7fb1f2, #f6cfa2 52%, #f0a877 62%, #4b3f5c 63%, #2d2a3a 78%, #3d4466); }
+.photo::before { content: ""; position: absolute; left: 0; right: 0; top: 30%; height: 34%; background: #6d5a7e; clip-path: polygon(0 70%, 12% 40%, 22% 55%, 38% 10%, 52% 50%, 64% 30%, 80% 60%, 92% 35%, 100% 50%, 100% 100%, 0 100%); }
+.photo::after { content: ""; position: absolute; left: 0; right: 0; top: 42%; height: 22%; background: #3b3249; clip-path: polygon(0 60%, 18% 20%, 30% 50%, 46% 0, 60% 55%, 74% 25%, 88% 55%, 100% 30%, 100% 100%, 0 100%); }
+.sheet { padding: 6% 7%; font: 500 1.25cqw/1 var(--bl-font-sans); font-variant-numeric: tabular-nums; }
+.sheet table { width: 100%; border-collapse: collapse; }
+.sheet td { padding: .7cqw 0; border-bottom: 1px solid var(--bl-line); } .sheet td:last-child { text-align: right; }
+.sheet tr:first-child td { font-size: .85cqw; color: var(--bl-ink-muted); text-transform: uppercase; letter-spacing: .06em; }
+.sheet tr:last-child td { font-weight: 700; border: 0; }
+.note { padding: 9%; font: 600 1.45cqw/1.35 var(--bl-font-sans); display: grid; gap: .5cqw; }
+.slide { position: absolute; inset: 0; padding: 7%; display: flex; flex-direction: column; justify-content: flex-end; gap: .4cqw; }
+.slide b { font: 700 2cqw/1.1 var(--bl-font-heading); letter-spacing: -.02em; }
+.slide span { font-size: .95cqw; color: var(--bl-ink-muted); }
+.wall-spec .bl-toolbar { position: absolute; left: 50%; bottom: 3.5%; transform: translateX(-50%); }
+.wall-spec .bl-toolbar .bl-icon-button { width: max(28px, 3.2cqw); height: max(28px, 3.2cqw); }
+.wall-spec .bl-join { position: absolute; right: 2.5%; bottom: 3%; font-size: max(9px, 1cqw); }
+.wall-spec .bl-join b { font-size: max(11px, 1.3cqw); }
+.wall-spec .bl-qr { width: max(26px, 3.4cqw); height: max(26px, 3.4cqw); }
+.wall-spec .bl-edge-glow { top: auto; bottom: 0; width: 4px; height: 60%; left: 0; right: auto; top: 20%; background: linear-gradient(transparent, var(--o), transparent); }
+@media (max-width: 640px) { .wall-spec .bl-ornament__title, .wall-spec .bl-ornament__who, .wall-spec .bl-join > div:first-child { display: none; } }
+
+/* Swatches */
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.sw { display: grid; gap: 8px; font-size: 13px; min-width: 0; }
+.sw i { display: block; height: 64px; border-radius: var(--bl-radius-md); box-shadow: inset 0 0 0 1px var(--bl-line); }
+.sw span { color: var(--bl-ink-muted); font-family: var(--bl-font-mono); font-size: 11.5px; overflow-wrap: anywhere; }
+.owners { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+.owner { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: var(--bl-radius-capsule); background: color-mix(in srgb, var(--o) 10%, var(--bl-surface)); font-size: 14px; font-weight: 600; }
+.owner .bl-avatar { --size: 32px; }
+
+/* Type */
+.ramp { display: grid; gap: 0; }
+.ramp div { display: grid; grid-template-columns: 110px 1fr auto; gap: 16px; align-items: baseline; padding: 12px 0; border-bottom: 1px solid var(--bl-line); min-width: 0; }
+.ramp div:last-child { border: 0; }
+.ramp span:first-child { color: var(--bl-ink-muted); font: 500 12px var(--bl-font-mono); }
+.ramp span:nth-child(2) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ramp span:last-child { color: var(--bl-ink-muted); font: 500 11.5px var(--bl-font-mono); white-space: nowrap; }
+@media (max-width: 560px) { .ramp div { grid-template-columns: 1fr; gap: 4px; } }
+
+/* Space, radius, elevation */
+.spacebars { display: grid; gap: 8px; }
+.spacebars div { display: grid; grid-template-columns: 48px 1fr; align-items: center; gap: 12px; font: 500 12px var(--bl-font-mono); color: var(--bl-ink-muted); }
+.spacebars i { display: block; height: 12px; border-radius: 3px; background: var(--bl-accent); opacity: .8; }
+.radii { display: flex; flex-wrap: wrap; gap: 14px; }
+.radii div { width: 84px; height: 84px; background: var(--bl-surface-sunken); display: grid; place-items: end start; padding: 8px; font: 500 11px var(--bl-font-mono); color: var(--bl-ink-muted); box-shadow: inset 0 0 0 1px var(--bl-line); }
+.elev { display: flex; flex-wrap: wrap; gap: 24px; padding: 18px 4px; }
+.elev div { width: 140px; height: 90px; border-radius: var(--bl-radius-lg); background: var(--bl-surface); display: grid; place-items: center; font: 500 12px var(--bl-font-mono); color: var(--bl-ink-muted); }
+.glassdemo { position: relative; border-radius: var(--bl-radius-xl); overflow: hidden; padding: 40px 24px; display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; align-items: center;
+  background: radial-gradient(40% 80% at 20% 50%, #ff7a59, transparent 70%), radial-gradient(40% 80% at 80% 40%, #5b8cff, transparent 70%), radial-gradient(30% 60% at 50% 90%, #3dd68c, transparent 70%), var(--bl-surface-sunken); }
+
+/* Motion */
+.motion { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 16px; }
+.mstage { position: relative; height: 200px; border-radius: var(--bl-radius-lg); overflow: hidden; margin: 6px 0 14px; }
+.mstage .tile { position: absolute; width: 120px; height: 76px; border-radius: 16px; overflow: hidden; box-shadow: var(--bl-elev-rest); }
+.timeline { display: grid; gap: 6px; font: 500 12px var(--bl-font-mono); color: var(--bl-ink-muted); }
+.timeline div { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px dashed var(--bl-line); padding-bottom: 6px; }
+.timeline div:last-child { border: 0; }
+.laptopedge { position: absolute; left: 10%; right: 10%; bottom: 0; height: 46%; border-radius: 14px 14px 0 0; background: var(--bl-surface-sunken); box-shadow: inset 0 0 0 1px var(--bl-line); }
+.laptopedge .bl-edge-glow { top: 0; }
+
+/* Components */
+.comp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 16px; }
+.comp { display: grid; gap: 14px; align-content: start; }
+.comp .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.phone { width: 300px; max-width: 100%; aspect-ratio: 9 / 19.5; margin: 0 auto; border-radius: 50px; padding: 10px; background: linear-gradient(145deg, #5d5f64, #232427 45%, #3f4145); box-shadow: 0 30px 60px rgba(0,0,0,.25); }
+.ps { position: relative; height: 100%; border-radius: 41px; overflow: hidden; background: var(--bl-wall); padding: 56px 18px 18px; display: flex; flex-direction: column; gap: 14px; }
+.ps::before { content: ""; position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: 88px; height: 25px; border-radius: 14px; background: #000; }
+.ps h4 { margin: 0; font: 700 26px/1.05 var(--bl-font-heading); letter-spacing: -.025em; }
+.ps .bl-flick { aspect-ratio: 4 / 3.2; flex: none; }
+.ps .bl-flick .photo { position: absolute; inset: 0; }
+.ps .hint { text-align: center; color: var(--bl-ink-muted); font-size: 12px; margin-top: -6px; }
+.spec-note { font-size: 13px; color: var(--bl-ink-muted); }
+footer p { font-size: 13px; }
+</style>
+
+<div class="page bl" id="page">
+  <div class="top bl-glass">
+    <div><b>Borderless</b><small>Design language 0.1 · Glass</small></div>
+    <div class="bl-segmented" role="group" aria-label="Look" id="looks">
+      <button type="button" data-look="whiteboard" aria-pressed="true">Whiteboard</button>
+      <button type="button" data-look="studio" aria-pressed="false">Studio</button>
+      <button type="button" data-look="executive" aria-pressed="false">Executive</button>
+      <button type="button" data-look="tactical" aria-pressed="false">Tactical</button>
+    </div>
+  </div>
+
+  <header class="hero">
+    <div class="eyebrow">Wall · Portal · Console</div>
+    <h1>The work is the window. Everything else floats.</h1>
+    <p class="lede">Borderless uses Apple’s Glass language. Content carries no chrome. Who put it there, and whether it is live, floats beneath it in a glass tag. Each person’s colour glows when their work arrives. One system covers four looks, so the same room suits a boardroom, a classroom, a studio or a control room.</p>
+  </header>
+
+  <section aria-labelledby="s-wall">
+    <div class="sec-head"><div class="eyebrow">The Wall at rest</div><h2 id="s-wall">A room screen with nothing in the way</h2></div>
+    <div class="wall-wrap"><div class="wall-spec bl-wall" id="wall">
+      <div class="bl-edge-glow" data-armed style="--o: var(--bl-owner-blue)"></div>
+      <div class="bl-window" data-live style="--o: var(--bl-owner-blue); left:3%; top:5%; width:46%; height:54%">
+        <div class="bl-window__content"><div class="art"></div></div>
+        <div class="bl-ornament bl-glass"><span class="bl-avatar">A</span><span class="bl-ornament__num">01</span><span class="bl-ornament__title">Moodboard · Figma</span><span class="bl-live">Live</span><span class="bl-ornament__who">Alex</span></div>
+      </div>
+      <div class="bl-window" data-live style="--o: var(--bl-owner-orange); left:52%; top:5%; width:28%; height:43%">
+        <div class="bl-window__content"><div class="sheet"><table><tr><td>Item</td><td>Cost</td></tr><tr><td>Displays</td><td>£4,820</td></tr><tr><td>Licences</td><td>£1,150</td></tr><tr><td>Install</td><td>£2,300</td></tr><tr><td>Total</td><td>£8,270</td></tr></table></div></div>
+        <div class="bl-ornament bl-glass"><span class="bl-avatar">M</span><span class="bl-ornament__num">02</span><span class="bl-ornament__title">Budget.xlsx</span><span class="bl-live">Live</span><span class="bl-ornament__who">Maya</span></div>
+      </div>
+      <div class="bl-window bl-window--note" style="--o: var(--bl-owner-green); left:83%; top:5%; width:14%; height:35%">
+        <div class="bl-window__content"><div class="note"><span>Pilot room by Friday</span><span>Book 4K panel</span><span>Invite the ward team</span></div></div>
+        <div class="bl-ornament bl-glass"><span class="bl-avatar">S</span><span class="bl-ornament__num">03</span><span class="bl-ornament__title">Next steps</span></div>
+      </div>
+      <div class="bl-window" style="--o: var(--bl-owner-purple); left:3%; top:66%; width:28%; height:24%">
+        <div class="bl-window__content"><div class="slide"><b>Ship the shared room</b><span>Page 4 of 12</span></div></div>
+        <div class="bl-ornament bl-glass"><span class="bl-avatar">J</span><span class="bl-ornament__num">04</span><span class="bl-ornament__title">Q3 Roadmap.pdf</span><span class="bl-ornament__who">Jamie</span></div>
+      </div>
+      <div class="bl-window bl-arrive" id="landing" style="--o: var(--bl-owner-pink); left:52%; top:55%; width:24%; height:33%">
+        <div class="bl-window__content"><div class="photo"></div></div>
+        <div class="bl-ornament bl-glass"><span class="bl-avatar">R</span><span class="bl-ornament__num">05</span><span class="bl-ornament__title">Site visit.jpg</span><span class="bl-ornament__who">Robin</span></div>
+      </div>
+      <div class="bl-ripple" id="ripple" style="--o: var(--bl-owner-pink); left:64%; top:71%"></div>
+      <div class="bl-toolbar bl-glass" role="toolbar" aria-label="Wall tools">
+        <button class="bl-icon-button" aria-pressed="true" aria-label="Select"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 3l14 7-6 2-2 6z"/></svg></button>
+        <button class="bl-icon-button" aria-label="Draw"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20c4-1 6-6 9-9l3 3c-3 3-8 5-9 9M14 7l3-3 3 3-3 3"/></svg></button>
+        <button class="bl-icon-button" aria-label="Note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="4"/></svg></button>
+        <span class="bl-toolbar__sep"></span>
+        <button class="bl-icon-button" aria-label="Smart layout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="8" height="16" rx="2"/><rect x="13" y="4" width="8" height="7" rx="2"/><rect x="13" y="13" width="8" height="7" rx="2"/></svg></button>
+      </div>
+      <div class="bl-join bl-glass"><div>Join the room<b>TE54D3</b></div><div class="bl-qr" aria-hidden="true"></div></div>
+    </div></div>
+    <p class="spec-note">Windows: 24 px continuous corners at 1080p, two-layer shadow, no title bar. Ornament: 36 px glass capsule, 8 px below the window. Live: 2.5 px owner-colour ring with a soft glow. The left edge glows where Alex’s laptop meets the Wall. The join card fades to 40% when the room is busy.</p>
+  </section>
+
+  <section aria-labelledby="s-principles">
+    <div class="sec-head"><div class="eyebrow">Principles</div><h2 id="s-principles">Four rules every screen follows</h2></div>
+    <div class="cols">
+      <div class="panel principle"><h3>The work is the hero</h3><p>Content fills the screen. Chrome lives in glass that floats outside the content and fades when nobody needs it.</p></div>
+      <div class="panel principle"><h3>Motion tells the truth</h3><p>Travel starts when bytes leave. A window lands only when the hub confirms it. Nothing celebrates success that has not happened.</p></div>
+      <div class="panel principle"><h3>Calm at rest, alive on arrival</h3><p>The resting Wall is quiet. The energy goes into the second when something crosses over, in the sender’s colour.</p></div>
+      <div class="panel principle"><h3>Readable from the back row</h3><p>Nothing on the Wall is smaller than 18 px at 1080p. Owner colour never works alone: every item also shows an initial and a name.</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="s-colour">
+    <div class="sec-head"><div class="eyebrow">Colour</div><h2 id="s-colour">Semantic colour, swapped by look</h2><p>Components only use these roles, so changing the look never changes the structure. Every pair passes the contrast check in the build.</p></div>
+    <div class="panel"><div class="swatches" id="swatches"></div></div>
+    <div class="panel"><h3 style="margin-bottom:14px">Owner colours</h3><div class="owners" id="owners"></div></div>
+  </section>
+
+  <section aria-labelledby="s-type">
+    <div class="sec-head"><div class="eyebrow">Typography</div><h2 id="s-type">SF Pro on Apple devices, Inter everywhere else</h2><p>Two ramps. The Portal follows Apple’s text styles. The Wall is sized for a 55-inch 1080p screen seen from 3 metres and doubles at 4K. Executive swaps in Playfair Display for headings, and Tactical swaps in IBM Plex Mono.</p></div>
+    <div class="cols">
+      <div class="panel"><h3 style="margin-bottom:6px">Portal</h3><div class="ramp" id="ramp-portal"></div></div>
+      <div class="panel"><h3 style="margin-bottom:6px">Wall, 1080p</h3><div class="ramp" id="ramp-wall"></div></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="s-space">
+    <div class="sec-head"><div class="eyebrow">Space, shape and depth</div><h2 id="s-space">A 4 px grid with concentric corners</h2><p>Inner radius equals outer radius minus padding, so nested shapes stay parallel, as they do in Apple’s hardware and software.</p></div>
+    <div class="cols">
+      <div class="panel"><h3 style="margin-bottom:14px">Spacing</h3><div class="spacebars" id="space"></div></div>
+      <div class="panel"><h3 style="margin-bottom:14px">Radius</h3><div class="radii" id="radii"></div></div>
+    </div>
+    <div class="cols">
+      <div class="panel"><h3>Elevation</h3><div class="elev"><div style="box-shadow:var(--bl-elev-rest)">rest</div><div style="box-shadow:var(--bl-elev-lifted)">lifted</div><div style="box-shadow:var(--bl-elev-floating)">floating</div></div></div>
+      <div class="panel" style="display:grid;gap:14px"><h3>Glass</h3><div class="glassdemo"><span class="bl-toast bl-glass"><span class="bl-avatar" style="--o:var(--bl-owner-green)">✓</span>Landed on the Wall</span><span class="bl-ornament bl-glass"><span class="bl-avatar" style="--o:var(--bl-owner-pink)">R</span>Site visit.jpg</span></div><p class="spec-note">Glass only ever sits on tools, tags and cards. It never covers content.</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="s-motion">
+    <div class="sec-head"><div class="eyebrow">Motion</div><h2 id="s-motion">Three signature moments</h2><p>Springs on native, matching curves on the web. Reduced motion swaps travel for a 150 ms fade, and every state change stays visible.</p></div>
+    <div class="motion">
+      <div class="panel">
+        <h3>Window over the edge</h3>
+        <div class="mstage bl-wall" id="m-edge"><div class="laptopedge"><div class="bl-edge-glow" style="--o:var(--bl-owner-blue)"></div></div><div class="tile" id="m-edge-tile" style="left:calc(50% - 60px);top:110px"><div class="art"></div></div></div>
+        <div class="timeline"><div><span>Arm: edge glow</span><span>200 ms</span></div><div><span>Cross: liquid pull and particles</span><span>450 to 700 ms</span></div><div><span>Land: spring settle, 6% overshoot</span><span>300 ms</span></div></div>
+        <div class="row" style="margin-top:12px"><button class="bl-button bl-button--small" data-play="edge">Play</button></div>
+      </div>
+      <div class="panel">
+        <h3>Phone flick</h3>
+        <div class="mstage bl-wall" id="m-flick"><div class="tile" id="m-flick-tile" style="left:calc(50% - 60px);top:110px"><div class="photo"></div></div><div class="bl-ripple" id="m-flick-ripple" style="--o:var(--bl-owner-pink);left:50%;top:60px" hidden></div></div>
+        <div class="timeline"><div><span>Lift under finger</span><span>120 ms</span></div><div><span>Travel, shrinking slightly</span><span>600 ms</span></div><div><span>Land with ripple, sender colour</span><span>350 + 900 ms</span></div></div>
+        <div class="row" style="margin-top:12px"><button class="bl-button bl-button--small" data-play="flick">Play</button></div>
+      </div>
+      <div class="panel">
+        <h3>Send back to a phone</h3>
+        <div class="mstage bl-wall" id="m-back"><div class="tile" id="m-back-tile" style="left:calc(50% - 60px);top:20px"><div class="slide" style="background:var(--bl-surface)"><b style="font-size:14px">Roadmap</b></div></div></div>
+        <div class="timeline"><div><span>Wall copy stays put</span><span>0 ms</span></div><div><span>Ghost drops to the phone</span><span>550 ms</span></div><div><span>Phone confirms “Saved”</span><span>250 ms</span></div></div>
+        <div class="row" style="margin-top:12px"><button class="bl-button bl-button--small" data-play="back">Play</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="s-comp">
+    <div class="sec-head"><div class="eyebrow">Components</div><h2 id="s-comp">The library</h2><p>Every class starts with <code>bl-</code> and takes its look from the nearest <code>data-bl-theme</code>. Owner colour comes from <code>--o</code>.</p></div>
+    <div class="comp-grid">
+      <div class="panel comp"><h3>Buttons</h3>
+        <div class="row"><button class="bl-button bl-button--primary">Send to Wall</button><button class="bl-button">Send to Sam</button></div>
+        <div class="row"><button class="bl-button bl-button--glass">Arrange</button><button class="bl-button bl-button--danger">Clear Wall</button><button class="bl-button bl-button--small">Small</button><button class="bl-button" disabled>Disabled</button></div>
+      </div>
+      <div class="panel comp"><h3>Status and people</h3>
+        <div class="row"><span class="bl-live">Live</span><span class="bl-live bl-live--paused">Paused</span><span class="bl-badge" style="--o:var(--bl-owner-purple)">Private</span><span class="bl-badge">3 waiting</span></div>
+        <div class="row"><span class="bl-stack"><span class="bl-avatar" style="--o:var(--bl-owner-blue)">A</span><span class="bl-avatar" style="--o:var(--bl-owner-orange)">M</span><span class="bl-avatar" style="--o:var(--bl-owner-green)">S</span><span class="bl-avatar" style="--o:var(--bl-owner-pink)">R</span><span class="bl-avatar" style="--o:var(--bl-owner-purple)">J</span></span><span class="muted" style="font-size:14px">5 in the room</span></div>
+      </div>
+      <div class="panel comp"><h3>Destinations</h3>
+        <div class="row"><button class="bl-chip" aria-pressed="true">The Wall</button><button class="bl-chip" aria-pressed="false"><span class="bl-avatar" style="--o:var(--bl-owner-green)">S</span>Sam’s Mac</button><button class="bl-chip" aria-pressed="false">Everyone’s phone</button></div>
+        <div class="bl-segmented" role="group" aria-label="Mode"><button aria-pressed="true">Point</button><button aria-pressed="false">Draw</button><button aria-pressed="false">Send</button></div>
+      </div>
+      <div class="panel comp"><h3>Requests and feedback</h3>
+        <div class="bl-request bl-glass"><span class="bl-avatar bl-avatar--lg" style="--o:var(--bl-owner-teal)">K</span><div class="bl-request__text">Kemi raised a hand<small>Wants to draw on page 4</small></div><div class="bl-request__actions"><button class="bl-button bl-button--small">Not now</button><button class="bl-button bl-button--small bl-button--primary">Allow</button></div></div>
+        <span class="bl-toast bl-glass"><span class="bl-avatar" style="--o:var(--bl-owner-green)">✓</span>Landed on the Wall</span>
+      </div>
+      <div class="panel comp"><h3>Classroom quiz</h3>
+        <button class="bl-option" aria-pressed="false"><span class="bl-option__key">A</span>Oxygen</button>
+        <button class="bl-option" aria-pressed="true"><span class="bl-option__key">B</span>Carbon dioxide</button>
+        <div class="bl-result"><div class="bl-result__row"><span>Carbon dioxide</span><span>18</span></div><div class="bl-result__bar"><i style="width:72%;--o:var(--bl-owner-green)"></i></div><div class="bl-result__row"><span>Oxygen</span><span>7</span></div><div class="bl-result__bar"><i style="width:28%"></i></div></div>
+      </div>
+      <div class="panel comp"><h3>Console and control room</h3>
+        <div class="bl-minimap" id="minimap"></div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+          <div class="bl-source" aria-pressed="true"><div class="art"></div><span class="bl-source__label">01 ALEX</span></div>
+          <div class="bl-source"><div class="photo"></div><span class="bl-source__label">05 ROBIN</span></div>
+          <div class="bl-source"><div class="slide" style="background:var(--bl-surface)"><b style="font-size:11px">Roadmap</b></div><span class="bl-source__label">04 JAMIE</span></div>
+        </div>
+      </div>
+      <div class="panel comp"><h3>Portal on a phone</h3>
+        <div class="phone"><div class="ps">
+          <div><h4>Send to<br>the Wall</h4><div class="muted" style="font-size:13px;margin-top:4px">Design review · 5 people</div></div>
+          <div class="bl-flick" style="--o:var(--bl-owner-pink)"><div class="photo"></div></div>
+          <div class="row" style="display:flex;gap:8px;flex-wrap:wrap"><button class="bl-chip" aria-pressed="true">The Wall</button><button class="bl-chip" aria-pressed="false">Sam’s Mac</button></div>
+          <button class="bl-button bl-button--primary bl-button--large bl-button--block" style="margin-top:auto">Flick up to send</button>
+          <div class="hint">or tap to send</div>
+        </div></div>
+      </div>
+    </div>
+  </section>
+
+  <footer><p>Source: <code>design-system/tokens/source.mjs</code>, built to CSS, TypeScript for React Native, and Swift. Generated from the Borderless repository.</p></footer>
+</div>
+
+<script>
+const T = /*TOKENJSON*/null;
+const page = document.documentElement;
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function hostDark() { const t = page.getAttribute('data-theme'); return t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; }
+let chosen = null;
+try { chosen = localStorage.getItem('bl-look'); } catch (e) {}
+function setLook(name) {
+  page.setAttribute('data-bl-theme', name);
+  document.querySelectorAll('[data-look]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.look === name)));
+  renderSwatches(name);
+}
+document.querySelectorAll('[data-look]').forEach(b => b.addEventListener('click', () => { chosen = b.dataset.look; try { localStorage.setItem('bl-look', chosen); } catch (e) {} setLook(chosen); }));
+function initial() { return chosen || (hostDark() ? 'studio' : 'whiteboard'); }
+new MutationObserver(() => { if (!chosen) setLook(initial()); }).observe(page, { attributes: true, attributeFilter: ['data-theme'] });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!chosen) setLook(initial()); });
+
+function renderSwatches(name) {
+  const t = T.themes[name];
+  const roles = ['wall', 'surface', 'surfaceSunken', 'ink', 'inkMuted', 'line', 'accent', 'live', 'danger', 'success', 'warning'];
+  document.getElementById('swatches').innerHTML = roles.map(r => `<div class="sw"><i style="background:${t.color[r]}"></i><b>${r}</b><span>${t.color[r]}</span></div>`).join('');
+  const o = T.owners[t.mode];
+  document.getElementById('owners').innerHTML = Object.entries(o).map(([k, v]) => `<div class="owner" style="--o:${v}"><span class="bl-avatar">${k[0].toUpperCase()}</span><span>${k[0].toUpperCase() + k.slice(1)}<br><span class="mono muted">${v}</span></span></div>`).join('');
+}
+const sample = { caption: 'Updated 2 min ago', footnote: 'Only Sam can see this', subhead: 'Design review · 5 people', callout: 'Flick up or tap to send', body: 'Your photo will land beside Maya’s budget.', headline: 'Site visit.jpg', title3: 'Choose where it goes', title2: 'Send to the Wall', title1: 'Design review', largeTitle: 'Join the room',
+  label: 'Join the room', ornament: 'Budget.xlsx · Maya', title: 'Moodboard · Figma', body_w: 'Pilot room by Friday', heading: 'Ship the shared room', display: 'TE54D3' };
+function ramp(id, set, scale = 1) {
+  document.getElementById(id).innerHTML = Object.entries(set).map(([k, [s, lh, w, tr]]) => {
+    const txt = id === 'ramp-wall' && k === 'body' ? sample.body_w : sample[k];
+    const shown = Math.min(s * scale, 44);
+    return `<div><span>${k}</span><span style="font:${w} ${shown}px/${lh / s} ${k === 'display' || k === 'heading' || k.startsWith('title') || k === 'largeTitle' ? 'var(--bl-font-heading)' : 'var(--bl-font-sans)'};letter-spacing:${tr}em">${txt}</span><span>${s}/${lh} · ${w}</span></div>`;
+  }).join('');
+}
+ramp('ramp-portal', T.type.portal);
+ramp('ramp-wall', T.type.wall, .75);
+document.getElementById('space').innerHTML = Object.entries(T.space).filter(([k]) => k > 0).map(([k, v]) => `<div><span>${v} px</span><i style="width:${Math.min(100, v / 96 * 100)}%"></i></div>`).join('');
+document.getElementById('radii').innerHTML = Object.entries(T.radius).filter(([k]) => k !== 'capsule').map(([k, v]) => `<div style="border-radius:${v}px">${k} ${v}</div>`).join('') + '<div style="border-radius:999px;width:120px">capsule</div>';
+document.getElementById('minimap').innerHTML = [['blue', 3, 5, 46, 54], ['orange', 52, 5, 28, 43], ['green', 83, 5, 14, 35], ['purple', 3, 66, 28, 24], ['pink', 52, 55, 24, 33]].map(([o, x, y, w, h]) => `<i style="--o:var(--bl-owner-${o});left:${x}%;top:${y}%;width:${w}%;height:${h}%"></i>`).join('');
+
+// Motion demos
+const A = (el, kf, opt) => el.animate(kf, { fill: 'both', ...opt });
+const ease = T.motion.easing;
+async function play(kind) {
+  if (kind === 'edge') {
+    const glow = document.querySelector('#m-edge .bl-edge-glow'), tile = document.getElementById('m-edge-tile');
+    glow.setAttribute('data-armed', ''); await new Promise(r => setTimeout(r, reduce ? 0 : 400));
+    await A(tile, reduce ? [{ opacity: 0 }, { opacity: 1 }] : [
+      { transform: 'translateY(0) scale(1)', filter: 'blur(0)', opacity: 1 },
+      { transform: 'translateY(-60px) scaleY(1.25) scaleX(.9)', filter: 'blur(3px)', opacity: .6, offset: .45 },
+      { transform: 'translateY(-90px) scale(1.04)', filter: 'blur(0)', opacity: 1, offset: .85 },
+      { transform: 'translateY(-86px) scale(1)', opacity: 1 }], { duration: reduce ? 150 : 1000, easing: ease.standard }).finished;
+    glow.removeAttribute('data-armed');
+    setTimeout(() => A(tile, [{ transform: 'none' }], { duration: 1 }), 1400);
+  }
+  if (kind === 'flick') {
+    const tile = document.getElementById('m-flick-tile'), rip = document.getElementById('m-flick-ripple');
+    rip.hidden = true;
+    await A(tile, reduce ? [{ opacity: 0 }, { opacity: 1 }] : [
+      { transform: 'none' }, { transform: 'scale(1.06) translateY(-6px)', offset: .12 },
+      { transform: 'translateY(-90px) scale(.8)', offset: .75 }, { transform: 'translateY(-82px) scale(.86)' }], { duration: reduce ? 150 : 900, easing: ease.enter }).finished;
+    rip.hidden = false; const c = rip.cloneNode(); rip.replaceWith(c); c.id = 'm-flick-ripple';
+    setTimeout(() => A(tile, [{ transform: 'none' }], { duration: 1 }), 1600);
+  }
+  if (kind === 'back') {
+    const tile = document.getElementById('m-back-tile'), ghost = tile.cloneNode(true);
+    ghost.id = ''; ghost.style.opacity = .9; tile.parentNode.appendChild(ghost);
+    await A(ghost, reduce ? [{ opacity: 1 }, { opacity: 0 }] : [{ transform: 'none' }, { transform: 'translateY(150px) scale(.5)', opacity: 0 }], { duration: reduce ? 150 : 550, easing: ease.exit }).finished;
+    ghost.remove();
+  }
+}
+document.querySelectorAll('[data-play]').forEach(b => b.addEventListener('click', () => play(b.dataset.play)));
+setLook(initial());
+setTimeout(() => { const l = document.getElementById('landing'); l.classList.remove('bl-arrive'); void l.offsetWidth; l.classList.add('bl-arrive'); }, 50);
+</script>

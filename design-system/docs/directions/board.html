@@ -1,0 +1,228 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1600px;height:1040px;overflow:hidden;font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;
+  --ink:#1D1D1F;--muted:#6E6E73;--alex:#0A84FF;--maya:#FF9F0A;--sam:#30B07A;--robin:#FF375F;--jamie:#8E5CF6;--live:#FF3B30}
+.board{position:absolute;inset:0;background:var(--page);color:var(--ink);padding:44px 52px}
+header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:26px}
+header .k{font:600 13px/1 var(--mono,'JetBrains Mono');letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+header h1{font:700 40px/1 Inter;letter-spacing:-.03em}
+header p{font-size:16px;color:var(--muted);max-width:620px;text-align:right;line-height:1.45}
+.grid{display:grid;grid-template-columns:1120px 1fr;gap:40px}
+.wallframe{width:1120px;height:630px;border-radius:18px;padding:9px;background:#0d0d0f;box-shadow:0 40px 90px rgba(20,24,40,.22)}
+.wall{position:relative;width:100%;height:100%;border-radius:10px;overflow:hidden;background:var(--wall)}
+.w{position:absolute;display:flex;flex-direction:column}
+.content{position:relative;flex:1;overflow:hidden}
+.art{position:absolute;inset:0;background:
+ radial-gradient(60% 80% at 20% 30%,#5b8cff 0,transparent 60%),radial-gradient(60% 70% at 85% 70%,#ff7a59 0,transparent 60%),radial-gradient(50% 60% at 60% 20%,#b45cff 0,transparent 60%),#3d4bd6}
+.art::after{content:"";position:absolute;left:8%;bottom:12%;width:46%;height:10%;border-radius:6px;background:rgba(255,255,255,.9)}
+.art::before{content:"";position:absolute;left:8%;bottom:26%;width:62%;height:16%;border-radius:6px;background:rgba(255,255,255,.95)}
+.photo{position:absolute;inset:0;background:linear-gradient(#7fb1f2 0,#f6cfa2 52%,#f0a877 62%,#4b3f5c 63%,#2d2a3a 78%,#3d4466 100%)}
+.photo::before{content:"";position:absolute;left:0;right:0;top:30%;height:34%;background:#6d5a7e;clip-path:polygon(0 70%,12% 40%,22% 55%,38% 10%,52% 50%,64% 30%,80% 60%,92% 35%,100% 50%,100% 100%,0 100%)}
+.photo::after{content:"";position:absolute;left:0;right:0;top:42%;height:22%;background:#3b3249;clip-path:polygon(0 60%,18% 20%,30% 50%,46% 0,60% 55%,74% 25%,88% 55%,100% 30%,100% 100%,0 100%)}
+.sheet{padding:14px 16px;font:500 14px/1 Inter;font-variant-numeric:tabular-nums}
+.sheet table{width:100%;border-collapse:collapse}
+.sheet td{padding:8px 2px;border-bottom:1px solid var(--line)}
+.sheet td:last-child{text-align:right}
+.sheet tr:first-child td{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.sheet tr:last-child td{font-weight:700;border:0}
+.note{padding:16px;font:600 17px/1.35 Inter}
+.note li{list-style:none;padding:3px 0}
+.slide{padding:20px 22px;display:flex;flex-direction:column;justify-content:flex-end;gap:6px}
+.slide b{font:700 22px/1.1 var(--display,Inter);letter-spacing:-.02em}
+.slide span{font-size:12px;color:var(--muted)}
+.slide::before{content:"";position:absolute;right:-20%;top:-30%;width:70%;height:120%;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--jamie) 40%,transparent),transparent 65%)}
+.av{width:22px;height:22px;border-radius:50%;background:var(--o);color:#fff;font:700 11px/22px Inter;text-align:center;flex:none}
+.livep{display:inline-flex;align-items:center;gap:5px;font:700 10px/1 Inter;letter-spacing:.08em;color:#fff;background:var(--live);padding:5px 8px;border-radius:999px}
+.livep::before{content:"";width:5px;height:5px;border-radius:50%;background:#fff}
+.tools{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);display:flex;gap:4px;padding:6px}
+.tools i{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;color:var(--muted)}
+.tools i.on{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent)}
+.tools svg{width:18px;height:18px}
+.join{position:absolute;right:20px;bottom:20px;display:flex;align-items:center;gap:12px;padding:10px 12px 10px 16px;font-size:12px;color:var(--muted)}
+.join b{display:block;font:600 15px/1.2 'JetBrains Mono';letter-spacing:.12em;color:var(--ink)}
+.qr{width:40px;height:40px;border-radius:6px;background:conic-gradient(var(--ink) 25%,transparent 0 50%,var(--ink) 0 75%,transparent 0) 0 0/10px 10px}
+.ripple{position:absolute;border-radius:50%;border:2px solid var(--robin);opacity:.35}
+/* phone */
+.phone{width:290px;height:600px;border-radius:52px;padding:10px;background:linear-gradient(145deg,#5d5f64,#232427 45%,#3f4145);box-shadow:0 30px 60px rgba(0,0,0,.25);margin:6px auto 0}
+.ps{position:relative;width:100%;height:100%;border-radius:43px;overflow:hidden;background:var(--pbg);padding:58px 20px 22px;display:flex;flex-direction:column;gap:14px}
+.ps::before{content:"";position:absolute;top:12px;left:50%;transform:translateX(-50%);width:92px;height:26px;border-radius:14px;background:#000}
+.ps::after{content:"9:41";position:absolute;top:17px;left:30px;font:600 14px Inter;color:var(--ink)}
+.ps h3{font:700 26px/1.05 Inter;letter-spacing:-.025em}
+.ps .sub{font-size:13px;color:var(--muted);margin-top:4px}
+.pcard{position:relative;height:210px;overflow:hidden}
+.pcap{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
+.dest{display:flex;gap:8px;flex-wrap:wrap}
+.dest span{font:500 13px Inter;padding:8px 12px}
+.pbtn{margin-top:auto;height:52px;display:grid;place-items:center;font:600 16px Inter}
+.hint{text-align:center;font-size:12px;color:var(--muted)}
+/* strip */
+.strip{display:grid;grid-template-columns:1fr 360px;gap:40px;margin-top:30px;align-items:start}
+.comps{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.btn{height:44px;padding:0 20px;display:inline-grid;place-items:center;font:600 15px Inter}
+.seg{display:inline-flex;padding:3px;gap:2px}
+.seg span{padding:8px 14px;font:500 13px Inter;color:var(--muted)}
+.seg span.on{color:var(--ink)}
+.owners{display:flex}
+.owners .av{width:30px;height:30px;line-height:30px;font-size:13px;margin-left:-6px;box-shadow:0 0 0 2.5px var(--page)}
+.toast{display:inline-flex;align-items:center;gap:10px;height:44px;padding:0 18px 0 8px;font:500 14px Inter}
+.type{display:flex;gap:26px;align-items:baseline;margin-top:16px;color:var(--muted);font-size:13px}
+.type b{color:var(--ink)}
+.mini{position:relative;width:360px;height:203px;border-radius:10px;overflow:hidden;padding:5px;background:#0d0d0f}
+.mini .scale{width:1102px;height:612px;transform:scale(.3175);transform-origin:0 0}
+.mini .lbl{position:absolute;left:12px;bottom:10px;font:600 11px 'JetBrains Mono';letter-spacing:.1em;color:#fff;background:rgba(0,0,0,.45);padding:4px 7px;border-radius:6px;z-index:9}
+.trail{position:absolute;pointer-events:none}
+.dark .wall{--ink:#F2F3F5;--muted:#9A9FAD;--line:rgba(255,255,255,.1);color:var(--ink)}
+.dark .glassy{background:rgba(30,32,40,.72)!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)!important}
+.dark .w .content[style*=color-mix]{background:color-mix(in srgb,var(--o) 22%,#15161a)!important}
+</style></head><body>
+<div class="board" id="board"></div>
+<script>
+const D = new URLSearchParams(location.search).get('d') || 'glass';
+const icons = {
+  pointer:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 3l14 7-6 2-2 6z"/></svg>',
+  pen:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20c4-1 6-6 9-9l3 3c-3 3-8 5-9 9M14 7l3-3 3 3-3 3"/></svg>',
+  shape:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="4"/></svg>',
+  text:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 6h14M12 6v13"/></svg>',
+  layout:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="8" height="16" rx="2"/><rect x="13" y="4" width="8" height="7" rx="2"/><rect x="13" y="13" width="8" height="7" rx="2"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>'
+};
+const W = [
+  {id:'alex',who:'Alex',title:'Moodboard · Figma',x:3,y:6,w:46,h:52,live:1,kind:'art'},
+  {id:'maya',who:'Maya',title:'Budget.xlsx',x:52,y:6,w:28,h:42,live:1,kind:'sheet'},
+  {id:'sam',who:'Sam',title:'Next steps',x:82.5,y:6,w:14.5,h:34,kind:'note'},
+  {id:'jamie',who:'Jamie',title:'Q3 Roadmap.pdf',x:3,y:63,w:28,h:28,kind:'slide'},
+  {id:'robin',who:'Robin',title:'Site visit.jpg',x:52,y:53,w:24,h:36,kind:'photo',landing:1},
+];
+function body(k){
+  if(k==='art')return '<div class="art"></div>';
+  if(k==='photo')return '<div class="photo"></div>';
+  if(k==='sheet')return '<div class="sheet"><table><tr><td>Item</td><td>Cost</td></tr><tr><td>Displays</td><td>£4,820</td></tr><tr><td>Licences</td><td>£1,150</td></tr><tr><td>Install</td><td>£2,300</td></tr><tr><td>Total</td><td>£8,270</td></tr></table></div>';
+  if(k==='note')return '<ul class="note"><li>Pilot room by Friday</li><li>Book 4K panel</li><li>Invite the ward team</li></ul>';
+  return '<div class="slide"><b>Ship the shared room</b><span>Page 4 of 12</span></div>';
+}
+const STYLES = {
+glass:{name:'Glass',kicker:'Direction 1',desc:'Apple’s newest language, Liquid Glass and visionOS. Windows are pure content with no title bar. Who and what sit in a floating glass tag underneath. Tools are glass capsules that refract the room.',
+ css:`.board{--page:#F2F3F7;--wall:radial-gradient(70% 60% at 15% 10%,#e3ecff 0,transparent 60%),radial-gradient(60% 60% at 90% 90%,#ffe9e0 0,transparent 60%),#F4F5F8;--line:rgba(0,0,0,.08);--accent:#0A84FF;--pbg:linear-gradient(#f5f6fa,#eceef4)}
+ .w{gap:8px}.content{border-radius:24px;box-shadow:0 30px 60px rgba(30,40,80,.16),0 2px 6px rgba(30,40,80,.08);background:#fff}
+ .content::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 1px rgba(255,255,255,.6),inset 0 1px 0 rgba(255,255,255,.9);pointer-events:none}
+ .w.live .content{box-shadow:0 0 0 2.5px var(--o),0 30px 60px rgba(30,40,80,.16)}
+ .orn{align-self:center;display:flex;align-items:center;gap:8px;height:32px;padding:0 12px 0 5px;border-radius:999px;font:600 12.5px Inter;background:rgba(255,255,255,.55);backdrop-filter:blur(20px) saturate(1.6);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),inset 0 0 0 1px rgba(255,255,255,.5),0 6px 16px rgba(30,40,80,.10)}
+ .orn .who{color:var(--muted);font-weight:500}
+ .orn .livep{padding:4px 6px}
+ .glassy{background:rgba(255,255,255,.55);backdrop-filter:blur(24px) saturate(1.8);box-shadow:inset 0 1px 0 rgba(255,255,255,.95),inset 0 0 0 1px rgba(255,255,255,.55),0 10px 30px rgba(30,40,80,.14)}
+ .tools{border-radius:999px}.tools i{border-radius:999px}
+ .join{border-radius:22px}
+ .pcard{border-radius:28px;box-shadow:0 24px 40px rgba(30,40,80,.22)}
+ .dest span{border-radius:999px}.dest span.on{background:var(--ink);color:#fff}
+ .pbtn{border-radius:999px;background:var(--accent);color:#fff;box-shadow:0 10px 24px rgba(10,132,255,.35)}
+ .btn{border-radius:999px}.btn.p{background:var(--accent);color:#fff}.btn.s{color:var(--ink)}
+ .seg{border-radius:999px}.seg span{border-radius:999px}.seg span.on{background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.1)}
+ .toast{border-radius:999px}
+ .dark .wall{--wall:radial-gradient(70% 60% at 15% 10%,#1d2b55 0,transparent 60%),radial-gradient(60% 60% at 90% 90%,#3a1d33 0,transparent 60%),#0c0d12}
+ .dark .content{background:#1c1d22}.dark .orn{background:rgba(255,255,255,.12);color:#fff}`},
+paper:{name:'Paper',kicker:'Direction 2',desc:'Calm and editorial, like Freeform and Keynote. Flat white sheets with hairline edges on a quiet dotted table. A slim title bar names the owner, and a thin colour line along the top shows whose work it is.',
+ css:`.board{--page:#F7F7F5;--wall:radial-gradient(#dcdcd6 1.1px,transparent 1.3px) 0 0/28px 28px,#FAFAF8;--line:rgba(0,0,0,.08);--accent:#0066CC;--pbg:#FAFAF8}
+ .w{background:#fff;border-radius:12px;box-shadow:0 0 0 1px rgba(0,0,0,.07),0 12px 28px rgba(0,0,0,.07);overflow:hidden}
+ .w::before{content:"";height:3px;background:var(--o);flex:none}
+ .orn{display:flex;align-items:center;gap:8px;height:34px;padding:0 12px;font:600 12.5px Inter;border-bottom:1px solid var(--line);order:-1}
+ .w::before{order:-2}
+ .orn .av{width:18px;height:18px;line-height:18px;font-size:10px}
+ .orn .who{margin-left:auto;color:var(--muted);font-weight:500}
+ .glassy{background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.08),0 8px 20px rgba(0,0,0,.06)}
+ .tools{border-radius:14px}.tools i{border-radius:9px}
+ .join{border-radius:12px}
+ .pcard{border-radius:16px;box-shadow:0 0 0 1px rgba(0,0,0,.08),0 16px 30px rgba(0,0,0,.12)}
+ .dest span{border-radius:10px;box-shadow:0 0 0 1px rgba(0,0,0,.1)}.dest span.on{box-shadow:0 0 0 2px var(--accent);color:var(--accent)}
+ .pbtn{border-radius:14px;background:var(--ink);color:#fff}
+ .btn{border-radius:10px}.btn.p{background:var(--ink);color:#fff}.btn.s{box-shadow:0 0 0 1px rgba(0,0,0,.14)}
+ .seg{border-radius:10px;background:#ececea}.seg span{border-radius:8px}.seg span.on{background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.1)}
+ .toast{border-radius:12px;background:var(--ink)!important;color:#fff}
+ .dark .wall{--wall:radial-gradient(#2a2a2e 1.1px,transparent 1.3px) 0 0/28px 28px,#141416}
+ .dark .w{background:#1f1f22}.dark .orn{color:#eee}`},
+light:{name:'Light',kicker:'Direction 3',desc:'The signature is light itself. Every person owns a colour, and their work glows softly in it, as if lit from behind. Arrivals leave a fading trail. Bright and Apple-clean by day, cinematic in the dark rooms.',
+ css:`.board{--page:#F1F2F6;--wall:#F6F7FA;--line:rgba(0,0,0,.07);--accent:#0A84FF;--pbg:#F6F7FA}
+ .w{gap:0}.content{border-radius:18px;background:#fff;box-shadow:0 0 0 1px color-mix(in srgb,var(--o) 30%,transparent),0 18px 50px color-mix(in srgb,var(--o) 34%,transparent),0 2px 6px rgba(0,0,0,.06)}
+ .orn{position:absolute;left:12px;top:12px;z-index:3;display:flex;align-items:center;gap:7px;height:28px;padding:0 10px 0 4px;border-radius:999px;font:600 12px Inter;color:#fff;background:color-mix(in srgb,var(--o) 88%,#000);box-shadow:0 4px 14px color-mix(in srgb,var(--o) 50%,transparent)}
+ .orn .av{background:rgba(255,255,255,.25);width:20px;height:20px;line-height:20px;font-size:10px}
+ .orn .who{display:none}
+ .orn .livep{background:#fff;color:var(--live);padding:4px 6px}.orn .livep::before{background:var(--live)}
+ .w .content > .sheet,.w .content > .note,.w .content > .slide{padding-top:50px}
+ .glassy{background:rgba(255,255,255,.8);backdrop-filter:blur(20px);box-shadow:0 0 0 1px rgba(0,0,0,.05),0 12px 30px rgba(10,132,255,.14)}
+ .tools{border-radius:18px}.tools i{border-radius:12px}
+ .join{border-radius:16px}
+ .pcard{border-radius:24px;box-shadow:0 0 0 1px rgba(255,55,95,.3),0 24px 50px rgba(255,55,95,.4)}
+ .dest span{border-radius:999px;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.08)}.dest span.on{background:var(--robin);color:#fff;box-shadow:0 6px 16px rgba(255,55,95,.4)}
+ .pbtn{border-radius:18px;background:linear-gradient(90deg,#FF375F,#FF7A59);color:#fff;box-shadow:0 12px 26px rgba(255,55,95,.4)}
+ .btn{border-radius:14px}.btn.p{background:var(--accent);color:#fff;box-shadow:0 8px 20px rgba(10,132,255,.35)}.btn.s{background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.1)}
+ .seg{border-radius:14px;background:#e6e8ee}.seg span{border-radius:11px}.seg span.on{background:#fff}
+ .toast{border-radius:14px}
+ .dark .wall{--wall:radial-gradient(80% 60% at 50% 0,#14182a,#07080c)}
+ .dark .content{background:#14151b;box-shadow:0 0 0 1px color-mix(in srgb,var(--o) 60%,transparent),0 0 60px color-mix(in srgb,var(--o) 55%,transparent)}`},
+instrument:{name:'Instrument',kicker:'Direction 4',desc:'Precise and quietly technical, like a Braun radio or a pro camera. A fine measured grid, numbered windows, monospace labels and tabular figures. Reads instantly in a hospital, a control room or a lecture hall.',
+ css:`.board{--page:#EFEFEC;--mono:'JetBrains Mono';--wall:linear-gradient(rgba(0,0,0,.045) 1px,transparent 1px) 0 0/40px 40px,linear-gradient(90deg,rgba(0,0,0,.045) 1px,transparent 1px) 0 0/40px 40px,#F5F5F2;--line:rgba(0,0,0,.1);--accent:#FF5A1F;--pbg:#F5F5F2}
+ .w{background:#fff;border-radius:6px;box-shadow:0 0 0 1px rgba(0,0,0,.14),0 10px 24px rgba(0,0,0,.07)}
+ .w.live{box-shadow:0 0 0 1.5px var(--o),0 10px 24px rgba(0,0,0,.07)}
+ .orn{order:-1;display:flex;align-items:center;gap:10px;height:30px;padding:0 10px;font:500 11px 'JetBrains Mono';letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--line)}
+ .orn .av{width:10px;height:10px;border-radius:2px;font-size:0}
+ .orn .n{color:var(--muted)}
+ .orn .who{margin-left:auto;color:var(--muted)}
+ .orn .livep{border-radius:3px;padding:4px 6px;font-family:'JetBrains Mono'}
+ .content{margin:0}
+ .glassy{background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.14)}
+ .tools{border-radius:8px;padding:4px}.tools i{border-radius:5px}
+ .tools i.on{background:var(--ink);color:#fff}
+ .join{border-radius:6px}
+ .pcard{border-radius:10px;box-shadow:0 0 0 1px rgba(0,0,0,.14),0 14px 28px rgba(0,0,0,.14)}
+ .ps h3{font-weight:600}
+ .dest span{border-radius:6px;box-shadow:0 0 0 1px rgba(0,0,0,.16);font:500 12px 'JetBrains Mono';text-transform:uppercase;letter-spacing:.06em}.dest span.on{background:var(--ink);color:#fff}
+ .pbtn{border-radius:8px;background:var(--accent);color:#fff;font:600 14px 'JetBrains Mono';letter-spacing:.1em;text-transform:uppercase}
+ .btn{border-radius:6px}.btn.p{background:var(--accent);color:#fff}.btn.s{box-shadow:0 0 0 1px rgba(0,0,0,.2)}
+ .seg{border-radius:6px;box-shadow:0 0 0 1px rgba(0,0,0,.16)}.seg span{border-radius:4px;font-family:'JetBrains Mono';font-size:12px;text-transform:uppercase}.seg span.on{background:var(--ink);color:#fff}
+ .toast{border-radius:6px;background:var(--ink)!important;color:#fff;font-family:'JetBrains Mono';font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+ .corner{position:absolute;width:14px;height:14px;border-color:rgba(0,0,0,.35);border-style:solid;border-width:0}
+ .dark .wall{--wall:linear-gradient(rgba(46,230,166,.07) 1px,transparent 1px) 0 0/40px 40px,linear-gradient(90deg,rgba(46,230,166,.07) 1px,transparent 1px) 0 0/40px 40px,#070a0c}
+ .dark .w{background:#0d1416;box-shadow:0 0 0 1px rgba(46,230,166,.35)}.dark .orn{color:#bfeee0}`}
+};
+const S = STYLES[D];
+document.head.insertAdjacentHTML('beforeend','<style>'+S.css+'</style>');
+function wallHTML(){
+  let h='';
+  W.forEach((w,i)=>{
+    const tag = D==='instrument'
+      ? `<div class="orn"><span class="av"></span><span class="n">0${i+1}</span><span>${w.title}</span>${w.live?'<span class="livep">Live</span>':''}<span class="who">${w.who}</span></div>`
+      : `<div class="orn"><span class="av">${w.who[0]}</span><span>${w.title}</span>${D==='paper'?'':''}${w.live?'<span class="livep">LIVE</span>':''}<span class="who">${w.who}</span></div>`;
+    const inner = `<div class="content" style="${w.kind==='note'?'background:color-mix(in srgb,var(--o) 14%,#fff)':''}">${body(w.kind)}</div>`;
+    const order = D==='glass' ? inner+tag : (D==='light'? `<div class="content" style="position:relative;flex:1">${tag}${body(w.kind)}</div>` : tag+inner);
+    h+=`<div class="w ${w.live?'live':''}" style="--o:var(--${w.id});left:${w.x}%;top:${w.y}%;width:${w.w}%;height:${w.h}%">${order}</div>`;
+    if(w.landing){h+=`<div class="ripple" style="left:calc(${w.x+w.w/2}% - 170px);top:calc(${w.y+w.h/2}% - 170px);width:340px;height:340px;opacity:.12"></div><div class="ripple" style="left:calc(${w.x+w.w/2}% - 120px);top:calc(${w.y+w.h/2}% - 120px);width:240px;height:240px;opacity:.22"></div>`}
+  });
+  // trail from bottom-left (phone) to the photo
+  const col = D==='instrument'?'#FF375F':'#FF375F';
+  h+=`<svg class="trail" viewBox="0 0 1102 612" style="inset:0;width:100%;height:100%"><defs><linearGradient id="g" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="${col}" stop-opacity="0"/><stop offset="1" stop-color="${col}" stop-opacity="${D==='instrument'?'.7':'.9'}"/></linearGradient><filter id="b"><feGaussianBlur stdDeviation="${D==='light'?4:2}"/></filter></defs>
+  <path d="M 330 640 C 420 520, 520 470, 650 430" stroke="url(#g)" stroke-width="${D==='instrument'?2:5}" fill="none" ${D==='instrument'?'stroke-dasharray="6 6"':'filter="url(#b)"'}/>${D!=='instrument'?'<path d="M 330 640 C 420 520, 520 470, 650 430" stroke="url(#g)" stroke-width="1.5" fill="none"/>':''}
+  ${D==='instrument'?'':Array.from({length:26},(_,i)=>{const t=i/26,x=330+(650-330)*t+Math.sin(i*1.7)*14,y=640-(640-430)*(1-Math.pow(1-t,1.5))+Math.cos(i*2.3)*10;return `<circle cx="${x}" cy="${y}" r="${1+t*2.2}" fill="${col}" opacity="${t*.85}"/>`}).join('')}</svg>`;
+  h+=`<div class="tools glassy"><i class="on">${icons.pointer}</i><i>${icons.pen}</i><i>${icons.shape}</i><i>${icons.text}</i><i>${icons.layout}</i></div>`;
+  h+=`<div class="join glassy"><div>Join the room<b>TE54D3</b></div><div class="qr"></div></div>`;
+  if(D==='instrument'){h+=`<div style="position:absolute;left:14px;top:10px;font:500 10px 'JetBrains Mono';letter-spacing:.12em;color:rgba(0,0,0,.4)">WALL A · 3840×2160 · 5 SOURCES</div>`}
+  return h;
+}
+const B=document.getElementById('board');
+B.innerHTML=`<header><div><div class="k">${S.kicker}</div><h1>${S.name}</h1></div><p>${S.desc}</p></header>
+<div class="grid"><div><div class="wallframe"><div class="wall">${wallHTML()}</div></div>
+<div class="strip"><div><div class="comps">
+<span class="btn p">Send to Wall</span><span class="btn s glassy">Send to Sam</span>
+<span class="seg glassy"><span class="on">Whiteboard</span><span>Studio</span><span>Executive</span><span>Tactical</span></span>
+<span class="owners"><span class="av" style="--o:var(--alex)">A</span><span class="av" style="--o:var(--maya)">M</span><span class="av" style="--o:var(--sam)">S</span><span class="av" style="--o:var(--robin)">R</span><span class="av" style="--o:var(--jamie)">J</span></span>
+<span class="livep">LIVE</span>
+<span class="toast glassy"><span class="av" style="--o:var(--sam);display:grid;place-items:center">${icons.check}</span>Landed on the Wall</span>
+</div><div class="type"><span><b style="font:700 15px Inter">Inter</b> interface</span>${D==='instrument'?'<span><b style="font:500 14px JetBrains Mono">JetBrains Mono</b> labels and figures</span>':'<span><b>SF Pro</b> on Apple devices</span>'}<span>Owner colours: <b>8</b>, colour-blind safe</span></div></div>
+<div class="mini dark"><div class="scale"><div class="wall" style="width:1102px;height:612px">${wallHTML()}</div></div><span class="lbl">${D==='instrument'?'TACTICAL':'STUDIO'} · DARK ROOM</span></div></div></div>
+<div><div class="phone"><div class="ps"><div><h3>Send to<br>the Wall</h3><div class="sub">Design review · 5 people</div></div>
+<div class="pcard"><div class="photo"></div></div><div class="pcap"><span class="av" style="--o:var(--robin)">R</span>Site visit.jpg</div>
+<div class="dest"><span class="on">The Wall</span><span>Sam’s Mac</span><span>Everyone</span></div>
+<div class="pbtn">Flick up to send</div><div class="hint">or tap to send</div></div></div></div></div>`;
+document.querySelectorAll('.dark .w, .dark .content').forEach(()=>{});
+</script></body></html>

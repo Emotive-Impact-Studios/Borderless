@@ -32,7 +32,7 @@ The user accepted all four recommendations: "yes whatever just make sure it work
 
 | Decision | Choice |
 | --- | --- |
-| Look | A, the clean Whiteboard, as the default; B Studio and C Executive as switchable room looks |
+| Look | A, the clean Whiteboard, as the default; B Studio and C Executive as switchable room looks. Design language: Glass + Light, built as the design system in `design-system/` (four looks: Whiteboard, Studio, Executive, Tactical; Tactical to be redesigned later) |
 | Architecture | ARCHITECTURE_DECISION.md option 1: native agents, Rust engine and hub, LiveKit media, one TypeScript Wall/Console/Portal, Tauri Wall shell |
 | Phone apps | React Native (Expo), after the core moments; the web Portal stays |
 | Mac window over the edge | `CGVirtualDisplay` (as DeskPad), isolated behind one interface, with a physical adapter documented for locked-down rooms |

@@ -1,6 +1,6 @@
 # Codex build brief: Borderless
 
-**This is the entry point for any builder.** Read it top to bottom before writing code. Also read [DECISIONS.md](DECISIONS.md) for what the user has decided, seen and is still deciding, and look at the concept images and prototype in `docs/design/`. Order of authority: [VISION.md](VISION.md) (what the app is), then this brief (how to build it, in what order), then [PRD.md](PRD.md) v3 (detailed requirements). If anything else in the repository disagrees, these three win. Do not change the product, the order or the stack without the user's written agreement.
+**This is the entry point for any builder.** Read it top to bottom before writing code. Also read [DECISIONS.md](DECISIONS.md) for what the user has decided, seen and is still deciding, look at the concept images and prototype in `docs/design/`, and build every screen from the design system in `design-system/`. Order of authority: [VISION.md](VISION.md) (what the app is), then this brief (how to build it, in what order), then [PRD.md](PRD.md) v3 (detailed requirements). If anything else in the repository disagrees, these three win. Do not change the product, the order or the stack without the user's written agreement.
 
 ## 1. The app
 
@@ -47,6 +47,8 @@ The user approved this stack on 3 November 2026 ("yes whatever just make sure it
 **Reuse to start from:** LiveKit server and SDKs (Apache-2.0), `nonstrict-hq/ScreenCaptureKit-Recording-example` (MIT, capture reference), `mozilla/pdf.js` (Apache-2.0), `steveruizok/perfect-freehand` (MIT, ink), `tauri-apps/tauri` (Apache-2.0/MIT), `VirtualDrivers/Virtual-Display-Driver` (MIT) or the Microsoft IndirectDisplay sample (Windows virtual monitor), `Stengo/DeskPad` (MIT, reference for `CGVirtualDisplay`). Pin a release, keep licence notices, never copy GPL or AGPL code.
 
 ## 4. Look and feel
+
+> **Design system (chosen 3 November 2026): [`design-system/`](../design-system/), start at [`design-system/docs/CODEX.md`](../design-system/docs/CODEX.md).** The user picked the Glass + Light direction. The design system replaces this section's sizes, colours and window anatomy; where they disagree, the design system wins. Changes: no 36 px title bar (a glass ornament sits under each window instead), a 24 px window radius, four looks (Whiteboard, Studio, Executive, Tactical; no Synthwave), and every value comes from tokens. Tactical gets a redesign later. This section's principles (including principle 5, native and Apple-quality) and its visual acceptance still stand.
 
 The user's instruction: it "needs to look better than this". The current web UI is a competent productivity canvas. The conversation asked for something with presence: work that looks like it physically travels through the air and lands (source 165, 761-767, 7641-7649), and looks that "look goooood" (10041). Treat visual quality as a requirement with its own acceptance, not decoration added at the end. What follows is a proposed direction; show it to the user early (milestone 1) and adjust before building it everywhere.
 
