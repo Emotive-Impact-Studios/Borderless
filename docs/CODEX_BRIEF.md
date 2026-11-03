@@ -104,8 +104,8 @@ Build in this order. Each milestone is a vertical slice that ends with **the use
 
 ### Milestone 2: phone flick onto the Wall, and send-back (core moment C2)
 
-- **Build:** Wall viewers in the shared front end: images, multipage PDF (pdf.js), video files with sound through the room output (hardware decoding in the Wall's browser engine), text and notes. Arrival effects per PRD B39: particle vortex for phone throws, in the sender's colour, landing where the phone aimed. Free-space placement so new work never covers existing work. Portal flick on real phones with explicit Send as an alternative. Send-back from the Wall or Console to one chosen phone.
-- **Done when:** on a real iPhone and a real Android phone, the user picks a photo and a PDF, flicks them up, sees them leave the phone and land on the Wall as real, readable, movable windows with their colour; then sends one back and finds it saved on the phone. A short or sideways swipe sends nothing.
+- **Build:** Wall viewers in the shared front end: images, multipage PDF (pdf.js), video files with sound through the room output (hardware decoding in the Wall's browser engine), text and notes. Arrival effects per PRD B39: particle vortex for phone throws, in the sender's colour, landing where the phone aimed. Free-space placement so new work never covers existing work. Portal flick on real phones with explicit Send as an alternative. Send-back from the Wall or Console to one chosen phone. **Links (PRD B42):** paste or share a link into the Portal and flick it; the Wall opens it as a live, scrollable web window in a sandboxed web view opened by the Tauri shell (no shared logins or cookies, no downloads or pop-ups), with a preview card first and as the fallback.
+- **Done when:** on a real iPhone and a real Android phone, the user picks a photo and a PDF, flicks them up, sees them leave the phone and land on the Wall as real, readable, movable windows with their colour; does the same with a link copied from the phone's browser and sees the actual web page on the Wall; then sends one back and finds it saved on the phone. A short or sideways swipe sends nothing.
 
 ### Milestone 3: someone's live window beside your own work (core moment C3, second half)
 
@@ -124,7 +124,7 @@ Show milestones 1 to 4 together in a real room session: one Wall, two laptops, t
 
 ### Milestone 6: the rest of the room experience
 
-Phone laser pointers (gyro and touch), drawing from seats (perfect-freehand on Portal and Wall), classroom hand raise, quiz, pointer voting and drag-to-column (PRD B16-B17, B38), room audio without echo (B31), the five themes including the clean Apple-style Whiteboard (B19), Console arrange and governance, optional Console mini-map (B41). The React Native phone app: share sheet, phone screen sharing, haptic flick, notifications.
+Phone laser pointers (gyro and touch), drawing from seats (perfect-freehand on Portal and Wall), classroom hand raise, quiz, pointer voting and drag-to-column (PRD B16-B17, B38), room audio without echo (B31), the five themes including the clean Apple-style Whiteboard (B19), Console arrange and governance, optional Console mini-map (B41). The React Native phone app: "Share to Borderless" from any app's share sheet, including links from Safari and Chrome, with the flick card shown inside the share sheet; phone screen sharing; haptic flick; notifications. On laptops, a link dragged from the browser to the connected edge goes to the Wall the same way.
 
 ### Milestone 6b: mission control room
 
