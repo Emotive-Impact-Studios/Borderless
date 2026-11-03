@@ -4,6 +4,16 @@
 
 Read VISION.md first, then PRODUCT.md and DESIGN.md, then README, PRD, CAPABILITIES, ARCHITECTURE and DELIVERY. The original conversation is preserved in `docs/source/` and checked against SHA-256. The repository began with only a README at main commit `7b773ca855f0438bdd6e5f08d4e71b556037fd50`.
 
+## Milestone 1 · software latency measurement · 3 November 2026
+
+- User asked for latency measurement without filming. Added a real AppKit timestamp source and offline screenshot decoder, with method and limitations in [LATENCY_MEASUREMENT.md](LATENCY_MEASUREMENT.md). No video frames are injected: the ordinary source window goes through ScreenCaptureKit, LiveKit and the actual Tauri renderer.
+- Thirty samples with the fullscreen source and Wall visible on separate physical displays gave median source-paint-to-screenshot bounds of **72.5–109.5 ms** (32 ms median observation-call duration; one short 1.065-second burst). Earlier windowed runs gave 116–152 ms and 111.5–144 ms. Direct-source calibration gave −17.5–15.5 ms. These are software observation bounds, not physical glass-to-glass certification or sustained 60 fps evidence. Raw PNGs/manifests/results remain ignored under `output/native/latency*`.
+- Source fullscreen initially hid the receiver in the same macOS Space; moving the Tauri Wall to the other display restored live video. Keep both visible for measurements. The connected displays are both 1080p, not physical 4K hardware.
+- A **local, uncommitted candidate** changes SCK capture, buffer capture and explicit screen-share encoding to 60 fps (8 Mbps maximum). It compiled and passed required checks, but has no runtime comparison yet. It is not an accepted performance fix. The rebuilt bundle is in `output/native/Borderless Native.app`; the previous publisher was stopped and quit before replacement.
+- Refreshing the previously authorised recording permission hit a frozen System Settings Go To sheet. Recovered Settings through macOS Force Quit; the stale Borderless Native permission entry had already been removed. Adding the replacement now requires the user's password in the visible Privacy & Security prompt. Asked only for unlock; do not ask them to repeat the whole setup. Once unlocked, finish adding the exact bundle, launch, join the existing review room, select the timestamp fixture and measure the candidate in Tauri. Never enter a password or alter the privacy database.
+- Node 24 `npm run verify` passes all 67 tests; `DOTNET_ROOT=/Users/augustusedem/.dotnet npm run native:verify` passes. Logs: ignored `output/native/m1-latency-{verify,native}.log`. Measurement scripts/docs are ready for review; candidate performance settings remain local pending actual playback validation.
+- M1 remains open. No later milestone started. Cross-machine trusted LAN, physical latency/throughput and user visual acceptance are not supplied by these measurements.
+
 ## Milestone 1 · actual Tauri playback · 3 November 2026, continuing
 
 - Launched `output/native/Borderless Wall.app`, built from the real locked Tauri executable using `npm run wall:mac:package`. Paired through its visible invitation form. The remote page has no native capabilities. Bundle signing is ad-hoc development only.
