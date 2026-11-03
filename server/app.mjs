@@ -8,6 +8,7 @@ import { networkInterfaces } from "node:os";
 import { randomInt } from "node:crypto";
 import { WebSocketServer, WebSocket } from "ws";
 import QRCode from "qrcode";
+import { LiveMedia } from "./live-media.mjs";
 import {
   openStore,
   hash,
@@ -120,6 +121,30 @@ export async function createApp(options = {}) {
     rates = new Map();
   let uploading = 0,
     closing = false;
+  let media;
+  try { media = options.media ? new LiveMedia({
+    ...options.media,
+    readRoom: roomId => ({
+      room: store.room(roomId),
+      sessions: store.db.prepare("SELECT * FROM sessions WHERE room_id=?").all(roomId),
+    }),
+  }) : null; } catch (error) { store.close(); unlock(); throw error; }
+  const mediaRooms = new Set();
+  const pendingMedia = new Set();
+  let mediaJob;
+  function queueMedia(roomId) {
+    if (!media || closing || !mediaRooms.has(roomId)) return;
+    pendingMedia.add(roomId);
+    if (mediaJob) return;
+    mediaJob = (async () => {
+      while (pendingMedia.size && !closing) {
+        const next = pendingMedia.values().next().value;
+        pendingMedia.delete(next);
+        try { await media.synchronise(next); }
+        catch { /* Retried by the expiry tick; token issuance independently fails closed. */ }
+      }
+    })().finally(() => { mediaJob = null; });
+  }
   let cleanupJob;
   function drainCleanup() {
     if (cleanupJob) return cleanupJob;
@@ -230,6 +255,7 @@ export async function createApp(options = {}) {
     ws.send(JSON.stringify(payload));
   }
   function broadcast(roomId) {
+    queueMedia(roomId);
     const room = store.room(roomId);
     if (!room) return;
     const members = devices(roomId);
@@ -922,6 +948,14 @@ export async function createApp(options = {}) {
       if (req.method !== "GET") checkCSRF(req, s);
       if (route === "state" && req.method === "GET")
         return json(res, 200, snapshotFor(room, s, devices(roomId)));
+      const mediaMatch = route.match(/^streams\/([a-f0-9-]{36})\/media$/);
+      if (mediaMatch && req.method === "POST") {
+        if (!media) fail(503, "Live media is not configured on this hub.");
+        limited(`media:${s.device_id}`, 60);
+        mediaRooms.add(roomId);
+        // No client-supplied identity, role, audience or media room is read.
+        return json(res, 200, await media.access(roomId, mediaMatch[1], s.token_hash));
+      }
       if (route === "logout" && req.method === "POST") {
         store.transaction(() => {
           store.db
@@ -935,6 +969,7 @@ export async function createApp(options = {}) {
           store.saveRoom(room);
         });
         closeDevice(roomId, s.device_id);
+        if (media) await media.synchronise(roomId);
         broadcast(roomId);
         setCookie(res, roomId, "");
         return json(res, 200, { ok: true });
@@ -1005,7 +1040,11 @@ export async function createApp(options = {}) {
             "SELECT response FROM commands WHERE room_id=? AND device_id=? AND command_id=?",
           )
           .get(roomId, s.device_id, commandId);
-        if (existing) return json(res, 200, JSON.parse(existing.response));
+        if (existing) {
+          // A retry after an SFU failure must finish revocation before acknowledging.
+          if (media) await media.synchronise(roomId);
+          return json(res, 200, JSON.parse(existing.response));
+        }
         let after = [];
         const result = store.transaction(() => {
           after = handleCommand(room, s, input);
@@ -1016,6 +1055,7 @@ export async function createApp(options = {}) {
           return response;
         });
         await Promise.all(after.map((fn) => fn()));
+        if (media) await media.synchronise(roomId);
         if (["room.purge", "room.cleanup"].includes(input.type)) {
           result.cleanupPending = store.db
             .prepare("SELECT count(*) AS n FROM cleanup_queue WHERE room_id=?")
@@ -1505,6 +1545,10 @@ export async function createApp(options = {}) {
     unlock();
     throw error;
   }
+  const mediaTimer = media ? setInterval(() => {
+    for (const roomId of mediaRooms) queueMedia(roomId);
+  }, 250) : null;
+  mediaTimer?.unref();
   const address = server.address();
   const localURL = `${tls ? "https" : "http"}://${host === "::1" ? "[::1]" : host === "0.0.0.0" ? "localhost" : host}:${address.port}`;
   let closePromise;
@@ -1520,12 +1564,14 @@ export async function createApp(options = {}) {
       closePromise = (async () => {
         clearInterval(heartbeat);
         clearInterval(cleanupTimer);
+        clearInterval(mediaTimer);
         for (const ws of wss.clients) ws.terminate();
         await new Promise((r) => wss.close(r));
         await new Promise((r) => server.close(r));
         await cleanupJob;
-        store.close();
-        unlock();
+        await mediaJob;
+        try { await media?.close(); }
+        finally { store.close(); unlock(); }
       })();
       return closePromise;
     },

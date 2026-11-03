@@ -60,6 +60,18 @@ export class LiveMedia {
     return this.#serial(async () => { await this.#refresh(roomId); });
   }
 
+  close() {
+    return this.#serial(async () => {
+      for (const entries of this.#entries.values()) for (const entry of entries.values()) {
+        try { await this.service.deleteRoom(entry.mediaRoom); }
+        catch (error) {
+          if (!(error instanceof TwirpError && error.code === "not_found")) throw error;
+        }
+      }
+      this.#entries.clear();
+    });
+  }
+
   // tokenHash comes from the authenticated server session, never a JSON field.
   access(roomId, streamId, tokenHash) {
     return this.#serial(async () => {

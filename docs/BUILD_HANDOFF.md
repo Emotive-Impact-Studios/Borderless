@@ -4,6 +4,14 @@
 
 Read VISION.md first, then PRODUCT.md and DESIGN.md, then README, PRD, CAPABILITIES, ARCHITECTURE and DELIVERY. The original conversation is preserved in `docs/source/` and checked against SHA-256. The repository began with only a README at main commit `7b773ca855f0438bdd6e5f08d4e71b556037fd50`.
 
+## Milestone 1 · authenticated media endpoint · 3 November 2026
+
+- Connected the media adapter to `createApp({ media })`. `POST /api/rooms/:roomId/streams/:streamId/media` requires the room cookie and CSRF token, rate-limits issuance, and derives the session identity from the store. Client fields for role, identity and media room are ignored. Without a configured media service the endpoint returns 503; the normal startup has not yet gained the managed LiveKit process.
+- Commands await media synchronisation before acknowledgement, including cached command retries after a failed SFU deletion. Logout also awaits removal. State broadcasts schedule coalesced reconciliation (including disconnected owners), a 250 ms tick checks issued rooms for expiry, and orderly hub shutdown awaits media retirement before closing the store. These hooks use the single existing Node room authority.
+- Three HTTP integration tests exercise real room cookies/CSRF and signed SDK tokens with a fake SFU control API: cross-room and forged-role refusal, owner versus viewer grants, private Wall/leader refusal, Stop/logout removal, and failed-revocation retry. This verifies the hub boundary, **not real SFU disconnection latency or live media delivery**.
+- Verification: Node 24 `npm run verify` passes 63 tests/check/build; required native verification passes (legacy Godot compilation only). Private logs: `output/native/m1-api-{web,native}.log`.
+- Remaining milestone 1 work: managed local LiveKit startup, real control-API tests, Swift SDK publishing, shared TypeScript Wall built from design-system/ and Tauri shell, rendered movement/resize/Stop/reconnect and measured real-device latency. Disk space request remains pending; no later milestone has started.
+
 ## Milestone 1 in progress · media access boundary · 3 November 2026
 
 - Pinned `livekit-server-sdk` 2.19.2 (Apache-2.0, upstream package licence retained by npm). Added `server/live-media.mjs`: a media adapter consuming fresh hub-owned room/session snapshots, with one opaque LiveKit room per stream, publisher-only screen-share grants, subscriber-only viewer grants, no data publishing or media administration, and 30-second maximum join-token lifetime bounded by session expiry.
