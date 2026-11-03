@@ -2,6 +2,34 @@ import AppKit
 import AVFoundation
 import ScreenCaptureKit
 
+/// Counts every callback before filtering, so a zero-frame capture shows where frames stop.
+/// Counts only: never pixels, window titles or content.
+public struct CaptureDiagnostics: Equatable, Sendable {
+    public var callbacks: UInt64 = 0
+    public var otherOutputs: UInt64 = 0
+    public var invalidBuffers: UInt64 = 0
+    public var missingStatus: UInt64 = 0
+    public var missingImage: UInt64 = 0
+    public var statuses: [String: UInt64] = [:]
+    public init() {}
+    public var summary: String {
+        let byStatus = statuses.keys.sorted().map { "\($0) \(statuses[$0]!)" }.joined(separator: ", ")
+        return "callbacks \(callbacks) · statuses [\(byStatus.isEmpty ? "none" : byStatus)] · invalid \(invalidBuffers) · no status \(missingStatus) · no image \(missingImage) · other outputs \(otherOutputs)"
+    }
+}
+
+func frameStatusName(_ status: SCFrameStatus?) -> String {
+    switch status {
+    case .complete: return "complete"
+    case .idle: return "idle"
+    case .blank: return "blank"
+    case .suspended: return "suspended"
+    case .started: return "started"
+    case .stopped: return "stopped"
+    default: return "unknown"
+    }
+}
+
 /// Latest-frame mailbox bounds retained pixel buffers to one, regardless of UI speed.
 /// Future encoder integration consumes frames on this boundary without serialising pixels to JSON.
 private final class FrameMailbox: NSObject, SCStreamOutput {
@@ -9,21 +37,26 @@ private final class FrameMailbox: NSObject, SCStreamOutput {
     private var latest: CMSampleBuffer?
     private var count: UInt64 = 0
     private var last: UInt64 = 0
+    private var diagnostics = CaptureDiagnostics()
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
-        guard type == .screen, sampleBuffer.isValid,
-              let attachments = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, createIfNecessary: false) as? [[SCStreamFrameInfo: Any]],
-              let value = attachments.first?[.status] as? Int,
-              SCFrameStatus(rawValue: value) == .complete,
-              let image = sampleBuffer.imageBuffer,
-              CVPixelBufferGetWidth(image) > 0, CVPixelBufferGetHeight(image) > 0 else { return }
         lock.lock(); defer { lock.unlock() }
+        diagnostics.callbacks &+= 1
+        guard type == .screen else { diagnostics.otherOutputs &+= 1; return }
+        guard sampleBuffer.isValid else { diagnostics.invalidBuffers &+= 1; return }
+        guard let attachments = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, createIfNecessary: false) as? [[SCStreamFrameInfo: Any]],
+              let value = attachments.first?[.status] as? Int else { diagnostics.missingStatus &+= 1; return }
+        let status = SCFrameStatus(rawValue: value)
+        diagnostics.statuses[frameStatusName(status), default: 0] &+= 1
+        guard status == .complete else { return }
+        guard let image = sampleBuffer.imageBuffer,
+              CVPixelBufferGetWidth(image) > 0, CVPixelBufferGetHeight(image) > 0 else { diagnostics.missingImage &+= 1; return }
         latest = sampleBuffer
         count &+= 1
         last = monotonicMilliseconds()
     }
-    func take() -> (CMSampleBuffer?, UInt64, UInt64) {
+    func take() -> (CMSampleBuffer?, UInt64, UInt64, CaptureDiagnostics) {
         lock.lock(); defer { lock.unlock() }
-        let result = (latest, count, last)
+        let result = (latest, count, last, diagnostics)
         latest = nil
         return result
     }
@@ -34,6 +67,11 @@ private final class FrameMailbox: NSObject, SCStreamOutput {
     @Published public private(set) var status = "Choose a window to share"
     @Published public private(set) var frames: UInt64 = 0
     @Published public private(set) var active = false
+    /// Typed state for room integration. Never parse `status`, which is display text.
+    @Published public private(set) var health: FrameHealth = .stopped
+    /// True when capture ended because no complete frame arrived before the deadline.
+    @Published public private(set) var failed = false
+    @Published public private(set) var diagnostics = CaptureDiagnostics()
     public let preview = AVSampleBufferDisplayLayer()
     private var stream: SCStream?
     private var mailbox: FrameMailbox?
@@ -67,7 +105,7 @@ private final class FrameMailbox: NSObject, SCStreamOutput {
         let token = generation
         timer?.invalidate(); timer = nil
         let previous = stream
-        stream = nil; mailbox = nil; active = false
+        stream = nil; mailbox = nil; active = false; health = .stopped
         if deactivatePicker { SCContentSharingPicker.shared.isActive = false }
         preview.flushAndRemoveImage()
         status = "Sharing stopped"
@@ -98,8 +136,8 @@ private final class FrameMailbox: NSObject, SCStreamOutput {
         let capture = SCStream(filter: filter, configuration: configuration, delegate: self)
         do {
             try capture.addStreamOutput(sink, type: .screen, sampleHandlerQueue: queue)
-            stream = capture; mailbox = sink; frames = 0
-            started = monotonicMilliseconds(); active = true; status = "Starting capture…"
+            stream = capture; mailbox = sink; frames = 0; failed = false; diagnostics = CaptureDiagnostics()
+            started = monotonicMilliseconds(); active = true; health = .starting; status = "Starting capture…"
             SCContentSharingPicker.shared.isActive = true
             try await capture.startCapture()
             guard token == generation else { try? await capture.stopCapture(); return }
@@ -115,13 +153,25 @@ private final class FrameMailbox: NSObject, SCStreamOutput {
 
     private func refresh() {
         guard active, let mailbox else { return }
-        let (sample, count, last) = mailbox.take()
+        let (sample, count, last, counts) = mailbox.take()
         frames = count
-        let health = FrameHealth.evaluate(active: active, started: started, last: last, frames: count, now: monotonicMilliseconds())
-        switch health {
+        diagnostics = counts
+        let current = FrameHealth.evaluate(active: active, started: started, last: last, frames: count, now: monotonicMilliseconds())
+        health = current
+        switch current {
         case .receiving: status = "Receiving native frames · \(count)"
         case .starting: status = "Waiting for the first frame…"
-        case .stale: status = count == 0 ? "No frames received — stop and choose the source again" : "No recent frame — source may be idle or unavailable"
+        case .stale where count == 0:
+            // Connected without a complete frame is a capture failure (PRD F03), not a live share.
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                await self.stop()
+                self.failed = true
+                self.health = .stale
+                self.status = "Capture failed: no complete frames within 10 seconds"
+            }
+            return
+        case .stale: status = "No recent frame · source may be idle or unavailable"
         case .stopped: status = "Sharing stopped"
         case .invalid: status = "Capture timing error"
         }

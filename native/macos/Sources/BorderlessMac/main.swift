@@ -23,7 +23,12 @@ struct Preview: NSViewRepresentable {
                 }.padding()
                 Preview(layer: capture.preview).frame(minWidth: 640, minHeight: 360)
                     .background(Color.black)
-                HStack { Text(capture.status).font(.callout); Spacer() }.padding()
+                HStack { Text(capture.status).font(.callout); Spacer() }.padding([.horizontal, .top])
+                HStack {
+                    Text("Diagnostics · \(capture.diagnostics.summary)")
+                        .font(.caption.monospaced()).textSelection(.enabled)
+                    Spacer()
+                }.padding([.horizontal, .bottom])
                 Text("Native adapter verification · local preview only · no room transmission yet")
                     .font(.caption).foregroundStyle(.secondary).padding(.bottom)
             }.onDisappear { Task { await capture.stop() } }

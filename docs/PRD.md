@@ -1,6 +1,33 @@
-# Borderless — product requirements
+# Borderless product requirements
 
-Version 2.0 · 3 November 2026 · Whole-product specification reconstructed from the complete conversation
+Version 3.0 · 3 November 2026 · Rebuilt around the original conversation, which is the primary source of what the app is
+
+**Read [VISION.md](VISION.md) first.** It describes the app in the original conversation's words, and it takes precedence over this specification. Everything below exists to build that app.
+
+## The app, in one paragraph
+
+Drag a window off the edge of your Mac or PC and it travels, with an effect, onto the room's big screen, live and usable. Flick a file up from your phone and it lands on the wall where you aimed. Send work back down to one person's phone. Everyone in the room can do this at once, side by side, without anyone taking over the screen. One product with three views: the Wall, the Portal on phones and laptops, and the leader's Console (source 115-167, 8559-8597, 13041-13069).
+
+## The three core moments (build these first)
+
+These are the reason Borderless exists. Each has an experience test, judged by the user watching it happen on real devices, and a technical test. Passing the technical test alone is not done.
+
+| ID | Moment | Experience test (user review on real devices) | Technical test |
+| --- | --- | --- | --- |
+| C1 | **Laptop window over the edge** (115-167, 397, 8585) | On a real Mac, and later a PC, you drag an ordinary application window past the screen edge nearest the wall. The edge glows when armed, the window dissolves on the laptop as it arrives on the wall, and it keeps running live there at your seat's position. You drag it back and it returns. | OS shows a real extended display; the app keeps running on the source; frames are captured, hardware-encoded, sent to the authorised Wall and rendered live; stop, cable or network loss returns the window to a reachable screen. Covers B25, B26, B30. |
+| C2 | **Phone flick onto the wall** (129, 399, 3253, 4191, 8571-8573) | On a real iPhone and Android, you pick a photo or PDF, flick it up, see it leave the phone and arrive on the wall as a real openable window near where you aimed, with your colour on the arrival. A short or sideways swipe does nothing; an explicit Send button works too. | Verified bytes, receipt before the arrival is shown as successful, useful preview (image, multipage PDF, video with room sound). Covers B06, B07, B11, B20. |
+| C3 | **Live window and send-back** (5159, 11743-11765, 8577-8591) | Someone's live window appears on the wall, or only in a colleague's own desktop window if they choose private; changes keep showing; Stop ends it everywhere. From the wall, a file goes back to one chosen phone and saves there. | Consent before pixels; private audience excludes leader and Wall; first-frame check; stop and revoke; targeted delivery with hash check. Covers B12, B13, B29, B31. |
+
+Until C1-C3 work on real devices and the user has reviewed them, no other feature is a priority. Other features are kept, not cut; they are built around this core.
+
+## Drift record
+
+Twice the build drifted from this app, and the user had to call it out.
+
+1. **Dashboard drift.** The first interface was a fixed-panel management dashboard. The user rejected it; the builder accepted the correction and recorded the spatial direction in PRODUCT.md and DESIGN.md ("write this into our direction so that we dont drift").
+2. **Stack and priority drift.** The builder made the Node/Electron prototype route the main architecture without agreement, then measured progress by administration features and passing tests. When the user challenged it, the builder acknowledged the mistake (SOURCE_AUDIT.md, ARCHITECTURE.md), restored Go/Rust/C# .NET/Godot in NATIVE_ARCHITECTURE.md and added native foundations.
+
+The second correction was only partly carried through: the running product is still the Node/Electron web room, PRD v2 led with a 36-row requirements table instead of the app, and none of the three core moments works on real devices yet. Version 3 completes the amendment by putting the conversation's app and the three moments first. Any future builder who finds themselves expanding administration, tests or packaging while C1-C3 are not working on real devices is drifting again.
 
 ## Authority and correction
 
@@ -98,6 +125,11 @@ Existing B identifiers remain traceable to historical tests. New identifiers exp
 | B34 | Editing/version return | Immutable original; native opening never auto-uploads private changes. User explicitly returns an edited revision; parent/new hashes retained. |
 | B35 | Commissioning | Tested GPU/displays/cables/network/DPI/rotation/codecs, latency/load/scanout/recovery report. Installation-specific evidence supports claims. |
 | B36 | Accessibility/privacy | Whole-flow keyboard/assistive-tech tests, gesture alternatives, readable distant content, consent/stop and minimum data/retention policy before managed rollout. |
+| B37 | Private live audience | A live window can be shared to the room or privately to chosen people. Private shares never reach the leader or Wall unless the owner adds them. Leader status grants no access to private shares (source 8577-8591; F03). |
+| B38 | Classroom activities | Besides multiple-choice quizzes: pointer voting, where students aim their phones at an option on the wall, and drag-into-column sorting. Server owns answers and scoring as in B17 (source 11279-11281). |
+| B39 | Arrival effect language | Desktop edge crossings use the liquid pull; phone throws use the particle vortex; arrivals carry the sender's colour as a secondary cue. Kinetic ripple may nudge nearby windows visually but never changes their stored positions (source 2405, 4213, 7641-7649). |
+| B40 | Signed contributions | Optional per-installation mode where a hardware key or phone biometric signs each upload, separate from login (B28). Unsigned uploads are refused when the mode is on (source 7165). |
+| B41 | Room-wide choices | Recorded decisions: themes are a leader choice, not any participant's (departure from source 10653, 11801, made for classroom control); the Console works on the full canvas, with an optional mini-map for tablets driving large Walls (source 13065, 13185); NDI is an optional installation integration, not the default transport (source 141, 435); BLE seat detection is optional per installation with manual correction (source 8657). |
 
 ## Complete flows
 
@@ -184,10 +216,13 @@ Code, rendered flows, OS/device checks and user review are separate gates. Signe
 
 ## Build order and completion
 
-1. Restore source traceability/architecture; preserve tested room/security behaviours; implement native modules with stable contracts and truthful unsupported states.
-2. Prove consented native Mac capture produces frames, then transmit encoded frames to authorised native Wall/personal receivers. Validate the same contract on Windows with real OS content.
-3. Deliver spatial Wall/phone flow with useful content, live windows, floating tools, ownership, return and cancellation. Review the running experience with the user.
-4. Deliver Windows extended-display/edge recovery and resolve the Mac display-extension route. Commission multi-display geometry, audio and physical clients.
-5. Bring retained classroom/ink/themes through the native Wall, finish accessibility, then managed retention/identity/updates and optional HA/hardware packages.
+Build from the conversation's app, core moments first. Each step ends with the user watching it work on real devices.
 
-These are increments of the shipping architecture, not throwaway prototypes. No “Borderless complete” claim while required native/spatial flows remain absent. [DELIVERY.md](DELIVERY.md) is the queue, [BUILD_HANDOFF.md](BUILD_HANDOFF.md) holds evidence and [CLAUDE_REVIEW.md](CLAUDE_REVIEW.md) gives independent review entry points.
+1. **Real capture.** Fix the zero-frame ScreenCaptureKit result (see CLAUDE_REVIEW_RESULTS.md H1) and make capture state truthful: first-frame checks, failed state, Stop that always stops.
+2. **C3 first slice: live window on the Wall.** Native Mac capture, then hardware encode, then authenticated transport, then native Godot Wall decode, in the same room, with room and private audiences (B37), stop, revoke and reconnect.
+3. **C2: phone flick onto the native Wall** with real previews, sender-coloured arrival (B39) and send-back to one phone. Physical iPhone and Android.
+4. **C1: window over the edge.** Windows IddCx virtual display and the user's decision on the Mac display route, then edge arming, glow, crossing effect, live render at the seat position and safe return (B25, B30).
+5. **User review of C1-C3** on real devices. Adjust until the user says it is the app.
+6. **Everything else, built onto the working core:** pointers and drawing, room audio, classroom tools including B38, themes, multihead and frame lock, installers and updates, audit and operations, B40 and HA.
+
+These are increments of the shipping architecture, not throwaway prototypes. No “Borderless complete” claim while C1-C3 or other required flows remain absent. [DELIVERY.md](DELIVERY.md) is the queue, [BUILD_HANDOFF.md](BUILD_HANDOFF.md) holds evidence and [CLAUDE_REVIEW_RESULTS.md](CLAUDE_REVIEW_RESULTS.md) lists the current findings.
