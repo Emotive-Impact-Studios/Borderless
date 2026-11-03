@@ -94,6 +94,9 @@ try {
   const pairing = await leader.locator("#modal textarea").inputValue();
   await closeDialog(leader);
   const wallContext = await browser.newContext({ viewport: { width: 3840, height: 2160 } });
+  // Model the display operator accepting this room's browser network permission.
+  // This is scoped to the disposable hub origin; OS permissions remain unchanged.
+  await wallContext.grantPermissions(["local-network-access"], { origin });
   await wallContext.addInitScript(installPeerDiagnostics);
   const wall = await wallContext.newPage();
   watch(wall);
@@ -235,11 +238,16 @@ try {
   assert.deepEqual(await application.evaluate(() => [globalThis.qaConfirmCalls, globalThis.qaOpenCalls]), [1, 0]);
   check("native file-open cancellation does not launch an application (dialog stub)");
   await application.evaluate(({ dialog }) => {
+    globalThis.qaNetworkPrompts = 0;
     // Approve only the native app's room-network consent in this disposable lab.
     // OS privacy settings and certificate validation are unchanged.
-    dialog.showMessageBox = (...args) => args.at(-1).title === "Connect to your room?"
-      ? Promise.resolve({ response: 1 })
-      : globalThis.qaOriginalDialog(...args);
+    dialog.showMessageBox = (...args) => {
+      if (args.at(-1).title === "Connect to your room?") {
+        globalThis.qaNetworkPrompts++;
+        return Promise.resolve({ response: 1 });
+      }
+      return globalThis.qaOriginalDialog(...args);
+    };
   });
 
   // Generated canvas frames test actual local WebRTC transport, not OS capture.
@@ -301,7 +309,7 @@ try {
   await application.close(); application = null;
   await assert.rejects(readFile(join(profile, "hub/hub.lock")), { code: "ENOENT" });
   check("native graceful quit releases the hub process and storage lock");
-  await writeFile(join(output, "desktop-smoke.json"), JSON.stringify({ at: new Date().toISOString(), platform: process.platform, arch: process.arch, build: packagedExecutable ? "packaged" : "source", checks, errors, limits: ["Generated video is not OS capture consent evidence.", "Phone viewport is Chromium emulation, not a physical phone.", "Native file confirmation is stubbed for cancellation."] }, null, 2));
+  await writeFile(join(output, "desktop-smoke.json"), JSON.stringify({ at: new Date().toISOString(), platform: process.platform, arch: process.arch, build: packagedExecutable ? "packaged" : "source", checks, errors, limits: ["Generated video is not OS capture consent evidence.", "Phone viewport is Chromium emulation, not a physical phone.", "Native file confirmation is stubbed for cancellation.", "Room-network consent is approved for this disposable native/browser lab; OS Local Network permission is separate."] }, null, 2));
 } catch (error) {
   const diagnostics = [];
   for (const [index, page] of pages.entries()) {
@@ -315,12 +323,14 @@ try {
         connection: p.connectionState, ice: p.iceConnectionState, gathering: p.iceGatheringState, signalling: p.signalingState,
         stats: [...(await p.getStats()).values()].filter(s => ["candidate-pair", "inbound-rtp", "outbound-rtp", "local-candidate", "remote-candidate"].includes(s.type)).map(s => ({
           type: s.type, state: s.state, candidateType: s.candidateType, protocol: s.protocol, nominated: s.nominated,
+          mdnsAddress: s.address?.endsWith(".local"),
           bytesReceived: s.bytesReceived, bytesSent: s.bytesSent, framesEncoded: s.framesEncoded, framesDecoded: s.framesDecoded,
         })),
       }))),
     })).catch(() => ({ unavailable: true })));
   }
-  await writeFile(join(output, "failure.json"), JSON.stringify({ checks, errors, failure: error.message, diagnostics }, null, 2));
+  const networkPrompts = await application?.evaluate(() => globalThis.qaNetworkPrompts || 0).catch(() => null);
+  await writeFile(join(output, "failure.json"), JSON.stringify({ checks, errors, failure: error.message, networkPrompts, diagnostics }, null, 2));
   throw error;
 } finally {
   await browser?.close();
