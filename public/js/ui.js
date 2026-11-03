@@ -85,10 +85,18 @@ export function preserveFocus(container, render) {
   try { return render(); }
   finally { if (reference && !reference.element.isConnected) restoreFocus(reference, container); }
 }
-globalThis.document?.querySelector("#modal")?.addEventListener("close", () => {
-  restoreFocus(lastFocus);
+function restoreDialogFocus() {
+  const dialog = document.querySelector("#modal");
+  if (dialog.open || !lastFocus) return;
+  const reference = lastFocus;
   lastFocus = null;
-});
+  const active = document.activeElement;
+  // The native close event is queued. Do not take focus away from a control the
+  // user has already chosen after closing this dialog.
+  if (!active || active === document.body || active === reference.element || dialog.contains(active))
+    restoreFocus(reference);
+}
+globalThis.document?.querySelector("#modal")?.addEventListener("close", restoreDialogFocus);
 export function modal(title, content, wide = false) {
   const el = document.querySelector("#modal");
   if (!el.open) lastFocus = focusReference(document.activeElement);
@@ -101,6 +109,7 @@ export function modal(title, content, wide = false) {
 }
 export function closeModal() {
   document.querySelector("#modal").close();
+  restoreDialogFocus();
 }
 export const empty = (symbol, title, description) =>
   `<div class="empty"><div class="empty-icon">${icon(symbol, 26)}</div><h3>${esc(title)}</h3><p>${esc(description)}</p></div>`;

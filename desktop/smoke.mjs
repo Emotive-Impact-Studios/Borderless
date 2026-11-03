@@ -375,7 +375,22 @@ try {
   const received = await readFile(await (await returned).path());
   assert.equal(createHash("sha256").update(received).digest("hex"), createHash("sha256").update(bytes).digest("hex"));
   check("targeted return download matches the original SHA-256");
-  if (await portal.locator("#modal").evaluate(dialog => dialog.open)) await closeDialog(portal);
+  await portal.locator("#modal").waitFor({ state: "hidden" });
+
+  assert.equal(await portal.evaluate(async () => {
+    const { modal, closeModal } = await import("/js/ui.js");
+    const dialog = document.querySelector("#modal");
+    const closed = new Promise(resolve => dialog.addEventListener("close", () => queueMicrotask(resolve), { once: true }));
+    document.querySelector('[role="tab"][aria-selected="true"]').focus();
+    modal("Focus recovery check", '<button type="button">Continue</button>');
+    closeModal();
+    const target = document.querySelector('#portal-files [data-action="item.open"]');
+    const id = target.dataset.id;
+    target.focus();
+    await closed;
+    return document.activeElement?.dataset.id === id;
+  }), true);
+  check("a delayed native dialog-close event preserves the user's newly chosen focus");
 
   const contribution = portal.locator('#portal-files [data-action="item.open"]').first();
   await contribution.focus();

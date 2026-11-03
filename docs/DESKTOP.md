@@ -53,7 +53,7 @@ Hosted Mac acceptance sets `BORDERLESS_QA_ICE_MODE=unicast` only in the smoke sc
 
 The Mac CI job runs source acceptance, builds an unsigned directory package, inspects its ASAR and runs the same acceptance against the packaged executable. Its outcome must be read from Actions after push; configuration alone is not a passing result. Windows/Linux native acceptance, Developer ID/notarisation and hardware hotplug remain separate gates.
 
-Current local source, arm64 directory and read-only DMG acceptance each pass 25 checks. The continuation includes keyboard/focus, live reduced motion, representative settled colour contrast, dropped command acknowledgement, draft/authority reconnect and two-Wall media recovery. Owner disconnection ends capture and requires a new share. `output/playwright-directory/desktop-smoke.json` preserves the directory receipt; `output/playwright-packaged/desktop-smoke.json` is the latest package/DMG run. See the QA record for checks and their limits.
+Current local source, arm64 directory and read-only DMG acceptance each pass 26 checks. The continuation includes keyboard/focus, live reduced motion, representative settled colour contrast, dropped command acknowledgement, draft/authority reconnect and two-Wall media recovery. Owner disconnection ends capture and requires a new share. `output/playwright-directory/desktop-smoke.json` preserves the directory receipt; `output/playwright-packaged/desktop-smoke.json` is the latest package/DMG run. See the QA record for checks and their limits.
 
 ## Native QA checklist
 
