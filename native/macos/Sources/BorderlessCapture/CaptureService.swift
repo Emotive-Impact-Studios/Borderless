@@ -59,11 +59,12 @@ private final class FrameMailbox: NSObject, SCStreamOutput {
     }
 
     public func stop() async {
-        await endCapture(deactivatePicker: true)
+        _ = await endCapture(deactivatePicker: true)
     }
 
-    private func endCapture(deactivatePicker: Bool) async {
+    private func endCapture(deactivatePicker: Bool) async -> UInt64 {
         generation &+= 1
+        let token = generation
         timer?.invalidate(); timer = nil
         let previous = stream
         stream = nil; mailbox = nil; active = false
@@ -71,14 +72,17 @@ private final class FrameMailbox: NSObject, SCStreamOutput {
         preview.flushAndRemoveImage()
         status = "Sharing stopped"
         if let previous { try? await previous.stopCapture() }
+        return token
     }
 
     private func start(filter: SCContentFilter) async {
+        guard SCContentSharingPicker.shared.isActive else { return }
         // The picker owns the selected filter's authorisation. Keep it active
         // while replacing the previous capture; deactivation invalidates that grant.
-        await endCapture(deactivatePicker: false)
-        generation &+= 1
-        let token = generation
+        let token = await endCapture(deactivatePicker: false)
+        // Stopping the old stream yields the actor. A later Stop or selection
+        // must win; never start this obsolete selection after that await.
+        guard token == generation else { return }
         let configuration = SCStreamConfiguration()
         let width = max(2, min(1920, Int(filter.contentRect.width * Double(filter.pointPixelScale))))
         let ratio = filter.contentRect.height / max(1, filter.contentRect.width)
