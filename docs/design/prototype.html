@@ -185,6 +185,12 @@ svg.ink { position: absolute; inset: 0; width: 100%; height: 100%; pointer-event
 .slots { display: flex; gap: 6px; margin-top: 6px; }
 .slots .chip { flex: 1; font-family: var(--mono); font-size: 11px; }
 .slotlabel { position: absolute; top: 50%; transform: translate(-50%, -50%); font: 600 12px var(--mono); letter-spacing: .12em; color: var(--muted); border: 1px dashed var(--line); padding: 10px 14px; border-radius: 8px; z-index: 1; }
+.wbtools { position: absolute; left: 50%; bottom: 3%; transform: translateX(-50%); z-index: 37; display: flex; gap: 4px; background: var(--surface); padding: 6px; border-radius: 14px; box-shadow: var(--shadow); }
+.wbtools span { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font: 600 12px var(--body); color: var(--muted); }
+.wbtools span.on { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+.sticky { position: absolute; z-index: 33; width: 13%; aspect-ratio: 1; padding: 1%; box-sizing: border-box; border-radius: 4px; font: 600 clamp(9px, 1.15vw, 15px)/1.25 var(--body); color: #1D1D1F; box-shadow: 0 10px 20px rgba(0,0,0,.12); }
+.frame { position: absolute; z-index: 31; border: 1.5px dashed var(--muted); border-radius: 12px; }
+.frame b { position: absolute; top: -1.6em; left: 0; font: 600 12px var(--body); color: var(--muted); }
 .take { position: absolute; inset: 0; z-index: 39; pointer-events: none; background: var(--accent); opacity: 0; }
 
 .fx { position: absolute; inset: 0; pointer-events: none; z-index: 70; width: 100%; height: 100%; }
@@ -247,6 +253,7 @@ svg.ink { position: absolute; inset: 0; width: 100%; height: 100%; pointer-event
     <button type="button" data-scene="console">8 · Leader console</button>
     <button type="button" data-scene="mission">9 · Mission control</button>
     <button type="button" data-scene="patch">10 · Patch screens</button>
+    <button type="button" data-scene="board">11 · Whiteboard</button>
   </nav>
   <div class="caption" aria-live="polite"><span class="step" id="step">Pick a feature</span><span id="say">Each feature plays as a short scene. You can also drag windows, flick the photo and use the buttons yourself.</span></div>
 
@@ -368,7 +375,7 @@ function draggable(el, handle) {
   });
 }
 function wins() { return [...wall.querySelectorAll('.win')]; }
-function clearWall() { wins().forEach(w => w.remove()); $('#ink').innerHTML = ''; wall.querySelectorAll('.reticle,.spark,.badge,.ticker').forEach(e => e.remove()); mini(); }
+function clearWall() { wins().forEach(w => w.remove()); $('#ink').innerHTML = ''; wall.querySelectorAll('.reticle,.spark,.badge,.ticker,.wb').forEach(e => e.remove()); mini(); }
 function baseRoom() {
   clearWall();
   addWin({ kind: 'slide', title: 'Q3 roadmap.pdf', who: 'Maya', o: '--c4', x: 4, y: 6, w: 38, h: 40, id: 'slide',
@@ -589,20 +596,20 @@ function badge(text) { wall.querySelector('.badge')?.remove(); const b = documen
 const scenes = {
   async edge(id) {
     setLook('whiteboard'); baseRoom(); resetLaptop(); phoneView('send'); devicesSolo(true);
-    say('1 of 10', '<b>Window over the edge.</b> Drag a real app window up past your laptop edge. The edge glows, the window turns to light and lands live on the Wall at your side of the room.');
+    say('1 of 11', '<b>Window over the edge.</b> Drag a real app window up past your laptop edge. The edge glows, the window turns to light and lands live on the Wall at your side of the room.');
     await wait(1400); if (id !== run) return; edge.classList.add('on'); entry.classList.add('on');
     await wait(900); if (id !== run) return; await cross();
-    say('1 of 10', '<b>It stays live.</b> The app keeps running on your Mac; the Wall shows it changing in real time. Press Stop sharing and it leaves everywhere at once.');
+    say('1 of 11', '<b>It stays live.</b> The app keeps running on your Mac; the Wall shows it changing in real time. Press Stop sharing and it leaves everywhere at once.');
   },
   async flick(id) {
     setLook('whiteboard'); baseRoom(); resetLaptop(); phoneView('send'); devicesSolo(true);
-    say('2 of 10', '<b>Phone flick.</b> Pick a photo or PDF and flick it towards the screen. It lands in free space, in your colour, only once the Wall has the real file.');
+    say('2 of 11', '<b>Phone flick.</b> Pick a photo or PDF and flick it towards the screen. It lands in free space, in your colour, only once the Wall has the real file.');
     await wait(1500); if (id !== run) return; await flick();
   },
   async link(id) {
     setLook('whiteboard'); baseRoom(); resetLaptop(); phoneView('link'); devicesSolo(true);
     const sheet = $('#sheetup'), lc = $('#linkcard'); sheet.classList.remove('on'); lc.style.transform = ''; lc.style.opacity = '';
-    say('3 of 10', '<b>Share a link.</b> Found a page in Safari or Chrome? Tap Share, choose Borderless, and swipe the card up.');
+    say('3 of 11', '<b>Share a link.</b> Found a page in Safari or Chrome? Tap Share, choose Borderless, and swipe the card up.');
     await wait(1200); if (id !== run) return; sheet.classList.add('on');
     await wait(1300); if (id !== run) return;
     const from = local(lc.getBoundingClientRect()); lc.style.transform = 'translateY(-260%) scale(.8)'; lc.style.opacity = '0';
@@ -610,33 +617,33 @@ const scenes = {
     await burst(from, wallRect(x, y, 34, 50), css('--c4'), 'vortex', 900);
     land(addWin({ kind: 'web', title: 'Designing tactile interfaces', who: 'Priya', o: '--c4', x, y, w: 34, h: 50,
       html: '<div class="url">design-journal.example/tactile-ui</div><div class="page"><div class="hero"></div><h4>Designing tactile interfaces</h4><p>Interfaces feel physical when objects have weight, momentum and a clear landing. The page is live and scrollable on the Wall, opened safely with no logins or downloads.</p></div>' }));
-    say('3 of 10', '<b>The actual page opens on the Wall</b> as a live, scrollable window. It opens locked down: no saved logins, downloads or pop-ups.');
+    say('3 of 11', '<b>The actual page opens on the Wall</b> as a live, scrollable window. It opens locked down: no saved logins, downloads or pop-ups.');
     await wait(1200); sheet.classList.remove('on');
   },
   async private(id) {
     setLook('whiteboard'); baseRoom(); resetLaptop(); phoneView('send'); devicesSolo(false); $('#personal').hidden = true;
-    say('4 of 10', '<b>Private live window.</b> Share your window only with Sam. It appears on Sam’s Mac beside their own work, and never on the Wall or to the leader.');
+    say('4 of 11', '<b>Private live window.</b> Share your window only with Sam. It appears on Sam’s Mac beside their own work, and never on the Wall or to the leader.');
     await wait(1500); if (id !== run) return;
     const p = $('#personal'), from = local(lapwin.getBoundingClientRect());
     p.hidden = false; p.style.opacity = '0';
     await burst(from, local(p.getBoundingClientRect()), css('--c3'), 'pull', 800);
     p.style.opacity = ''; land(p); badge('Not on the Wall · private to Sam');
-    say('4 of 10', '<b>Sam moves it anywhere on their own screen.</b> Either of you can end it: Close, Stop receiving or Stop sharing.');
+    say('4 of 11', '<b>Sam moves it anywhere on their own screen.</b> Either of you can end it: Close, Stop receiving or Stop sharing.');
   },
   async back(id) {
     setLook('whiteboard'); baseRoom(); resetLaptop(); phoneView('send'); devicesSolo(true);
-    say('5 of 10', '<b>Send back.</b> From the Wall or the leader’s console, send any window to one person’s phone. It saves there, checked to be the exact file.');
+    say('5 of 11', '<b>Send back.</b> From the Wall or the leader’s console, send any window to one person’s phone. It saves there, checked to be the exact file.');
     await wait(1400); if (id !== run) return; await sendBack($('#slide'));
   },
   async draw(id) {
     setLook('whiteboard'); baseRoom(); resetLaptop(); phoneView('point'); devicesSolo(true);
     $('#pointTitle').textContent = 'Laser pointer'; $('#pointHint').textContent = 'Hold the pad and aim at the Wall';
-    say('6 of 10', '<b>Point and draw.</b> Hold the pad and your phone becomes a laser pointer with your name on it. Several people can point at once.');
+    say('6 of 11', '<b>Point and draw.</b> Hold the pad and your phone becomes a laser pointer with your name on it. Several people can point at once.');
     const a = reticle('Priya', css('--c2')), b = reticle('Alex', css('--c1'));
     await Promise.all([path(a, [[20, 60], [30, 30], [22, 22], [36, 26]], 2200), path(b, [[70, 70], [60, 25], [66, 20]], 2200)]);
     if (id !== run) return;
     $('#pointTitle').textContent = 'Drawing'; $('#pointHint').textContent = 'Drag on the pad to draw on the Wall';
-    say('6 of 10', '<b>Switch to Draw</b> and sketch over anyone’s work from your seat. Ink is shared, saved and can be undone.');
+    say('6 of 11', '<b>Switch to Draw</b> and sketch over anyone’s work from your seat. Ink is shared, saved and can be undone.');
     inkStroke('M120 360 C 220 300, 420 300, 520 360 S 700 430, 640 470', css('--c2'), 1400);
     inkStroke('M950 170 C 1000 120, 1150 120, 1180 180 C 1200 230, 1100 260, 1000 240 C 920 220, 910 190, 950 170', css('--c1'), 1500);
     await wait(1700); a.style.opacity = 0; b.style.opacity = 0;
@@ -648,14 +655,14 @@ const scenes = {
     addWin({ kind: 'slide', title: 'Photosynthesis.pdf', who: 'Ms Patel', o: '--c4', x: 3, y: 6, w: 40, h: 42, html: '<h3>Photosynthesis</h3><p>Light + water + ? → glucose + oxygen</p>' });
     const q = addWin({ kind: 'quizwin', title: 'Question 3 · live', who: 'Ms Patel', o: '--c1', x: 3, y: 52, w: 40, h: 42,
       html: '<h4>Which gas do plants absorb?</h4>' + ['Oxygen', 'Carbon dioxide', 'Nitrogen'].map((t, i) => `<div class="qrow" data-i="${i}"><span>${t}</span><span class="n">0</span><div class="qbar"><i></i></div></div>`).join('') });
-    say('7 of 10', '<b>Classroom.</b> Students join by scanning the code. The teacher casts a question; every phone shows the choices, without the answer.');
+    say('7 of 11', '<b>Classroom.</b> Students join by scanning the code. The teacher casts a question; every phone shows the choices, without the answer.');
     await wait(1500); if (id !== run) return;
     document.querySelectorAll('#opts button')[1].classList.add('sel'); $('#quizHint').textContent = 'Answer sent · 1 of 1';
     const votes = [4, 23, 3];
     q.querySelectorAll('.qrow').forEach((r, i) => { r.querySelector('i').style.width = (votes[i] / 30 * 100) + '%'; r.querySelector('.n').textContent = votes[i]; });
     await wait(1400); if (id !== run) return;
     q.querySelectorAll('.qrow')[1].classList.add('correct');
-    say('7 of 10', '<b>Reveal and raise a hand.</b> The teacher reveals the answer. Priya raises her hand to draw; the teacher approves it from the tablet, and can take it back at any time.');
+    say('7 of 11', '<b>Reveal and raise a hand.</b> The teacher reveals the answer. Priya raises her hand to draw; the teacher approves it from the tablet, and can take it back at any time.');
     $('#hands').textContent = '✋ Priya asks to draw'; $('#handBtn').textContent = 'Waiting for the teacher…';
     await wait(1600); if (id !== run) return; $('#tApprove').click();
   },
@@ -663,21 +670,44 @@ const scenes = {
     setLook('whiteboard'); baseRoom(); resetLaptop(); phoneView('send'); devicesSolo(true); showTablet();
     $('#tabletRoom').textContent = 'Design review'; $('#hands').textContent = '4 people · 3 windows';
     addWin({ kind: 'photo', title: 'Site visit.jpg', who: 'Priya', o: '--c2', x: 30, y: 52, w: 24, h: 38, html: '<canvas class="fill" data-photo="1"></canvas>' });
-    say('8 of 10', '<b>Leader console.</b> The leader sees a live mini-map of the Wall on a tablet and can arrange, focus, approve or clear without walking to the screen.');
+    say('8 of 11', '<b>Leader console.</b> The leader sees a live mini-map of the Wall on a tablet and can arrange, focus, approve or clear without walking to the screen.');
     await wait(1700); if (id !== run) return; arrange();
-    say('8 of 10', '<b>Arrange</b> snaps everyone’s work into a tidy grid on the Wall. Nobody loses anything; clearing the wall asks first in the real app.');
+    say('8 of 11', '<b>Arrange</b> snaps everyone’s work into a tidy grid on the Wall. Nobody loses anything; clearing the wall asks first in the real app.');
   },
   async patch(id) {
     setLook('tactical'); clearWall(); resetLaptop(); phoneView('send'); devicesSolo(true); wall.classList.add('panels'); showTablet(); patchMode(true);
     $('#tabletRoom').textContent = 'Sources · 6 available';
-    say('10 of 10', '<b>Patch screens, like a broadcast gallery.</b> Every screen and camera that has agreed to be available shows up live on the leader’s tablet. Pick a source, pick a panel, and it cuts onto the wall.');
+    say('10 of 11', '<b>Patch screens, like a broadcast gallery.</b> Every screen and camera that has agreed to be available shows up live on the leader’s tablet. Pick a source, pick a panel, and it cuts onto the wall.');
     await wait(1500); if (id !== run) return; pickSource(0); await wait(500); await take(0, 0);
     await wait(700); if (id !== run) return; pickSource(1); await wait(400); await take(1, 1);
     await wait(700); if (id !== run) return; pickSource(2); await wait(400); await take(2, 2);
-    say('10 of 10', '<b>Swap, replace or take one source across the whole wall.</b> Sources stay live while they move. People only appear in the list after they choose to make their screen available, and they can withdraw at any time.');
+    say('10 of 11', '<b>Swap, replace or take one source across the whole wall.</b> Sources stay live while they move. People only appear in the list after they choose to make their screen available, and they can withdraw at any time.');
     await wait(1400); if (id !== run) return; await swap(0, 2);
     await wait(900); if (id !== run) return; pickSource(3); await wait(400); await take(3, 1);
     await wait(1400); if (id !== run) return; pickSource(4); await wait(400); await take(4, 'all');
+  },
+  async board(id) {
+    setLook('whiteboard'); clearWall(); resetLaptop(); phoneView('point'); devicesSolo(true);
+    $('#pointTitle').textContent = 'Whiteboard'; $('#pointHint').textContent = 'Add notes, draw and move things';
+    const tools = document.createElement('div'); tools.className = 'wbtools wb'; tools.innerHTML = ['↖', '✎', '▭', '→', 'T', '▢'].map((t, i) => `<span class="${i === 1 ? 'on' : ''}">${t}</span>`).join(''); wall.appendChild(tools);
+    say('11 of 11', '<b>Whiteboard.</b> An endless board everyone can use at once from their laptop, phone or the screen itself: sticky notes, pens, shapes, arrows, text and frames.');
+    frame('Ideas', 4, 9, 40, 62); frame('Next steps', 52, 9, 42, 62);
+    const yellow = '#FFE58F', pink = '#FFC2D4', blue = '#BFE0FF', green = '#C7F0D2';
+    await wait(700); if (id !== run) return; sticky('Flick photos from the site visit', yellow, 7, 14, -2);
+    await wait(500); if (id !== run) return; sticky('Live budget beside the slides', pink, 22, 16, 1.5);
+    await wait(500); if (id !== run) return; sticky('Teacher can lock the board', blue, 9, 42, 1);
+    await wait(500); if (id !== run) return; sticky('Patch cameras in', green, 25, 44, -1.5);
+    const a = reticle('Maya', css('--c2')), b = reticle('Sam', css('--c1'));
+    path(a, [[30, 30], [45, 35], [55, 30]], 1400); path(b, [[70, 60], [62, 40], [60, 30]], 1400);
+    await wait(900); if (id !== run) return;
+    inkStroke('M 720 330 C 780 300, 820 300, 870 330', css('--c2'), 700);
+    inkStroke('M 860 315 L 875 332 L 852 344', css('--c2'), 300);
+    inkStroke('M 900 210 h 520 v 170 h -520 Z', css('--c1'), 1100);
+    await wait(1100); if (id !== run) return;
+    sticky('Pilot room by Friday', yellow, 58, 15, 0); sticky('Book the 3-panel wall', pink, 74, 15, 0);
+    await wait(700); if (id !== run) return;
+    say('11 of 11', '<b>It stays.</b> The board is saved with the room, can sit beside live windows and files, and exports as an image or PDF. A teacher or leader can lock it or clear it.');
+    a.style.opacity = 0; b.style.opacity = 0;
   },
   async mission(id) {
     setLook('tactical'); clearWall(); resetLaptop(); phoneView('send'); devicesSolo(true); wall.classList.add('panels'); showTablet();
@@ -690,7 +720,7 @@ const scenes = {
     const t = document.createElement('div'); t.className = 'ticker'; wall.appendChild(t);
     const log = ['14:02:11 Flight shared Ground track', '14:02:40 Systems shared Telemetry', '14:03:05 Ops lead arranged Wall A', '14:03:22 Range shared Camera 2', '14:03:50 Hub failover test passed'];
     let i = 0; const tick = () => { if (id !== run) return; t.textContent = 'AUDIT  ' + log[i++ % log.length]; setTimeout(tick, 1400); }; tick();
-    say('9 of 10', '<b>Mission control.</b> One wall across several panels, the Tactical look for long shifts, live feeds that stay up for hours, an audit of every action, no internet needed, and a spare hub ready to take over.');
+    say('9 of 11', '<b>Mission control.</b> One wall across several panels, the Tactical look for long shifts, live feeds that stay up for hours, an audit of every action, no internet needed, and a spare hub ready to take over.');
     await wait(2000); if (id !== run) return;
     const [x, y] = [68, 56]; const from = local($('#lap').getBoundingClientRect());
     await burst(from, wallRect(x, y, 30, 34), css('--c2'), 'pull', 800);
@@ -738,6 +768,9 @@ async function swap(a, b) {
   [A.style.left, B.style.left] = [B.style.left, A.style.left]; [A.dataset.panel, B.dataset.panel] = [B.dataset.panel, A.dataset.panel];
   await wait(700); [A, B].forEach(e => e.classList.remove('glide')); mini();
 }
+function sticky(text, colour, x, y, rot) { const n = document.createElement('div'); n.className = 'sticky wb'; n.textContent = text; n.style.cssText = `left:${x}%;top:${y}%;background:${colour};transform:rotate(${rot}deg)`; wall.appendChild(n);
+  n.animate([{ opacity: 0, transform: `translateY(14px) rotate(${rot}deg) scale(.9)` }, { opacity: 1, transform: `rotate(${rot}deg)` }], { duration: reduce ? 1 : 320, easing: 'cubic-bezier(.2,.8,.2,1)' }); return n; }
+function frame(label, x, y, w, h) { const f = document.createElement('div'); f.className = 'frame wb'; f.style.cssText = `left:${x}%;top:${y}%;width:${w}%;height:${h}%`; f.innerHTML = `<b>${label}</b>`; wall.appendChild(f); return f; }
 function devicesSolo(solo) { $('#devices').classList.toggle('solo', solo); if (solo) $('#personal').hidden = true; requestAnimationFrame(sizeFx); }
 function showTablet() { $('#tablet').classList.add('on'); $('#devices').classList.add('tab'); requestAnimationFrame(sizeFx); }
 function playScene(name, btn) {

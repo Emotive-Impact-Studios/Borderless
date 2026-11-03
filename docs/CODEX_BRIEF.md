@@ -124,7 +124,7 @@ Show milestones 1 to 4 together in a real room session: one Wall, two laptops, t
 
 ### Milestone 6: the rest of the room experience
 
-Phone laser pointers (gyro and touch), drawing from seats (perfect-freehand on Portal and Wall), classroom hand raise, quiz, pointer voting and drag-to-column (PRD B16-B17, B38), room audio without echo (B31), the five themes including the clean Apple-style Whiteboard (B19), Console arrange and governance, optional Console mini-map (B41). The React Native phone app: "Share to Borderless" from any app's share sheet, including links from Safari and Chrome, with the flick card shown inside the share sheet; phone screen sharing; haptic flick; notifications. On laptops, a link dragged from the browser to the connected edge goes to the Wall the same way.
+Phone laser pointers (gyro and touch), drawing from seats (perfect-freehand on Portal and Wall), **the full whiteboard (PRD B45)**: endless board, sticky notes, pens, shapes, arrows, text, frames and live windows on the board, named cursors, lock and clear, export (see scene 11 in `docs/design/prototype.html`); built in-house, no tldraw, classroom hand raise, quiz, pointer voting and drag-to-column (PRD B16-B17, B38), room audio without echo (B31), the five themes including the clean Apple-style Whiteboard (B19), Console arrange and governance, optional Console mini-map (B41). The React Native phone app: "Share to Borderless" from any app's share sheet, including links from Safari and Chrome, with the flick card shown inside the share sheet; phone screen sharing; haptic flick; notifications. On laptops, a link dragged from the browser to the connected edge goes to the Wall the same way.
 
 ### Milestone 6b: mission control room
 
