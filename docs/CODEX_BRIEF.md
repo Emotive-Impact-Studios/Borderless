@@ -19,29 +19,32 @@ The user's verdict on the current build is that it "isn't even close to the app"
 | `desktop/` Electron | Compatibility shell. | No new work. It will be retired once the native apps replace it. |
 | `native/core` Rust | C ABI, display geometry, frame-health policy. Tested. | Yes. Grow it. |
 | `native/macos` Swift | ScreenCaptureKit picker, capture service, diagnostics. **Real capture returns zero complete frames.** | Yes. Fix capture first (milestone 0). |
-| `native/dotnet`, `native/wall` C#/Godot | Read-only room client; Godot Wall renders notes only. | Yes. This becomes the Wall. |
-| `native/hub` Go | One validated command (move). Not a server. | Yes, at milestone 7. |
+| `native/dotnet`, `native/wall` C#/Godot | Read-only room client; Godot Wall renders notes only. | No. Retired by the approved architecture; keep only as reference for snapshot validation rules. |
+| `native/hub` Go | One validated command (move). Not a server. | No. Port its strict validation rules to the Rust hub. |
 | `native/windows` | README only. | Milestone 4. |
 
 The latest independent review is [CLAUDE_REVIEW_RESULTS.md](CLAUDE_REVIEW_RESULTS.md). Open research: [REUSE_RESEARCH.md](REUSE_RESEARCH.md) and PR #2's `docs/research/OPEN_SOURCE_CANDIDATES.md`.
 
-## 3. Stack and module boundaries
+## 3. Stack and module boundaries (approved 3 November 2026)
 
-The stack is the one the conversation chose (source line 12959): **Go hub, Rust shared core, C#/.NET with Godot for the Wall**, plus thin native adapters (**Swift** on Mac, **C#/C++** on Windows). The web Portal stays.
+The user approved this stack on 3 November 2026 ("yes whatever just make sure it works as intended"), replacing the Go/C#/Godot plan. The reasoning is in [ARCHITECTURE_DECISION.md](ARCHITECTURE_DECISION.md). Native where the operating system demands it, Rust for the engine and hub, LiveKit for live media, one TypeScript front end for every screen people look at.
 
 | Module | Language | Owns | Never |
 | --- | --- | --- | --- |
-| `native/core` | Rust | Display geometry and edge mapping; frame health; **media session (WebRTC via `str0m`, proposed)**; input leases; bounded frame queues. One C ABI used by Swift and C#. | OS UI, room permissions, credentials. |
-| `native/macos` | Swift | Picker and ScreenCaptureKit capture, VideoToolbox H.264 encode, Mac virtual display (milestone 4), edge arming, personal receiver windows (AppKit). | Its own room model or permissions. |
-| `native/windows` | C# host, C++ bridge, IddCx driver | WGC capture, Media Foundation encode, IddCx virtual monitor. | Networking secrets inside the driver. |
-| `native/dotnet` | C# | Typed room client shared by the Wall and Windows host. | TLS bypass; client-chosen roles. |
-| `native/wall` | C#/Godot | The Wall: content windows, live video textures, PDF and image viewers, ink, pointers, effects, themes, per-display output. | Authority from local scene state. |
-| `server/` now, `native/hub` later | Node, then Go | **The single room authority**: identity, ownership, versions, grants, files, audit, signalling relay. | Raw media through JSON. Two authorities at once. |
-| `public/` | Web | Portal on phones and laptops; Console. | Anything the hub does not authorise. |
+| `native/core` | Rust | Display geometry and edge mapping; frame health; input leases; room protocol types. Used by the Windows agent and hub directly, and by Swift through generated bindings (UniFFI). | OS UI, room permissions, credentials. |
+| `native/macos` | Swift | Mac agent: picker and ScreenCaptureKit capture, publishing screen tracks with the LiveKit Swift SDK (hardware encode), the virtual display via `CGVirtualDisplay` (decided), edge arming, personal receiver windows (AppKit). | Its own room model or permissions. |
+| `native/windows` | Rust app, C++ IddCx driver | Windows agent: WGC capture, publishing with the LiveKit Rust SDK, edge arming, personal windows; separately signed IddCx virtual monitor driver. | Networking secrets inside the driver. |
+| `hub/` (new) | Rust | **The single room authority**: identity, ownership, versions, grants, files, audit; issues per-person LiveKit access tokens and revokes them through the LiveKit server API. Replaces the Node hub after milestone 5. | Raw media. Two authorities at once. |
+| LiveKit server | (Go, off the shelf, Apache-2.0) | Live video, audio and data between every device, from one-to-one to one-to-thirty; runs on the room's machine, no cloud. | Room permissions of its own; it only obeys hub-issued tokens. |
+| `web/` (new, from `public/`) | TypeScript | One front end for the Wall, Console and Portal: content windows, live video (LiveKit JS), PDFs (pdf.js), images, notes, ink, pointers, WebGL/WebGPU effects (PixiJS or raw WebGL), themes. | Authority from local state. |
+| `wall-shell/` (new) | Rust (Tauri) | Native full-screen Wall app: choose display, start with the computer, kiosk mode, survive sleep, one window per display or one spanning window, signed updates. | Its own UI beyond the shared front end. |
+| `mobile/` (after the core moments) | TypeScript (React Native, Expo) | iPhone and Android app: share sheet, phone screen sharing (LiveKit React Native SDK with ReplayKit and MediaProjection), haptic flick, notifications. The web Portal remains the zero-install way in. | Anything the hub does not authorise. |
 
-**Media path (proposal, decide in milestone 1's spike):** Swift capture, then VideoToolbox H.264, then the `str0m` WebRTC session in the Rust core (sans-IO, so Swift and C# drive it), with signalling relayed by the hub, then decode on the Wall and upload as a Godot texture. Alternatives to compare in the spike: Pion (Go sidecar) and libdatachannel (MPL-2.0). For decode on the Wall: VideoToolbox (Mac) or Media Foundation (Windows) through a small Godot extension; FFmpeg's libavcodec (LGPL build, dynamically linked) as the cross-platform fallback. Browsers on the Portal keep using built-in WebRTC.
+**Until milestone 5**, the existing Node hub (`server/`) stays the room authority and gains only what milestones 1 to 4 need (LiveKit token issuing). The Rust hub replaces it in milestone 7 using the migration rules in CLAUDE_REVIEW_RESULTS.md M5 and M6.
 
-**Reuse to start from:** `nonstrict-hq/ScreenCaptureKit-Recording-example` (MIT, SCStream to VideoToolbox), `bblanchon/pdfium-binaries` and `sungaila/PDFtoImage` (PDF pages to textures), `EIRTeam/EIRTeam.FFmpeg` (video files in Godot, LGPL FFmpeg only), `steveruizok/perfect-freehand` (ink), `VirtualDrivers/Virtual-Display-Driver` or the Microsoft IndirectDisplay sample (Windows virtual monitor), `Stengo/DeskPad` (reference for the Mac virtual display, private API). Pin a release, keep licence notices, never copy GPL or AGPL code.
+**Media path:** agent captures the window (ScreenCaptureKit or WGC), LiveKit SDK hardware-encodes and publishes it, the LiveKit server forwards it to every viewer the hub has authorised, the Wall plays it with hardware decoding. Target: under 100 ms glass to glass at 1080p, 60 fps on a room network. Fallback if the Wall cannot hold six live 1080p streams at 60 fps: a native renderer behind the same front-end protocol.
+
+**Reuse to start from:** LiveKit server and SDKs (Apache-2.0), `nonstrict-hq/ScreenCaptureKit-Recording-example` (MIT, capture reference), `mozilla/pdf.js` (Apache-2.0), `steveruizok/perfect-freehand` (MIT, ink), `tauri-apps/tauri` (Apache-2.0/MIT), `VirtualDrivers/Virtual-Display-Driver` (MIT) or the Microsoft IndirectDisplay sample (Windows virtual monitor), `Stengo/DeskPad` (MIT, reference for `CGVirtualDisplay`). Pin a release, keep licence notices, never copy GPL or AGPL code.
 
 ## 4. Look and feel
 
@@ -75,7 +78,7 @@ The user's instruction: it "needs to look better than this". The current web UI 
 
 **Signature motion: phone flick (C2).** The selected card lifts under the finger with a shadow. On release with enough upward velocity, it flies off the top of the phone following the finger's direction, shrinking slightly. The Wall shows a faint "incoming" spark at the aimed point while uploading (with real progress), then the particle vortex in the sender's colour resolves into the real file window when the hub confirms. Failures make the card fall back onto the phone with an explanation. Total perceived time from release to landing should feel under one second on a good LAN.
 
-**Effects engineering.** Godot shaders on the Wall; WebGL or CSS on the Portal. Frame-rate independent (driven by elapsed time), interruptible, bounded to the affected region, GPU cost measured on the target hardware. Reduced motion replaces travel with a quick cross-fade and keeps every state change visible. A "Quiet" room setting exists for formal meetings.
+**Effects engineering.** WebGL or WebGPU in the shared front end on the Wall and Portal. Frame-rate independent (driven by elapsed time), interruptible, bounded to the affected region, GPU cost measured on the target hardware. Reduced motion replaces travel with a quick cross-fade and keeps every state change visible. A "Quiet" room setting exists for formal meetings.
 
 **Visual acceptance (every milestone that touches the UI)**
 
@@ -94,14 +97,14 @@ Build in this order. Each milestone is a vertical slice that ends with **the use
 - **Build:** run `output/native/Borderless Native.app` (rebuild with `npm run native:mac:package`), select a window from another app that is changing (a video, or text being typed), and read the Diagnostics line. Work through the hypotheses in order: another app's window instead of our own; display awake (two physical displays were online at the last check); Screen Recording permission for the exact rebuilt app (ad-hoc signing changes identity); `queueDepth` 6 instead of 3; the unified log for ScreenCaptureKit and replayd. The Electron path also gets zero frames on this Mac, so look for a shared cause.
 - **Done when:** the user sees their chosen window live in the diagnostic app's preview, the frame count climbing, and Stop clearing it. The cause is written in BUILD_HANDOFF.md.
 
-### Milestone 1: a live Mac window on the native Wall (core moment C3, first half)
+### Milestone 1: a live Mac window on the Wall (core moment C3, first half)
 
-- **Build:** VideoToolbox H.264 encode in `native/macos`; the media spike (section 3), pick one stack and record why; hub signalling and grants for native peers; a live video surface in `native/wall` that keeps playing while it is moved and resized; Stop, revoke and reconnect; room and private audiences as the hub already enforces.
-- **Done when:** on the same LAN, the user shares a window from one Mac, it appears live on the Godot Wall on another screen or machine, keeps updating while they work in it, moves and resizes on the Wall without stopping, and disappears everywhere within a second when they press Stop. Glass-to-glass latency is measured and recorded.
+- **Build:** a local LiveKit server started with the hub; the hub issues LiveKit tokens per person matching its room and private audiences, and revokes them; the Mac agent publishes the captured window with the LiveKit Swift SDK; the new `web/` front end and the Tauri `wall-shell/` show it as a live window that keeps playing while moved and resized, in look A; Stop, revoke and reconnect.
+- **Done when:** on the same LAN, the user shares a window from one Mac, it appears live on the Wall on another screen or machine, keeps updating while they work in it, moves and resizes on the Wall without stopping, and disappears everywhere within a second when they press Stop. Glass-to-glass latency is measured and recorded.
 
-### Milestone 2: phone flick onto the native Wall, and send-back (core moment C2)
+### Milestone 2: phone flick onto the Wall, and send-back (core moment C2)
 
-- **Build:** native Wall viewers: images, multipage PDF (PDFium), video files with sound through the room output (EIRTeam.FFmpeg or platform decoder), text and notes. Arrival effects per PRD B39: particle vortex for phone throws, in the sender's colour, landing where the phone aimed. Free-space placement so new work never covers existing work. Portal flick on real phones with explicit Send as an alternative. Send-back from the Wall or Console to one chosen phone.
+- **Build:** Wall viewers in the shared front end: images, multipage PDF (pdf.js), video files with sound through the room output (hardware decoding in the Wall's browser engine), text and notes. Arrival effects per PRD B39: particle vortex for phone throws, in the sender's colour, landing where the phone aimed. Free-space placement so new work never covers existing work. Portal flick on real phones with explicit Send as an alternative. Send-back from the Wall or Console to one chosen phone.
 - **Done when:** on a real iPhone and a real Android phone, the user picks a photo and a PDF, flicks them up, sees them leave the phone and land on the Wall as real, readable, movable windows with their colour; then sends one back and finds it saved on the phone. A short or sideways swipe sends nothing.
 
 ### Milestone 3: someone's live window beside your own work (core moment C3, second half)
@@ -111,29 +114,42 @@ Build in this order. Each milestone is a vertical slice that ends with **the use
 
 ### Milestone 4: drag a window over the edge (core moment C1)
 
-- **Needs a user decision first** (section 6, decision A).
-- **Build:** a real extended display per platform (Windows: IddCx driver from the chosen base, signed; Mac: the route the user chooses); seat and edge calibration using the Rust geometry; edge glow when armed; the liquid-pull crossing effect on both the laptop and the Wall (PRD B39); frames from the virtual display through the milestone 1 media path; safe return on Escape, network loss or Stop, so no window is ever stranded off-screen.
+- **Mac route decided:** `CGVirtualDisplay` (section 6).
+- **Build:** a real extended display per platform (Windows: IddCx driver from the chosen base, signed; Mac: `CGVirtualDisplay` behind one Swift interface); seat and edge calibration using the Rust geometry; edge glow when armed; the liquid-pull crossing effect on both the laptop and the Wall (PRD B39); frames from the virtual display through the milestone 1 media path; safe return on Escape, network loss or Stop, so no window is ever stranded off-screen.
 - **Done when:** the user drags an ordinary application window off their laptop edge, sees the edge glow and the window dissolve on the laptop as it arrives live on the Wall at their seat's side, keeps using the app, and drags it back. Unplugging the network returns the window to the laptop.
 
 ### Milestone 5: the user's review
 
 Show milestones 1 to 4 together in a real room session: one Wall, two laptops, two phones. Fix what the user asks for until they say "this is the app". Nothing in milestones 6 and 7 starts before this.
 
-### Milestone 6: the rest of the room experience on the native Wall
+### Milestone 6: the rest of the room experience
 
-Phone laser pointers (gyro and touch), drawing from seats (perfect-freehand on Portal and Wall), classroom hand raise, quiz, pointer voting and drag-to-column (PRD B16-B17, B38), room audio without echo (B31), the five themes including the clean Apple-style Whiteboard (B19), Console arrange and governance, optional Console mini-map (B41).
+Phone laser pointers (gyro and touch), drawing from seats (perfect-freehand on Portal and Wall), classroom hand raise, quiz, pointer voting and drag-to-column (PRD B16-B17, B38), room audio without echo (B31), the five themes including the clean Apple-style Whiteboard (B19), Console arrange and governance, optional Console mini-map (B41). The React Native phone app: share sheet, phone screen sharing, haptic flick, notifications.
+
+### Milestone 6b: mission control room
+
+The conversation began with mission control rooms: NASA's front board, military and intelligence operations centres, "common operational picture" walls (source 29-113, 769-777, 6219-8007). This is a full use of Borderless, not an afterthought.
+
+- **Build:** a panoramic Wall across several panels driven by one or more graphics cards (one window per display or one spanning window, bezel compensation, rotation, mixed resolution); measured hardware frame lock where the installation has it (NVIDIA Mosaic and Quadro Sync class hardware); the Tactical look tuned for long shifts (dark, low glare, amber or cyan, monospace data); a leader Console on a tablet with a live mini-map of the whole wall, arrange, evict and emergency clear; live feeds and data windows that stay up for hours with automatic reconnection; a searchable, exportable audit log of who put what on the wall and when; an offline, no-internet mode with no cloud dependencies; hot-spare failover of the hub; optional hardware-key or biometric sign-off for contributions (PRD B40); a documented hardware-matrix (KVM over IP) option for rooms that forbid wireless.
+- **Done when:** on a real multi-panel wall (at least three displays), the user runs a session where several people put live screens and documents up at once, the leader rearranges and clears them from a tablet, the wall runs for hours without drift, tearing between panels is measured and reported, the hub is killed and the spare takes over without losing content, and the audit shows every action.
 
 ### Milestone 7: platform completion
 
-Go hub replaces the Node hub (offline import with IDs, receipts, pending purges and audit preserved; old hub fenced; single cutover; see CLAUDE_REVIEW_RESULTS.md M5 and M6). Multihead and panoramic Walls with per-head output and measured frame lock. Signed and notarised installers, signed staged updates. Retire Electron. Then managed operations: retention, identity, signed contributions (B40), HA.
+The Rust hub replaces the Node hub (offline import with IDs, receipts, pending purges and audit preserved; old hub fenced; single cutover; see CLAUDE_REVIEW_RESULTS.md M5 and M6). Multihead and panoramic Walls with per-head output and measured frame lock. Signed and notarised installers, signed staged updates. Retire Electron. Then managed operations: retention, identity, signed contributions (B40), HA.
 
-## 6. Decisions only the user can make
+## 6. Decisions
 
-Ask once, recommend an option, and keep working on everything that does not depend on the answer.
+Decided by the user on 3 November 2026 (accepting all recommendations):
 
-- **A. Mac extended display (blocks milestone 4 on Mac).** Option 1: private `CGVirtualDisplay`, as DeskPad does. Works today and gives the true "drag over the edge" feel, but it is undocumented, can break in any macOS update and rules out the Mac App Store; direct distribution with notarisation is likely still possible. Option 2: a physical HDMI or USB display adapter, which is supported but needs hardware in the room. Option 3: no extended display on Mac; share windows only (milestone 1), which is not the edge moment. Recommendation: option 1 for the product, with option 2 documented for locked-down installations.
-- **B. Video file playback licensing (milestone 2).** H.264 decoding through FFmpeg carries patent questions for commercial distribution. Platform decoders (VideoToolbox, Media Foundation) avoid most of this. Recommendation: platform decoders first, LGPL FFmpeg only as a fallback.
-- **C. When to retire Electron.** Recommendation: after milestone 5.
+- **Look:** A, the clean Whiteboard, is the default. B Studio and C Executive are switchable room looks. See `docs/design/` and section 4.
+- **Architecture:** the Rust-centred stack in section 3 (ARCHITECTURE_DECISION.md option 1).
+- **Phone apps:** React Native (Expo), after the core moments; the web Portal stays.
+- **Mac window over the edge:** `CGVirtualDisplay`, as DeskPad does. It is undocumented and can break with macOS updates, so: isolate it behind one Swift interface, test every macOS beta, ship outside the Mac App Store with Developer ID and notarisation, and document a physical display adapter as the fallback for locked-down rooms.
+
+Still to ask the user when the milestone arrives (recommend, keep working meanwhile):
+
+- **Video file licensing (milestone 2).** Use platform decoders (the Wall's browser engine does this) and avoid shipping FFmpeg. Raise only if a format needs it.
+- **When to retire Electron.** Recommendation: after milestone 5.
 
 ## 7. Do not drift
 
@@ -141,7 +157,7 @@ These rules exist because the build drifted twice (see PRD.md, "Drift record").
 
 1. **The milestone order is fixed.** Do not start a later milestone, polish administration, or widen tests or packaging while an earlier milestone's user acceptance has not happened.
 2. **No substitute experiences.** A screen-share tile is not the window-over-the-edge moment. An upload is not a flick. A simulation, animation or generated test video is not real capture. Say plainly when something is not built.
-3. **No stack changes.** Go, Rust, C#/Godot, Swift and C#/C++ adapters, plus the web Portal. Propose any change in writing, with costs, and wait for the user.
+3. **No stack changes.** The approved stack in section 3: Swift and Rust agents, C++ only for the Windows driver, Rust engine and hub, LiveKit, one TypeScript front end, Tauri Wall shell, React Native phone app later. Propose any change in writing, with costs, and wait for the user.
 4. **One room authority.** Native clients use the same hub, grants and IDs as the web clients. Never two writers.
 5. **No dashboards.** Work fills the screen; tools float and dismiss (PRODUCT.md, DESIGN.md).
 6. **Report honestly.** Separate "compiles", "tests pass", "works on this Mac with real content" and "the user has seen it". Never claim capture, displays, devices or signing from tests.
@@ -150,7 +166,7 @@ These rules exist because the build drifted twice (see PRD.md, "Drift record").
 ## 8. Working rules
 
 - Branch `feat/borderless-platform`, PR #1. Small commits with clear messages. Do not merge or publish releases.
-- Before each commit: `npm run verify` (Node 24) and `npm run native:verify` (set `BORDERLESS_GODOT` and `DOTNET_ROOT`; see native/README.md).
+- Before each commit: `npm run verify` (Node 24) and `npm run native:verify` (see native/README.md), plus the checks for each new module as it is added.
 - Keep CAPABILITIES.md, BUILD_HANDOFF.md and DELIVERY.md accurate at every milestone.
 - Preserve `docs/source/` byte for byte. Never commit runtime data, credentials, certificates, personal uploads or build outputs.
 - Use British English in user-facing text.

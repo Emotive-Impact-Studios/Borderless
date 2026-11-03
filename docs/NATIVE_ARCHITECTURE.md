@@ -1,5 +1,7 @@
 # Native architecture and migration decision
 
+**Superseded in part on 3 November 2026.** The user approved [ARCHITECTURE_DECISION.md](ARCHITECTURE_DECISION.md): Rust hub instead of Go, LiveKit for media, and a TypeScript Wall in a Tauri shell instead of C#/Godot. The Swift Mac adapter, Windows integration, Rust core, one-authority rule, migration rules and the Mac display analysis below still apply.
+
 ADR 001 · 3 November 2026 · Restores the original Go/Rust/C# reference; platform refinements below are engineering recommendations, not a claim of user acceptance or completed native delivery.
 
 ## Decision

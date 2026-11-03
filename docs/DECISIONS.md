@@ -26,16 +26,18 @@ Use these as the visual target with CODEX_BRIEF.md section 4.
 - Joining a room never needs an account (QR code or room code).
 - A sign-in screen briefly added to the brief was meant for a different project and was removed.
 
-## Waiting on the user
+## Decided by the user on 3 November 2026
 
-| Decision | Options | Recommendation |
-| --- | --- | --- |
-| Look | A Whiteboard, B Studio, C Executive, or a mix | A as the default; B and C as switchable room looks |
-| Architecture (ARCHITECTURE_DECISION.md) | 1: native agents, Rust engine and hub, LiveKit media, shared TypeScript Wall/Console/Portal. 2: original Go/Rust/C#/Godot, with LiveKit. 3: option 2 with Rust in place of Go and C# | Option 1 |
-| Phone apps | React Native, native Swift and Kotlin, or Flutter; after the core moments | React Native under option 1; otherwise native or Flutter |
-| Mac window over the edge | Undocumented `CGVirtualDisplay` (as DeskPad), a physical display adapter, or no Mac extended display | `CGVirtualDisplay`, with the adapter documented for locked-down rooms |
+The user accepted all four recommendations: "yes whatever just make sure it works as intended".
 
-Until the user answers, the agreed stack in CODEX_BRIEF.md stays as written.
+| Decision | Choice |
+| --- | --- |
+| Look | A, the clean Whiteboard, as the default; B Studio and C Executive as switchable room looks |
+| Architecture | ARCHITECTURE_DECISION.md option 1: native agents, Rust engine and hub, LiveKit media, one TypeScript Wall/Console/Portal, Tauri Wall shell |
+| Phone apps | React Native (Expo), after the core moments; the web Portal stays |
+| Mac window over the edge | `CGVirtualDisplay` (as DeskPad), isolated behind one interface, with a physical adapter documented for locked-down rooms |
+
+The user also asked that the **mission control room** be a full intention, not an afterthought. It is now in VISION.md and is milestone 6b in CODEX_BRIEF.md.
 
 ## Practical state
 

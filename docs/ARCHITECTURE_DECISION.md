@@ -1,6 +1,6 @@
 # The best long-term setup for Borderless
 
-Proposal, 3 November 2026. Written for the user to decide. Nothing here changes the agreed plan until the user says so.
+**Approved by the user on 3 November 2026** ("yes whatever just make sure it works as intended"), with option 1, React Native for the phone apps and `CGVirtualDisplay` for the Mac. This is now the agreed stack; CODEX_BRIEF.md section 3 is the build reference.
 
 ## The answer
 

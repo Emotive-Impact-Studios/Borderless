@@ -25,7 +25,7 @@ Normal meeting software lets one person share, and they take over the whole disp
 - **Meetings:** add supporting work beside whatever is already being presented.
 - **Creative jam sessions:** designers, coders and musicians on Macs, Windows laptops, iPhones and Androids all put live windows, snippets and files on one shared board. Everyone can see, arrange and resize everything, and each person's colour shows who added what (8577-8591).
 - **Classrooms:** a student circles the answer on the teacher's slide from their seat. Students raise a hand to get permission to draw. The teacher casts a quiz, compares student work side by side, and can remove anyone instantly (11225-11281, 11807-11829).
-- **Command rooms:** large video walls across several panels, running the same way, with an audit trail (29-113, 6219-7613).
+- **Mission control and command rooms:** where the idea started (29-113). Large multi-panel video walls like NASA's front board or an operations centre's common operational picture: many people put live feeds, maps and documents up at once, a leader arranges and clears the wall from a tablet, it runs for hours without drift, works with no internet, keeps an audit of every action, and can fail over to a spare (769-777, 6219-8007).
 
 ## One product, three views
 
