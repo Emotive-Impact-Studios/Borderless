@@ -1,5 +1,7 @@
 # Borderless engineering
 
+**Builders (including Codex): follow docs/CODEX_BRIEF.md.** It is the single entry point: the app, the look and feel, the milestones in order, the decisions waiting on the user and the do-not-drift rules.
+
 Start with docs/VISION.md. The original conversation defines the app; build from it. The first priority is the three core moments in docs/PRD.md v3 (C1 laptop window over the edge, C2 phone flick onto the wall, C3 live window and send-back), working on real devices and reviewed by the user. Do not expand administration, tests, packaging or other features while C1-C3 do not work; the PRD's drift record explains why.
 
 PRD v3 and docs/SOURCE_AUDIT.md preserve the whole conversation, not only its incomplete final code listing. Read docs/NATIVE_ARCHITECTURE.md before native work. The target is Go hub, Rust shared system core and C#/.NET/Godot Wall, with Swift Mac and Windows-specific adapters. Node/Electron is the current compatibility implementation, not an agreed replacement architecture. Native modules must compile and have truthful capability evidence; no empty projects or simulated driver claims. Keep one room authority during migration. Record and justify proposed architecture departures before treating them as approved.
