@@ -4,6 +4,8 @@ Version 1.0 · 3 November 2026 · Source of truth for the product vision
 
 ## Product identity
 
+The working experience direction is recorded in [PRODUCT.md](../PRODUCT.md) and [DESIGN.md](../DESIGN.md), following the user's 3 November review. The dashboard composition was rejected. Shared content must lead in a full workspace, with floating content/utility windows and direct cross-device interactions. The user endorsed that direction provisionally; completion still requires reviewing the actual finished experience.
+
 The project and product are both **Borderless**, the name explicitly selected in the source conversation. RoomCanvas, FlickCanvas and other naming suggestions were not accepted product names.
 
 Borderless is one spatial collaboration product with three interfaces: the shared Wall, the participant Portal and the leader Console. It connects people in the same physical room across Mac, Windows, Linux, iPhone, iPad and Android. The long-term promise is to make the boundaries between personal screens and a shared room display feel natural and permeable.

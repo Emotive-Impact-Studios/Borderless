@@ -2,7 +2,11 @@
 
 ## Start here
 
-Read README, PRD, CAPABILITIES, ARCHITECTURE and DELIVERY. The original conversation is preserved in `docs/source/` and checked against SHA-256. The repository began with only a README at main commit `7b773ca855f0438bdd6e5f08d4e71b556037fd50`.
+Read PRODUCT.md and DESIGN.md first, then README, PRD, CAPABILITIES, ARCHITECTURE and DELIVERY. The original conversation is preserved in `docs/source/` and checked against SHA-256. The repository began with only a README at main commit `7b773ca855f0438bdd6e5f08d4e71b556037fd50`.
+
+## User direction correction · 3 November 2026
+
+The user rejected the fixed-panel dashboard as significantly missing the intended experience. After reviewing examples of live windows on the room display and on a person's Mac, plus phone flick transfer, they endorsed that as a better direction and explicitly asked that it be recorded to prevent drift. Final acceptance depends on the completed experience. PRODUCT.md and DESIGN.md are now the working authority: content fills the workspace; content and utility windows float; live screens are spatial windows; deliberate flick/edge interactions connect devices. The old technical receipts below do not establish visual/product acceptance. Immediate work is the spatial shell and live-window interaction, ahead of peripheral storage/enterprise work. Personal desktop patching and true OS window-edge handoff remain real implementation tasks, not claims satisfied by the examples.
 
 ## What now exists
 
