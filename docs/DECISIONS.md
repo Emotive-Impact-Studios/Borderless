@@ -15,7 +15,7 @@ The builder measured progress by what it could check in a sandbox (compiles, tes
 On reviewing the concept images and the clickable prototype, the user said: "this looks good... ok you are starting to understand it". This approves the direction, not a final design.
 
 - **Concept images** (made with OpenAI image generation): `docs/design/option-a-whiteboard.png` (clean, bright, Apple-like), `option-b-studio.png` (dark, cinematic, neon particles), `option-c-executive.png` (warm boardroom, serif, gold). Each shows all three moments in one room. The text inside the images is illustrative.
-- **Clickable prototype**: `docs/design/prototype.html` (also published privately at https://claude.ai/artifact/3FP2xBSoLKyLJzQHkPkj2s). It simulates the window-over-the-edge crossing, the phone flick, send-back and the three looks. It is a design reference, not product code.
+- **Clickable prototype**: `docs/design/prototype.html` (also published privately at https://claude.ai/artifact/3FP2xBSoLKyLJzQHkPkj2s). It is a guided tour of every main feature (window over the edge, phone flick, sharing a link, private live window, send-back, point and draw, classroom, leader console, mission control) in four looks. It is a design reference, not product code.
 
 Use these as the visual target with CODEX_BRIEF.md section 4.
 
