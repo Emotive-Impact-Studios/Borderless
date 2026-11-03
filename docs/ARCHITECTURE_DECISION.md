@@ -69,7 +69,7 @@ In short: **native where the operating system demands it, Rust for the engine an
 - Stronger haptic feedback on the flick, a steadier gyro laser pointer, and finding rooms nearby on the local network.
 - Notifications when someone sends you a file, and saving straight into Photos or Files.
 
-**Recommendation:** one cross-platform app in **React Native (Expo)**, written in TypeScript so it shares the room protocol, gestures and visual design with the Wall, Console and Portal. Small native pieces where the OS requires them: an iOS share extension and ReplayKit broadcast extension, and Android's share target and MediaProjection. LiveKit has a React Native SDK with phone screen sharing. Flutter (named in the conversation, source 1447) also works and has a LiveKit SDK, but it would be a second UI language next to TypeScript.
+**Proposal, awaiting the user's approval (not the agreed stack):** one cross-platform app in **React Native (Expo)**, written in TypeScript so it shares the room protocol, gestures and visual design with the Wall, Console and Portal. Small native pieces where the OS requires them: an iOS share extension and ReplayKit broadcast extension, and Android's share target and MediaProjection. LiveKit has a React Native SDK with phone screen sharing. Flutter (named in the conversation, source 1447) also works and has a LiveKit SDK, but it would be a second UI language next to TypeScript.
 
 **When:** after the three core moments (milestone 6 or 7 in the brief), because the web Portal already delivers the phone flick, which is the phone's core moment. Physical iPhone and Android testing of the web Portal happens in milestone 2.
 
@@ -96,5 +96,7 @@ If the Wall cannot hold six streams at 60 fps in the web engine, the fallback is
 - **Option 1 (recommended):** this setup.
 - **Option 2:** keep the conversation's stack exactly: Go hub, Rust core, C# and Godot Wall, with LiveKit added for media (strongly advised either way).
 - **Option 3:** Option 2 with Rust replacing Go and C# (Godot scripted in Rust).
+
+Phone apps are a separate choice, also awaiting the user: React Native (proposed, shares TypeScript with the Wall only under option 1), fully native Swift for iPhone and Kotlin for Android (best platform fit, two codebases), or Flutter (named in the conversation). Under options 2 and 3 the shared-language argument for React Native falls away, and native Swift and Kotlin or Flutter become equally strong.
 
 Whichever is chosen goes into CODEX_BRIEF.md and the PRD as the agreed stack, so the builder cannot drift from it.
