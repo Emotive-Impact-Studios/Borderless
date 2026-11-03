@@ -27,6 +27,7 @@ jobs:
     timeout-minutes: 15
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      BORDERLESS_QA_ICE_MODE: unicast
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v7.1.0

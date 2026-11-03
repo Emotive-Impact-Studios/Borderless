@@ -47,6 +47,8 @@ The smoke script uses locked Playwright 1.64.1, installed Google Chrome, a tempo
 
 The disposable native/browser test approves room-network consent only for its own hub origin. OS Local Network permission is separate. The Mac icon artwork is generated from the existing `public/assets/icon.svg`; regenerate the tracked ICNS/PNG source assets with `npm --prefix desktop run icon` on macOS (Google Chrome, `sips` and `iconutil` required). No downloaded artwork is used.
 
+Hosted Mac acceptance sets `BORDERLESS_QA_ICE_MODE=unicast` only in the smoke script. The temporary Electron/Chrome processes then expose host ICE candidates instead of mDNS names for the same-machine media check. This does not change the shipped app or OS privacy settings. Default local smoke retains Chromium's normal behaviour. Hosted success cannot qualify mDNS, OS Local Network consent or physical LAN connectivity; those remain G3/native commissioning gates.
+
 The Mac CI job runs source acceptance, builds an unsigned directory package, inspects its ASAR and runs the same acceptance against the packaged executable. Its outcome must be read from Actions after push; configuration alone is not a passing result. Windows/Linux native acceptance, Developer ID/notarisation and hardware hotplug remain separate gates.
 
 ## Native QA checklist

@@ -11,6 +11,11 @@ import electron from "electron";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const packagedExecutable = process.argv[2];
+// The hosted Mac has no interactive Local Network/mDNS commissioning. Keep its
+// same-machine transport check unicast; production and default local QA retain
+// Chromium's normal candidate privacy and discovery behaviour.
+const unicastLab = process.env.BORDERLESS_QA_ICE_MODE === "unicast";
+const labArguments = unicastLab ? ["--disable-features=WebRtcHideLocalIpsWithMdns"] : [];
 const profile = await mkdtemp(join(tmpdir(), "borderless-desktop-qa-"));
 const output = join(root, packagedExecutable ? "output/playwright-packaged" : "output/playwright");
 await mkdir(output, { recursive: true });
@@ -40,7 +45,7 @@ async function stroke(page) {
 try {
   application = await _electron.launch({
     executablePath: packagedExecutable || electron,
-    args: [...(packagedExecutable ? [] : [root]), `--user-data-dir=${profile}`],
+    args: [...(packagedExecutable ? [] : [root]), `--user-data-dir=${profile}`, ...labArguments],
     env: { ...process.env, BORDERLESS_PORT: "0", BORDERLESS_HOST: "127.0.0.1", BORDERLESS_PUBLIC_URL: "", BORDERLESS_TLS_CERT: "", BORDERLESS_TLS_KEY: "" },
   });
   const leader = await application.firstWindow();
@@ -80,7 +85,7 @@ try {
   assert.ok(Date.now() - started < 500);
   check("hub remains responsive while native main thread is blocked");
 
-  browser = await chromium.launch({ channel: "chrome", headless: true });
+  browser = await chromium.launch({ channel: "chrome", headless: true, args: labArguments });
   const portalContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, acceptDownloads: true });
   const portal = await portalContext.newPage();
   watch(portal);
@@ -309,7 +314,7 @@ try {
   await application.close(); application = null;
   await assert.rejects(readFile(join(profile, "hub/hub.lock")), { code: "ENOENT" });
   check("native graceful quit releases the hub process and storage lock");
-  await writeFile(join(output, "desktop-smoke.json"), JSON.stringify({ at: new Date().toISOString(), platform: process.platform, arch: process.arch, build: packagedExecutable ? "packaged" : "source", checks, errors, limits: ["Generated video is not OS capture consent evidence.", "Phone viewport is Chromium emulation, not a physical phone.", "Native file confirmation is stubbed for cancellation.", "Room-network consent is approved for this disposable native/browser lab; OS Local Network permission is separate."] }, null, 2));
+  await writeFile(join(output, "desktop-smoke.json"), JSON.stringify({ at: new Date().toISOString(), platform: process.platform, arch: process.arch, build: packagedExecutable ? "packaged" : "source", ice: unicastLab ? "unobfuscated host candidates in disposable same-machine lab" : "Chromium default", checks, errors, limits: ["Generated video is not OS capture consent evidence.", "Phone viewport is Chromium emulation, not a physical phone.", "Native file confirmation is stubbed for cancellation.", "Room-network consent is approved for this disposable native/browser lab; OS Local Network permission is separate.", ...(unicastLab ? ["CI does not qualify mDNS, OS Local Network consent or physical LAN connectivity."] : [])] }, null, 2));
 } catch (error) {
   const diagnostics = [];
   for (const [index, page] of pages.entries()) {
