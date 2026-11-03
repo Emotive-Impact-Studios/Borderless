@@ -4,6 +4,15 @@
 
 Read VISION.md first, then PRODUCT.md and DESIGN.md, then README, PRD, CAPABILITIES, ARCHITECTURE and DELIVERY. The original conversation is preserved in `docs/source/` and checked against SHA-256. The repository began with only a README at main commit `7b773ca855f0438bdd6e5f08d4e71b556037fd50`.
 
+## Milestone 0 accepted · 3 November 2026, 17:31 UTC
+
+The user approved restarting the capture service, then explicitly accepted the real-device demonstration: **“Yes, continue to the Wall.”** Milestone 1 may now begin, following CODEX_BRIEF.md and design-system/.
+
+- Restarted only the authorised user-owned `replayd` service. SIGTERM did not terminate PID 39690; after confirming it remained alive, SIGKILL ended it and macOS launched replacement PID 11063. Relaunched the unchanged, already-permitted native app (PID 11107). No app rebuild or further permission change intervened.
+- Selected the same disposable TextEdit `Untitled 2.rtf` using Window list. The actual window appeared in the native preview: two complete frames initially. Changed its text to “LIVE UPDATE D — captured after service restart”; the new text visibly appeared in the preview and complete frames increased to three, then five. Stop sharing cleared the image, displayed “Sharing stopped”, and disabled Stop. Final diagnostics: 595 callbacks, 5 complete, 590 idle, no invalid/missing-status/missing-image buffers. Native screenshots of initial preview, live edit and cleared Stop state were shown inline in this chat; no separate recording file was created.
+- Cause isolated to a capture-service state problem for this attempt: the unchanged app failed before the service restart and delivered real frames after it. The exact internal Apple failure is not proven. Separately, stale ad-hoc app signatures required renewing Screen Recording permission, as documented below. Do not claim queue depth 6 alone fixed capture, or automatically restart system services in the product.
+- This verifies local native capture/update/Stop on this Mac only. No LiveKit transport, remote Wall, virtual display, physical phone or final product visual acceptance is claimed. The old Electron capture route was not retested. Next: authorised local LiveKit media, Swift publishing and the shared TypeScript/Tauri Wall using the approved design system.
+
 ## Milestone 0 · queue-depth comparison · 3 November 2026, 16:59 UTC
 
 Tested the brief's next hypothesis: queue depth 6 rather than 3. Rebuilt, quit the old app, refreshed the existing approved Screen Recording entry against the new ad-hoc signature, then launched the exact bundle. Selected the known disposable TextEdit window and changed its text during capture. Result: **zero callbacks, zero complete frames, ten-second failure**, unchanged from depth 3. The package currently uses depth 6; this is not a claimed capture fix.
