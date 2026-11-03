@@ -4,7 +4,9 @@
 
 One Node.js 24 local hub serves a buildless ES-module web application. Node's SQLite module provides transactional local state; `ws` provides WebSockets; `qrcode` generates invitation QR codes locally; `bonjour-service` provides opt-in local discovery. Electron wraps the same application for native desktop responsibilities. No frontend framework, remote database, analytics CDN, SaaS backend, API key or cloud relay is required at runtime.
 
-The source explored several possible language stacks, repeatedly replacing incomplete snippets. Language count is not a product requirement. This implementation makes one data model and protocol executable rather than treating Rust, Go, C++, C# and mobile fragments as interchangeable finished components. Future native drivers can communicate with this hub through an authorised adapter.
+The original source progresses from a web prototype to an explicit native architecture: Go for the hub, Rust for the system/display layer and C#/.NET with Godot for the native visual layer (source line 12959 and final builder directives at 14251–14253). The present Node/Electron implementation follows the prototype route. It contains no Rust or .NET projects and is not an approved replacement for those native layers. On 3 November the user challenged this departure; the builder acknowledged that making it the main build path without agreement was a mistake.
+
+The working room protocol, authority, transfer and persistence code can support migration, but their tests do not validate native capture, virtual monitors or OS window handoff. The next architecture work must restore the native scope, validate supported platform APIs and make component boundaries explicit. Keep the original Go/Rust/Godot-.NET plan as the reference; record and justify any proposed substitution before treating it as the target. Original snippets and performance/security claims still require engineering validation rather than literal execution.
 
 ```mermaid
 flowchart TD
