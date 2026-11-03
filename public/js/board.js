@@ -16,7 +16,7 @@ export class Board {
     this.zoom = 1;
     this.nodes = new Map();
     this.pointers = new Map();
-    element.innerHTML = `<div class="canvas-world"><div class="items-layer"></div><svg class="ink-layer" viewBox="0 0 1920 1080" preserveAspectRatio="none" aria-hidden="true"></svg><div class="pointer-layer"></div><canvas class="effects-layer" aria-hidden="true"></canvas></div><div class="canvas-empty"></div><div class="stream-dock"></div><div class="board-drop-overlay">${icon("upload", 44)}<h2>Make the leap.</h2><p>Drop your files onto the shared canvas.</p></div>`;
+    element.innerHTML = `<p id="canvas-keyboard-help" class="sr-only">Press Enter or Space to open a contribution. Owners and room leaders can use arrow keys to move it, Alt and arrow keys to resize, and Shift for larger steps.</p><div class="canvas-world"><div class="items-layer"></div><svg class="ink-layer" viewBox="0 0 1920 1080" preserveAspectRatio="none" aria-hidden="true"></svg><div class="pointer-layer"></div><canvas class="effects-layer" aria-hidden="true"></canvas></div><div class="canvas-empty"></div><div class="stream-dock"></div><div class="board-drop-overlay">${icon("upload", 44)}<h2>Make the leap.</h2><p>Drop your files onto the shared canvas.</p></div><div class="sr-only board-announcement" role="status" aria-live="polite" aria-atomic="true"></div>`;
     this.world = element.querySelector(".canvas-world");
     this.items = element.querySelector(".items-layer");
     this.ink = element.querySelector(".ink-layer");
@@ -28,6 +28,7 @@ export class Board {
     element.addEventListener("pointermove", this.move, { signal });
     element.addEventListener("pointerup", this.up, { signal });
     element.addEventListener("pointercancel", this.cancel, { signal });
+    element.addEventListener("keydown", this.keydown, { signal });
     element.addEventListener(
       "dblclick",
       (event) => {
@@ -86,6 +87,48 @@ export class Board {
     this.mode = mode;
     this.element.dataset.tool = mode;
   }
+  keydown = async (event) => {
+    const node = event.target.closest("[data-item]");
+    if (!node || event.target !== node || !this.state || event.ctrlKey || event.metaKey) return;
+    if (["Enter", " "].includes(event.key)) {
+      event.preventDefault();
+      this.onSelect(node.dataset.item);
+      return;
+    }
+    const direction = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
+    if (!direction) return;
+    event.preventDefault();
+    const item = this.state.items.find(item => item.id === node.dataset.item);
+    const announce = message => { this.element.querySelector(".board-announcement").textContent = message; };
+    if (!item) return;
+    if (this.display || (item.ownerId !== this.state.me.id && this.state.me.role !== "admin")) {
+      announce("Only the owner or room leader can arrange this contribution.");
+      return;
+    }
+    if (this.keyPending) return;
+    const step = event.shiftKey ? 0.05 : 0.01;
+    const [dx, dy] = direction.map(value => value * step);
+    const resize = event.altKey;
+    const geometry = resize ? {
+      w: Math.max(.12, Math.min(1 - item.x, item.w + dx)),
+      h: Math.max(.12, Math.min(1 - item.y, item.h + dy)),
+    } : {
+      x: Math.max(0, Math.min(1 - item.w, item.x + dx)),
+      y: Math.max(0, Math.min(1 - item.h, item.y + dy)),
+    };
+    this.keyPending = true;
+    try {
+      await this.client.command(resize ? "item.resize" : "item.move", { itemId: item.id, version: item.version, ...geometry });
+      announce(resize
+        ? `${item.title} resized to ${Math.round(geometry.w * 100)} by ${Math.round(geometry.h * 100)} percent.`
+        : `${item.title} moved to ${Math.round(geometry.x * 100)} percent across, ${Math.round(geometry.y * 100)} percent down.`);
+    } catch (error) {
+      announce(error.message);
+      toast(error.message, true);
+    } finally {
+      this.keyPending = false;
+    }
+  };
   setZoom(value) {
     this.zoom = value;
     this.world.style.transform = `scale(${value})`;
@@ -225,6 +268,7 @@ export class Board {
     }
   };
   cancel = () => {
+    if (this.pointing) this.client.send({ type: "pointer", x: .5, y: .5, active: false });
     this.drag?.el.classList.remove("moving");
     this.drag = null;
     this.stroke = null;
@@ -259,6 +303,7 @@ export class Board {
     const ids = new Set(state.items.map((i) => i.id));
     for (const [itemId, node] of this.nodes)
       if (!ids.has(itemId)) {
+        if (node.contains(document.activeElement)) this.element.focus({ preventScroll: true });
         node.remove();
         this.nodes.delete(itemId);
       }
@@ -269,10 +314,14 @@ export class Board {
         node = document.createElement("article");
         node.className = `canvas-item ${item.kind === "note" ? "note-item" : "file-item"}`;
         node.dataset.item = item.id;
+        node.tabIndex = 0;
+        node.setAttribute("role", "group");
+        node.setAttribute("aria-describedby", "canvas-keyboard-help");
         this.nodes.set(item.id, node);
         this.items.append(node);
       }
       node.style.zIndex = index + 1;
+      node.setAttribute("aria-label", `${item.title}, by ${item.ownerName}`);
       node.style.setProperty("--owner-colour", item.colour);
       if (this.drag?.item.id !== item.id)
         Object.assign(node.style, {
@@ -282,6 +331,7 @@ export class Board {
           height: `${item.h * 100}%`,
         });
       if (node.dataset.version !== String(item.version)) {
+        const focusedAction = node.contains(document.activeElement) ? document.activeElement.dataset.action : null;
         const asset = this.client.assetURL(item.assetId);
         let preview = "";
         if (item.kind === "note")
@@ -296,6 +346,7 @@ export class Board {
           preview = `<div class="document-preview"><span>${esc(item.title.split(".").at(-1).toUpperCase())}</span><strong>${esc(item.title)}</strong><small>${bytes(item.size)} · Open to view</small></div>`;
         node.innerHTML = `<div class="item-bar"><span class="owner-dot"></span><span>${esc(item.ownerName)}</span><button class="item-open" data-action="item.open" data-id="${item.id}" aria-label="Open ${esc(item.title)}">${icon("expand", 14)}</button></div><div class="item-preview">${preview}</div><div class="item-caption">${esc(item.title)}</div><span class="resize-handle" aria-hidden="true"></span>`;
         node.dataset.version = item.version;
+        if (focusedAction === "item.open") node.querySelector(".item-open").focus({ preventScroll: true });
       }
       if (isNew && !first)
         this.effects.play(

@@ -9,6 +9,7 @@ import {
   bytes,
   downloadBlob,
   timeLabel,
+  preserveFocus,
 } from "./ui.js";
 import { RoomClient, createRoom } from "./client.js";
 import { Board } from "./board.js";
@@ -191,11 +192,13 @@ function updateRoom() {
   const roomStatus = document.querySelector("#room-status");
   roomStatus.textContent = state.ended
     ? "Ended"
-    : state.locked
-      ? "Paused"
-      : status === "online"
-        ? "Live"
-        : "Connecting";
+    : status === "revoked"
+      ? "Access ended"
+      : state.locked
+        ? "Paused"
+        : status === "online"
+          ? "Live"
+          : "Connecting";
   roomStatus.classList.toggle("paused", state.locked || status !== "online");
   renderPanel();
   if (view === "wall") {
@@ -225,6 +228,10 @@ function updateSharingControls() {
   }
 }
 function renderPanel() {
+  const el = document.querySelector("#side-panel");
+  if (el) preserveFocus(el, renderPanelContents);
+}
+function renderPanelContents() {
   const el = document.querySelector("#side-panel");
   if (!el) return;
   const admin = state.me.role === "admin";
@@ -293,18 +300,46 @@ function portalShell() {
     () => null,
     (message) => toast(message, true),
   );
+  activatePortalTab("send");
   bindPortalGestures();
   updatePortal();
 }
+function activatePortalTab(name, focus = false) {
+  const tabs = [...document.querySelectorAll('[data-action="portal.tab"]')];
+  if (!tabs.some(tab => tab.dataset.tab === name)) return;
+  if (name !== "point" && pointerActive) {
+    pointerActive = false;
+    client.send({ type: "pointer", x: .5, y: .5, active: false });
+    document.querySelector("#pointer-pad")?.classList.remove("pressed");
+  }
+  for (const tab of tabs) {
+    const selected = tab.dataset.tab === name;
+    tab.id = `portal-tab-${tab.dataset.tab}`;
+    tab.setAttribute("aria-controls", `portal-${tab.dataset.tab}`);
+    tab.setAttribute("aria-selected", String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+    tab.classList.toggle("selected", selected);
+    const panel = document.querySelector(`#portal-${tab.dataset.tab}`);
+    panel.setAttribute("role", "tabpanel");
+    panel.setAttribute("aria-labelledby", tab.id);
+    panel.hidden = !selected;
+    if (selected && focus) tab.focus();
+  }
+}
 function updatePortal() {
-  if (!document.querySelector(".portal")) return;
+  const portal = document.querySelector(".portal");
+  if (portal) preserveFocus(portal, updatePortalContents);
+}
+function updatePortalContents() {
   document.querySelector("#portal-connection").textContent = state.ended
     ? "This session has ended"
-    : state.locked
-      ? "The leader has paused contributions"
-      : status === "online"
-        ? "Connected to the canvas"
-        : "Reconnecting…";
+    : status === "revoked"
+      ? "Your access has ended"
+      : state.locked
+        ? "The leader has paused contributions"
+        : status === "online"
+          ? "Connected to the canvas"
+          : "Reconnecting…";
   document.querySelector("#draw-permission").textContent = state.me.canDraw
     ? "You have the floor. Make it yours."
     : "Ask the leader for a turn at the board.";
@@ -939,13 +974,7 @@ document.addEventListener("click", async (event) => {
       return;
     }
     if (action === "portal.tab") {
-      document.querySelectorAll(".portal-tabs button").forEach((b) => {
-        b.classList.toggle("selected", b === target);
-        b.setAttribute("aria-selected", String(b === target));
-      });
-      document
-        .querySelectorAll(".portal-tab")
-        .forEach((p) => (p.hidden = p.id !== `portal-${target.dataset.tab}`));
+      activatePortalTab(target.dataset.tab);
       return;
     }
     if (action === "gyro.enable") {
@@ -1091,14 +1120,24 @@ dialog.addEventListener("click", (event) => {
   }
 });
 document.addEventListener("keydown", (event) => {
+  const tab = event.target.closest('[data-action="portal.tab"]');
+  if (tab && ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
+    event.preventDefault();
+    const names = ["send", "point", "draw"], index = names.indexOf(tab.dataset.tab);
+    const next = event.key === "Home" ? 0 : event.key === "End" ? 2 : (index + (event.key === "ArrowRight" ? 1 : 2)) % 3;
+    activatePortalTab(names[next], true);
+  }
   if (event.key === "Escape") {
+    if (pointerActive) client?.send({ type: "pointer", x: .5, y: .5, active: false });
     pointerActive = false;
+    document.querySelector("#pointer-pad")?.classList.remove("pressed");
     board?.cancel();
   }
   if (
     event.key === "n" &&
     view === "room" &&
     !dialog.open &&
+    event.target.closest("#canvas-stage") &&
     !event.target.closest("input,textarea,select")
   )
     noteModal();
@@ -1151,11 +1190,28 @@ function connection(next) {
   status = next;
   const banner = document.querySelector("#connection-banner");
   if (banner) {
+    const hadFocus = banner.contains(document.activeElement);
     banner.hidden = next === "online";
-    banner.textContent =
-      next === "revoked"
-        ? "Your access has ended. Ask the leader for a fresh invitation."
-        : "Connection lost. Reconnecting to the room… Changes are paused until you are back.";
+    banner.replaceChildren();
+    const message = document.createElement("span");
+    message.textContent = next === "revoked"
+      ? "Your access has ended. Ask the leader for a fresh invitation."
+      : "Connection lost. Reconnecting to the room… Changes are paused until you are back.";
+    banner.append(message);
+    if (next === "offline") {
+      const retry = document.createElement("button");
+      retry.className = "btn outline small";
+      retry.textContent = "Reconnect now";
+      retry.addEventListener("click", () => client.reconnectNow());
+      banner.append(retry);
+    } else if (next === "revoked" && state?.me.role !== "wall") {
+      const join = document.createElement("a");
+      join.className = "btn outline small";
+      join.textContent = state.me.role === "admin" ? "Leader login" : "Join again";
+      join.href = `/${state.me.role === "admin" ? "leader" : "join"}/${roomId}`;
+      banner.append(join);
+    }
+    if (hadFocus) (banner.querySelector("button,a") || document.querySelector('#canvas-stage, [role="tab"][aria-selected="true"]'))?.focus({ preventScroll: true });
   }
   if (state) updateRoom();
 }
@@ -1230,6 +1286,8 @@ async function boot() {
       });
     }
   } catch (error) {
+    client.close();
+    board?.destroy();
     if (error.status === 401) await joinPage({ expired: true });
     else errorPage(error.message);
   }

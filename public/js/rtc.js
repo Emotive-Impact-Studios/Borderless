@@ -11,15 +11,23 @@ export class ScreenSharing {
       this.signal(event.detail).catch((error) => onError(error.message)),
     );
     client.addEventListener("state", (event) => this.sync(event.detail));
-    client.addEventListener("connection", (event) => {
-      if (event.detail !== "online") {
-        this.stopLocal();
-        for (const peer of this.peers.values()) peer.close();
-        this.peers.clear();
-        this.offered.clear();
-        this.candidates.clear();
-      }
+    client.addEventListener("rtc.peer.left", (event) => {
+      const key = `${event.detail.streamId}:${event.detail.connectionId}`;
+      this.peers.get(key)?.close();
+      this.peers.delete(key);
+      this.candidates.delete(key);
     });
+    client.addEventListener("connection", (event) => {
+      if (event.detail !== "online") this.disconnect();
+    });
+    client.addEventListener("closed", () => this.disconnect());
+  }
+  disconnect() {
+    this.stopLocal();
+    for (const peer of this.peers.values()) peer.close();
+    this.peers.clear();
+    this.offered.clear();
+    this.candidates.clear();
   }
   async start() {
     if (this.starting) throw new Error("A screen selection is already open.");
@@ -78,6 +86,8 @@ export class ScreenSharing {
       }
     for (const key of this.offered)
       if (!active.has(key.split(":")[0])) this.offered.delete(key);
+    for (const key of this.candidates.keys())
+      if (!active.has(key.split(":")[0])) this.candidates.delete(key);
     if (mine && this.local) {
       const video = this.getVideo(mine.id);
       if (video && video.srcObject !== this.local) {

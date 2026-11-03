@@ -54,6 +54,8 @@ Important commands are implemented in `server/app.mjs`: `note.add`, `item.move`,
 
 `GET /api/rooms/:id/live` upgrades an authenticated room session. The server sends a connection-specific `hello`, then the actor-filtered room snapshot. Snapshot messages carry a global room revision; ephemeral input never edits persistent state directly.
 
+The client reports Live only after that socket's hello and snapshot. Reconnect first obtains an authenticated HTTP snapshot, then repeats the socket handshake; an expired session stops retrying and offers a fresh join/login. HTTP JSON requests time out after ten seconds. A command whose acknowledgement is lost retries once with the same command ID, waits up to fifteen seconds for live readiness and refuses to cross a changed device identity. A second unconfirmed acknowledgement asks the user to inspect the canvas. Uploads are never automatically resent. Open draft dialogs and keyboard focus survive ordinary snapshot refreshes.
+
 | Event | Direction | Validation and lifetime |
 | --- | --- | --- |
 | `hello` | Hub → connection | Unique connection ID for targeted WebRTC, separate from stable device ID. |
@@ -61,6 +63,7 @@ Important commands are implemented in `server/app.mjs`: `note.add`, `item.move`,
 | `pointer` | Both | Normalised finite coordinates and server-derived actor; paused/read-only actors rejected; not durable. |
 | `ink.preview` | Both | Requires current drawing authority; not durable. Committed ink uses `stroke.add`. |
 | `rtc` | Both | `ready`, `offer`, `answer`, `candidate`; route only between the stream owner and a current leader/display, optionally to one connection ID. |
+| `rtc.peer.left` | Hub → capture connection | Retire that departed socket's peer/candidate queue; sent only to the stream's owning capture connection. |
 | `ping` / `pong` | Both | Round-trip measurement; transport heartbeat independently retires dead peers. |
 | `canvas.cleared`, `streams.stopped` | Hub → room | Stop local representations and media lifetimes. |
 | `error` | Hub → connection | Refused event without modifying room state. |
@@ -68,6 +71,8 @@ Important commands are implemented in `server/app.mjs`: `note.add`, `item.move`,
 Inbound frames are limited to 64 KiB, SDP/signalling payloads to 32 KiB, per-device events to 180/second and outgoing socket backlog to 1 MiB. Slow clients are disconnected and must obtain a fresh snapshot. A server ping runs every ten seconds. Pointer client visuals expire stale reticles after about 2.5 seconds. HTTP and authentication endpoints have separate rate limits.
 
 WebRTC uses no external ICE servers. That means no unsolicited third-party STUN/TURN traffic and no guarantee across isolated VLANs, NAT or internet links. Media transport is not proxied through the JSON WebSocket. Audio activation obeys user gesture and platform capture restrictions. Multiple tabs under one device identity use connection-specific routing to avoid mixing SDP negotiations.
+
+A reconnecting Wall requests the still-active owner's media under its new connection ID. The owner's socket loss instead stops local tracks and removes its advertisement; reconnect never silently restarts capture. Local source/package acceptance exercises both lifetimes with generated pixels, independently from physical LAN and OS capture consent.
 
 ## File integrity and rendering
 
@@ -79,7 +84,7 @@ Encrypted asset writes and SQLite commits are two separate durability boundaries
 
 ## Rendering and spatial model
 
-Canvas coordinates are normalised to a bounded shared viewport. Card positions, sizes and ownership are authoritative. Each client scales them to its display. The WebGL arrival layer is decorative and bounded; reduced motion and lack of WebGL leave contributions functional. The whiteboard uses persisted vector points rendered as SVG. Shared media elements retain independent lifetimes rather than being rebuilt for every state update.
+Canvas coordinates are normalised to a bounded shared viewport. Card positions, sizes and ownership are authoritative. Each client scales them to its display. Focusable cards support open/move/resize keys through the same versioned server commands. Portal tabs use roving focus and labelled panels. Focus follows stable actions when a live panel refreshes, and dialogs restore their original opener even after nested content. The WebGL arrival layer is decorative and bounded; live reduced-motion preference changes cancel current effects, and lack of WebGL leaves contributions functional. The whiteboard uses persisted vector points rendered as SVG. Shared media elements retain independent lifetimes rather than being rebuilt for every state update.
 
 Themes are room state. Leader changes propagate to all clients. There are no runtime web font or external image dependencies. The desktop shell can place the same Wall on a display or span a software viewport across connected display bounds. It does not assert synchronised scanout across physical panels.
 

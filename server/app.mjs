@@ -1351,6 +1351,19 @@ export async function createApp(options = {}) {
         });
       }
       const room = store.room(roomId);
+      // A display may reconnect with the same cookie and a new socket identity.
+      // Tell only the relevant capture owner to retire the departed media peer.
+      for (const stream of room.state.streams)
+        for (const owner of live.get(roomId) || [])
+          if (
+            owner.session.device_id === stream.ownerId &&
+            (!stream.connectionId || owner.connectionId === stream.connectionId)
+          )
+            send(owner, {
+              type: "rtc.peer.left",
+              streamId: stream.id,
+              connectionId: ws.connectionId,
+            });
       const disconnected = (x) =>
         x.connectionId === ws.connectionId ||
         (!x.connectionId && !sameDevice && x.ownerId === ws.session.device_id);

@@ -65,9 +65,33 @@ export function toast(message, error = false) {
   setTimeout(() => item.remove(), 5000);
 }
 let lastFocus;
+function focusReference(element) {
+  const keys = ["action", "id", "tab", "theme", "effect", "tool", "answer"];
+  return { element, identity: keys.filter(key => element?.dataset?.[key] !== undefined).map(key => [key, element.dataset[key]]) };
+}
+function restoreFocus(reference, scope = document) {
+  if (!reference) return;
+  if (reference.element?.isConnected && !reference.element.disabled && reference.element.getClientRects().length) {
+    reference.element.focus({ preventScroll: true });
+    return;
+  }
+  const replacement = [...scope.querySelectorAll("[data-action]")].find(element =>
+    reference.identity.length && reference.identity.every(([key, value]) => element.dataset[key] === value) &&
+    !element.disabled && element.getClientRects().length);
+  (replacement || document.querySelector('#canvas-stage, [role="tab"][aria-selected="true"]'))?.focus({ preventScroll: true });
+}
+export function preserveFocus(container, render) {
+  const reference = container.contains(document.activeElement) ? focusReference(document.activeElement) : null;
+  try { return render(); }
+  finally { if (reference && !reference.element.isConnected) restoreFocus(reference, container); }
+}
+globalThis.document?.querySelector("#modal")?.addEventListener("close", () => {
+  restoreFocus(lastFocus);
+  lastFocus = null;
+});
 export function modal(title, content, wide = false) {
   const el = document.querySelector("#modal");
-  lastFocus = document.activeElement;
+  if (!el.open) lastFocus = focusReference(document.activeElement);
   el.className = wide ? "wide" : "";
   el.innerHTML = `<div class="modal-header"><h2 id="modal-title">${esc(title)}</h2><button class="icon-btn" data-action="modal.close" aria-label="Close dialog">${icon("close")}</button></div>${content}`;
   if (!el.open) el.showModal();
@@ -77,7 +101,6 @@ export function modal(title, content, wide = false) {
 }
 export function closeModal() {
   document.querySelector("#modal").close();
-  lastFocus?.focus();
 }
 export const empty = (symbol, title, description) =>
   `<div class="empty"><div class="empty-icon">${icon(symbol, 26)}</div><h3>${esc(title)}</h3><p>${esc(description)}</p></div>`;

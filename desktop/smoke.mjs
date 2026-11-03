@@ -20,12 +20,33 @@ const profile = await mkdtemp(join(tmpdir(), "borderless-desktop-qa-"));
 const output = join(root, packagedExecutable ? "output/playwright-packaged" : "output/playwright");
 await mkdir(output, { recursive: true });
 const checks = [], errors = [], pages = [];
+const faulting = new Set(), expectedNetworkErrors = [], contrastChecks = [];
 let application, browser;
 const watch = (page) => {
   pages.push(page);
   page.on("pageerror", (error) => errors.push(error.message));
-  page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
+  page.on("console", (message) => {
+    if (message.type() !== "error") return;
+    const text = message.text();
+    if (faulting.has(page) && /net::ERR_(INTERNET_DISCONNECTED|FAILED)|WebSocket connection to .+failed/.test(text))
+      expectedNetworkErrors.push(text.replace(/https?:\/\/[^\s']+/g, "[disposable hub]"));
+    else errors.push(text);
+  });
 };
+function installSocketDiagnostics() {
+  const NativeSocket = window.WebSocket;
+  window.qaSockets = [];
+  window.WebSocket = class extends NativeSocket {
+    constructor(...args) {
+      super(...args);
+      window.qaSockets.push(this);
+      this.addEventListener("message", event => {
+        const data = JSON.parse(event.data);
+        if (data.type === "hello") this.qaConnectionId = data.connectionId;
+      });
+    }
+  };
+}
 function installPeerDiagnostics() {
   const NativePeer = window.RTCPeerConnection;
   window.qaPeers = [];
@@ -35,6 +56,35 @@ function installPeerDiagnostics() {
 }
 const check = (name) => { checks.push(name); console.log(`✓ ${name}`); };
 const closeDialog = (page) => page.getByRole("button", { name: "Close dialog", exact: true }).click();
+async function contrast(page, theme, selectors) {
+  const samples = await page.evaluate(async selectors => {
+    // Theme backgrounds interpolate. Sample their settled colours, alongside
+    // the separate reduced-motion transition check, rather than a mid-fade.
+    await Promise.all(document.getAnimations().filter(animation => animation instanceof CSSTransition).map(animation => animation.finished.catch(() => {})));
+    const context = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+    const rgba = colour => {
+      context.clearRect(0, 0, 1, 1);
+      context.fillStyle = colour;
+      context.fillRect(0, 0, 1, 1);
+      return [...context.getImageData(0, 0, 1, 1).data].map((value, index) => index === 3 ? value / 255 : value);
+    };
+    const over = (top, below) => top.slice(0, 3).map((value, index) => value * top[3] + below[index] * (1 - top[3]));
+    const luminance = rgb => rgb.map(value => value / 255).map(value => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4)
+      .reduce((sum, value, index) => sum + value * [.2126, .7152, .0722][index], 0);
+    return selectors.map(selector => {
+      const element = [...document.querySelectorAll(selector)].find(element => element.getClientRects().length && !element.disabled);
+      if (!element) throw new Error(`No visible contrast sample for ${selector}`);
+      const ancestors = [];
+      for (let node = element; node; node = node.parentElement) ancestors.unshift(node);
+      const background = ancestors.reduce((colour, node) => over(rgba(getComputedStyle(node).backgroundColor), colour), [255, 255, 255]);
+      const text = over(rgba(getComputedStyle(element).color), background);
+      const a = luminance(text), b = luminance(background);
+      return { selector, ratio: Number(((Math.max(a, b) + .05) / (Math.min(a, b) + .05)).toFixed(3)) };
+    });
+  }, selectors);
+  for (const sample of samples) assert.ok(sample.ratio >= 4.5, `${theme}: ${sample.selector} contrast ${sample.ratio}:1`);
+  contrastChecks.push({ view: new URL(page.url()).pathname.split("/")[1], theme, samples });
+}
 async function stroke(page) {
   const box = await page.locator("#drawing-pad").boundingBox();
   await page.mouse.move(box.x + box.width * .2, box.y + box.height * .4);
@@ -50,6 +100,7 @@ try {
   });
   const leader = await application.firstWindow();
   watch(leader);
+  await leader.addInitScript(installSocketDiagnostics);
   await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setContentSize(1440, 1000));
   await leader.getByRole("button", { name: "Create your room" }).waitFor();
   const native = await application.evaluate(({ app, BrowserWindow }) => ({
@@ -87,6 +138,7 @@ try {
 
   browser = await chromium.launch({ channel: "chrome", headless: true, args: labArguments });
   const portalContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, acceptDownloads: true });
+  await portalContext.addInitScript(installSocketDiagnostics);
   const portal = await portalContext.newPage();
   watch(portal);
   await leader.getByRole("button", { name: "Invite people", exact: true }).click();
@@ -103,12 +155,24 @@ try {
   // This is scoped to the disposable hub origin; OS permissions remain unchanged.
   await wallContext.grantPermissions(["local-network-access"], { origin });
   await wallContext.addInitScript(installPeerDiagnostics);
+  await wallContext.addInitScript(installSocketDiagnostics);
   const wall = await wallContext.newPage();
   watch(wall);
   await wall.goto(pairing);
   await wall.locator("#wall-invite img").waitFor();
   assert.equal(await wall.getByRole("button", { name: "Invite people", exact: true }).count(), 0);
   check("390px Portal joins by invitation and 4K read-only Wall pairs separately");
+
+  await portal.getByRole("tab", { name: "Send", exact: true }).focus();
+  await portal.keyboard.press("ArrowRight");
+  assert.equal(await portal.getByRole("tab", { name: "Point", exact: true }).evaluate(tab => document.activeElement === tab && tab.tabIndex === 0 && tab.getAttribute("aria-selected") === "true"), true);
+  assert.equal(await portal.locator("#portal-point").getAttribute("aria-labelledby"), "portal-tab-point");
+  await portal.keyboard.press("End");
+  assert.equal(await portal.locator("#portal-draw").isVisible(), true);
+  await portal.keyboard.press("Home");
+  assert.equal(await portal.locator('[role="tab"][tabindex="0"]').count(), 1);
+  assert.equal(await portal.locator("#portal-send").isVisible(), true);
+  check("Portal tabs support arrow/Home/End keys, roving focus and labelled panels");
 
   await portal.getByRole("button", { name: "Or send a thought" }).click();
   await portal.getByRole("textbox", { name: "A little title" }).fill("A classroom idea");
@@ -157,6 +221,55 @@ try {
   await leader.mouse.up();
   await waitVersion(moved);
   check("PNG drop/preview, grid arrangement, native mouse movement and resizing");
+
+  const keyMove = await card.getAttribute("data-version");
+  const oldPosition = await card.evaluate(element => parseFloat(element.style.left));
+  await card.focus();
+  await leader.keyboard.press("ArrowRight");
+  await waitVersion(keyMove);
+  assert.ok(await card.evaluate((element, old) => parseFloat(element.style.left) > old, oldPosition));
+  const keyResize = await card.getAttribute("data-version");
+  const oldWidth = await card.evaluate(element => parseFloat(element.style.width));
+  await leader.keyboard.press("Alt+ArrowLeft");
+  await waitVersion(keyResize);
+  assert.ok(await card.evaluate((element, old) => parseFloat(element.style.width) < old, oldWidth));
+  assert.equal(await card.evaluate(element => document.activeElement === element), true);
+  await leader.keyboard.press("Enter");
+  await leader.getByRole("button", { name: "Send to a device", exact: true }).click();
+  await leader.keyboard.press("Escape");
+  await leader.waitForFunction(itemId => document.activeElement?.dataset.item === itemId, itemId);
+  check("canvas keyboard move/resize persists; nested dialog Escape restores its original card");
+
+  // Drop one HTTP acknowledgement only after the hub commits the command.
+  const noteRoute = `**/api/rooms/${roomId}/command`;
+  let dropped = false;
+  const receiptIds = [];
+  const interruptAck = async route => {
+    const input = route.request().postDataJSON();
+    if (input.type !== "note.add" || input.title !== "Recovered acknowledgement") return route.continue();
+    receiptIds.push(input.commandId);
+    if (!dropped) {
+      dropped = true;
+      const response = await route.fetch();
+      assert.equal(response.status(), 200);
+      await response.dispose();
+      await route.abort("failed");
+    } else await route.continue();
+  };
+  await portal.route(noteRoute, interruptAck);
+  faulting.add(portal);
+  await portal.getByRole("button", { name: "Or send a thought" }).click();
+  await portal.getByRole("textbox", { name: "A little title" }).fill("Recovered acknowledgement");
+  await portal.getByRole("textbox", { name: "Your thought" }).fill("This command must create exactly one note.");
+  await portal.getByRole("button", { name: "Add to the canvas", exact: true }).click();
+  await wall.getByText("Recovered acknowledgement", { exact: true }).waitFor();
+  await portal.locator("#modal").waitFor({ state: "hidden" });
+  await portal.unroute(noteRoute, interruptAck);
+  faulting.delete(portal);
+  assert.equal(receiptIds.length, 2);
+  assert.equal(receiptIds[0], receiptIds[1]);
+  assert.equal(await wall.getByText("Recovered acknowledgement", { exact: true }).count(), 1);
+  check("lost HTTP acknowledgement recovers in the rendered Portal without duplicating its note");
 
   const flickChooser = portal.waitForEvent("filechooser");
   await portal.getByRole("button", { name: "Choose a file" }).click();
@@ -217,6 +330,41 @@ try {
   assert.equal(await portal.locator("#drawing-pad.draw-disabled").count(), 1);
   check("leader revocation immediately relocks the participant drawing pad");
 
+  await portal.getByRole("button", { name: "Raise your hand", exact: true }).click();
+  const approve = leader.getByRole("button", { name: "Approve Lab learner", exact: true });
+  await approve.focus();
+  // A remote update rebuilds the People panel. Focus must follow the same action.
+  await portal.getByRole("tab", { name: "Send", exact: true }).click();
+  await portal.getByRole("button", { name: "Or send a thought" }).click();
+  await portal.getByRole("textbox", { name: "A little title" }).fill("Draft survives reconnect");
+  await portal.getByRole("textbox", { name: "Your thought" }).fill("An unsent thought stays in its open dialog.");
+  const participantId = await portal.evaluate(async roomId => (await (await fetch(`/api/rooms/${roomId}/state`)).json()).me.id, roomId);
+  await leader.evaluate(async roomId => {
+    const state = await (await fetch(`/api/rooms/${roomId}/state`)).json();
+    const response = await fetch(`/api/rooms/${roomId}/command`, { method: "POST", headers: { "Content-Type": "application/json", "X-Borderless-CSRF": state.me.csrf }, body: JSON.stringify({ type: "note.add", commandId: crypto.randomUUID(), title: "Focus survives updates", text: "A contribution while the approval button has focus." }) });
+    if (!response.ok) throw new Error("The remote focus-test contribution failed.");
+  }, roomId);
+  await leader.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "Approve Lab learner");
+  await approve.click();
+  const portalConnection = await portal.evaluate(() => qaSockets.at(-1).qaConnectionId);
+  faulting.add(portal);
+  await portalContext.setOffline(true);
+  await portal.evaluate(() => qaSockets.at(-1).close());
+  await portal.getByRole("button", { name: "Reconnect now", exact: true }).waitFor({ state: "attached" });
+  await leader.getByRole("button", { name: "Manage Lab learner", exact: true }).click();
+  await leader.getByRole("button", { name: "Revoke drawing", exact: true }).click();
+  await closeDialog(leader);
+  await portalContext.setOffline(false);
+  await portal.waitForFunction(previous => qaSockets.at(-1).qaConnectionId && qaSockets.at(-1).qaConnectionId !== previous && document.querySelector("#connection-banner").hidden, portalConnection);
+  faulting.delete(portal);
+  assert.equal(await portal.getByRole("textbox", { name: "Your thought" }).inputValue(), "An unsent thought stays in its open dialog.");
+  assert.equal(await portal.evaluate(async roomId => (await (await fetch(`/api/rooms/${roomId}/state`)).json()).me.id, roomId), participantId);
+  await portal.keyboard.press("Escape");
+  await portal.getByRole("tab", { name: "Draw", exact: true }).click();
+  await portal.getByText("Ask the leader for a turn at the board.", { exact: true }).waitFor();
+  assert.equal(await portal.locator("#drawing-pad.draw-disabled").count(), 1);
+  check("remote updates preserve approval focus; reconnect keeps identity/draft and refreshes drawing revocation");
+
   await leader.getByRole("button", { name: "Open lab.txt", exact: true }).click();
   await leader.getByRole("button", { name: "Send to a device", exact: true }).click();
   await leader.getByRole("combobox", { name: "Send to" }).selectOption({ label: "Lab learner" });
@@ -227,6 +375,32 @@ try {
   const received = await readFile(await (await returned).path());
   assert.equal(createHash("sha256").update(received).digest("hex"), createHash("sha256").update(bytes).digest("hex"));
   check("targeted return download matches the original SHA-256");
+  if (await portal.locator("#modal").evaluate(dialog => dialog.open)) await closeDialog(portal);
+
+  const contribution = portal.locator('#portal-files [data-action="item.open"]').first();
+  await contribution.focus();
+  const focusedContribution = await contribution.getAttribute("data-id");
+  const guestCanvas = await portalContext.newPage();
+  watch(guestCanvas);
+  await guestCanvas.goto(`${origin}/room/${roomId}`);
+  await guestCanvas.getByText("Live", { exact: true }).waitFor();
+  await portal.waitForFunction(id => document.activeElement?.dataset.id === id, focusedContribution);
+  const foreignCard = guestCanvas.locator(".canvas-item").filter({ has: guestCanvas.getByRole("img", { name: "drop.png", exact: true }) });
+  const foreignVersion = await foreignCard.getAttribute("data-version");
+  await foreignCard.focus();
+  await guestCanvas.keyboard.press("ArrowRight");
+  await guestCanvas.getByRole("status").filter({ hasText: "Only the owner or room leader" }).waitFor({ state: "attached" });
+  assert.equal(await foreignCard.getAttribute("data-version"), foreignVersion);
+  await leader.evaluate(async roomId => {
+    const state = await (await fetch(`/api/rooms/${roomId}/state`)).json();
+    const item = state.items.find(item => item.title === "drop.png");
+    const response = await fetch(`/api/rooms/${roomId}/command`, { method: "POST", headers: { "Content-Type": "application/json", "X-Borderless-CSRF": state.me.csrf }, body: JSON.stringify({ type: "item.remove", commandId: crypto.randomUUID(), itemId: item.id, version: item.version }) });
+    if (!response.ok) throw new Error("The remote removal failed.");
+  }, roomId);
+  await foreignCard.waitFor({ state: "detached" });
+  assert.equal(await guestCanvas.locator("#canvas-stage").evaluate(element => document.activeElement === element), true);
+  await guestCanvas.close();
+  check("keyboard ownership remains enforced and removal returns focus to the canvas");
 
   await application.evaluate(({ dialog, shell }) => {
     globalThis.qaOriginalDialog = dialog.showMessageBox;
@@ -276,18 +450,77 @@ try {
   watch(secondWall);
   await secondWall.goto(`${origin}/wall/${roomId}`);
   await secondWall.waitForFunction(() => { const v = document.querySelector(".stream-tile video"); return v?.videoWidth === 640 && v.readyState >= 2; });
+  const wallConnection = await wall.evaluate(() => qaSockets.at(-1).qaConnectionId);
+  faulting.add(wall); faulting.add(secondWall);
+  await wallContext.setOffline(true);
+  await Promise.all([wall, secondWall].map(page => page.evaluate(() => qaSockets.at(-1).close())));
+  await wall.getByRole("button", { name: "Reconnect now", exact: true }).waitFor();
+  await secondWall.getByRole("button", { name: "Reconnect now", exact: true }).waitFor();
+  await leader.waitForFunction(() => qaPeers.length >= 2 && qaPeers.every(peer => peer.connectionState === "closed"));
+  await wallContext.setOffline(false);
+  await Promise.all([wall, secondWall].map(page => page.getByRole("button", { name: "Reconnect now", exact: true }).click()));
+  await wall.waitForFunction(previous => qaSockets.at(-1).qaConnectionId !== previous && document.querySelector("#connection-banner").hidden && document.querySelector(".stream-tile video")?.videoWidth === 640, wallConnection);
+  await secondWall.waitForFunction(() => document.querySelector("#connection-banner").hidden && document.querySelector(".stream-tile video")?.videoWidth === 640);
+  faulting.delete(wall); faulting.delete(secondWall);
+  assert.equal(await leader.evaluate(() => qaCapture.getVideoTracks()[0].readyState), "live");
+  check("manual Wall reconnect restores media to both tabs and closes departed owner peers");
   await leader.getByRole("button", { name: "Stop sharing your screen", exact: true }).click();
   await wall.locator(".stream-tile").waitFor({ state: "detached" });
   await secondWall.locator(".stream-tile").waitFor({ state: "detached" });
   assert.equal(await leader.evaluate(() => globalThis.qaCapture.getVideoTracks()[0].readyState), "ended");
   check("generated video reaches two Wall tabs sharing one cookie; explicit stop ends tracks");
 
+  await leader.getByRole("button", { name: "Share your screen", exact: true }).click();
+  await wall.waitForFunction(() => document.querySelector(".stream-tile video")?.videoWidth === 640);
+  const ownerConnection = await leader.evaluate(() => qaSockets.at(-1).qaConnectionId);
+  faulting.add(leader);
+  await leader.context().setOffline(true);
+  await leader.evaluate(() => qaSockets.at(-1).close());
+  await wall.locator(".stream-tile").waitFor({ state: "detached" });
+  assert.equal(await leader.evaluate(() => qaCapture.getVideoTracks()[0].readyState), "ended");
+  await leader.context().setOffline(false);
+  await leader.getByRole("button", { name: "Reconnect now", exact: true }).click();
+  await leader.waitForFunction(previous => qaSockets.at(-1).qaConnectionId && qaSockets.at(-1).qaConnectionId !== previous && document.querySelector("#connection-banner").hidden, ownerConnection);
+  faulting.delete(leader);
+  assert.equal(await leader.getByRole("button", { name: "Share your screen", exact: true }).count(), 1);
+  assert.equal(await leader.evaluate(() => qaCapture.getVideoTracks()[0].readyState), "ended");
+  assert.equal(await wall.locator(".stream-tile").count(), 0);
+  check("owner disconnection ends capture and reconnect requires an explicit new share");
+
+  // Exercise the production effect module with live browser preference changes.
+  await wall.emulateMedia({ reducedMotion: "no-preference" });
+  assert.equal(await wall.evaluate(async () => {
+    const { LandingEffects } = await import("/js/effects.js");
+    const canvas = document.createElement("canvas");
+    canvas.style.cssText = "position:fixed;width:100px;height:100px;pointer-events:none";
+    document.body.append(canvas);
+    window.qaMotionCanvas = canvas;
+    window.qaMotion = new LandingEffects(canvas);
+    qaMotion.play(.5, .5, "#294636", "ripple");
+    return Boolean(qaMotion.gl && qaMotion.frame);
+  }), true);
+  await wall.emulateMedia({ reducedMotion: "reduce" });
+  await wall.waitForFunction(() => qaMotion.reduced && qaMotion.frame === null && qaMotion.event === null);
+  assert.equal(await wall.evaluate(() => { qaMotion.play(.5, .5, "#294636", "liquid"); return !qaMotion.frame && !qaMotion.event; }), true);
+  assert.ok(await wall.locator(".canvas-item").first().evaluate(element => parseFloat(getComputedStyle(element).transitionDuration) < .01));
+  await wall.emulateMedia({ reducedMotion: "no-preference" });
+  await wall.waitForFunction(() => !qaMotion.reduced);
+  assert.equal(await wall.evaluate(() => { qaMotion.play(.5, .5, "#294636", "particles"); return Boolean(qaMotion.frame); }), true);
+  await wall.evaluate(() => { qaMotion.destroy(); qaMotionCanvas.remove(); delete window.qaMotion; delete window.qaMotionCanvas; });
+  check("live reduced-motion changes cancel/prevent arrival effects and suppress CSS transitions");
+
   await leader.getByRole("button", { name: "Room settings", exact: true }).click();
+  await portal.getByRole("tab", { name: "Send", exact: true }).click();
   for (const theme of ["studio", "executive", "synth", "command", "classroom"]) {
     await leader.locator(`[data-action="theme"][data-theme="${theme}"]`).click();
     await wall.waitForFunction(theme => document.documentElement.dataset.theme === theme, theme);
     await portal.waitForFunction(theme => document.documentElement.dataset.theme === theme, theme);
+    await leader.waitForFunction(theme => document.activeElement?.dataset.theme === theme, theme);
+    await contrast(leader, theme, [".panel-intro", ".theme-option.selected span", ".effects-options .selected", ".room-status", ".floating-toolbar button.active", ".note-text", ".item-caption"]);
+    await contrast(portal, theme, [".portal-room > p", ".portal-tabs button:not(.selected)", ".throw-card h2", ".throw-card p", ".throw-card .btn.primary", ".throw-cue", ".avatar"]);
+    await contrast(wall, theme, ["#wall-invite small", ".note-text", ".item-caption"]);
   }
+  check("representative text/control contrast meets 4.5:1 across all five themes; settings focus survives refresh");
   await leader.getByRole("button", { name: "Zoom in", exact: true }).click();
   assert.equal(await leader.locator("#zoom-value").textContent(), "110%");
   await leader.getByRole("button", { name: "Fit canvas", exact: true }).click();
@@ -308,13 +541,22 @@ try {
   await portal.screenshot({ path: join(output, "portal-390.png"), fullPage: true });
   await wall.screenshot({ path: join(output, "wall-4k.png") });
   assert.equal(await portal.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await leader.getByRole("button", { name: "Manage Lab learner", exact: true }).click();
+  await leader.getByRole("button", { name: "Remove from room", exact: true }).click();
+  await portal.getByRole("link", { name: "Join again", exact: true }).waitFor();
+  await portal.getByText("Your access has ended", { exact: true }).waitFor();
+  assert.equal(await portal.getByRole("button", { name: "Reconnect now", exact: true }).count(), 0);
+  assert.equal(await portal.getByRole("link", { name: "Join again", exact: true }).getAttribute("href"), `/join/${roomId}`);
+  await contrast(portal, "revoked", ["#connection-banner > span", "#connection-banner .btn"]);
+  await portal.screenshot({ path: join(output, "portal-revoked.png"), fullPage: true });
+  check("eviction replaces retry with an explicit Join again recovery path");
   assert.deepEqual(errors, []);
   check("screenshots, phone width without overflow and no renderer console errors");
   await browser.close(); browser = null;
   await application.close(); application = null;
   await assert.rejects(readFile(join(profile, "hub/hub.lock")), { code: "ENOENT" });
   check("native graceful quit releases the hub process and storage lock");
-  await writeFile(join(output, "desktop-smoke.json"), JSON.stringify({ at: new Date().toISOString(), platform: process.platform, arch: process.arch, build: packagedExecutable ? "packaged" : "source", ice: unicastLab ? "unobfuscated host candidates in disposable same-machine lab" : "Chromium default", checks, errors, limits: ["Generated video is not OS capture consent evidence.", "Phone viewport is Chromium emulation, not a physical phone.", "Native file confirmation is stubbed for cancellation.", "Room-network consent is approved for this disposable native/browser lab; OS Local Network permission is separate.", ...(unicastLab ? ["CI does not qualify mDNS, OS Local Network consent or physical LAN connectivity."] : [])] }, null, 2));
+  await writeFile(join(output, "desktop-smoke.json"), JSON.stringify({ at: new Date().toISOString(), platform: process.platform, arch: process.arch, build: packagedExecutable ? "packaged" : "source", ice: unicastLab ? "unobfuscated host candidates in disposable same-machine lab" : "Chromium default", checks, contrastChecks, expectedNetworkErrors, errors, limits: ["Generated video is not OS capture consent evidence.", "Phone viewport is Chromium emulation, not a physical phone.", "Representative computed-colour samples and keyboard checks are not a full WCAG or assistive-technology audit.", "Native file confirmation is stubbed for cancellation.", "Room-network consent is approved for this disposable native/browser lab; OS Local Network permission is separate.", ...(unicastLab ? ["CI does not qualify mDNS, OS Local Network consent or physical LAN connectivity."] : [])] }, null, 2));
 } catch (error) {
   const diagnostics = [];
   for (const [index, page] of pages.entries()) {
@@ -323,6 +565,7 @@ try {
     diagnostics.push(await page.evaluate(async () => ({
       path: location.pathname,
       text: document.body.innerText,
+      focus: { tag: document.activeElement?.tagName, action: document.activeElement?.dataset.action, id: document.activeElement?.dataset.id, theme: document.activeElement?.dataset.theme },
       video: [...document.querySelectorAll("video")].map(v => ({ width: v.videoWidth, height: v.videoHeight, readyState: v.readyState })),
       peers: await Promise.all((window.qaPeers || []).map(async p => ({
         connection: p.connectionState, ice: p.iceConnectionState, gathering: p.iceGatheringState, signalling: p.signalingState,

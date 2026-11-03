@@ -3,7 +3,17 @@ export class LandingEffects {
   constructor(canvas) {
     this.canvas = canvas;
     this.events = [];
-    this.reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    this.motionPreference = matchMedia("(prefers-reduced-motion: reduce)");
+    this.reduced = this.motionPreference.matches;
+    this.motionChanged = event => {
+      this.reduced = event.matches;
+      if (!this.reduced) return;
+      cancelAnimationFrame(this.frame);
+      this.frame = null;
+      this.event = null;
+      this.gl?.clear(this.gl.COLOR_BUFFER_BIT);
+    };
+    this.motionPreference.addEventListener("change", this.motionChanged);
     const gl = canvas.getContext("webgl", {
       alpha: true,
       premultipliedAlpha: false,
@@ -101,6 +111,7 @@ export class LandingEffects {
     this.frame = requestAnimationFrame(this.draw);
   };
   destroy() {
+    this.motionPreference.removeEventListener("change", this.motionChanged);
     cancelAnimationFrame(this.frame);
     this.gl?.getExtension("WEBGL_lose_context")?.loseContext();
   }

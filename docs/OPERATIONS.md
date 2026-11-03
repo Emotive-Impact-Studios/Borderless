@@ -53,12 +53,16 @@ The desktop shell can choose a display or span a software window across connecte
 
 - **Send:** Select or drop files. The phone supports flicking a selected file and an explicit Send button. The wall displays the file only after the hub confirms storage and commits its card.
 - **Share a screen:** Use a supported desktop browser on a secure context. Select exactly what to share. The capture indicator and stop control remain visible. Phones can still upload files, point, draw and answer questions when screen capture is unsupported.
-- **Arrange:** Move or resize your own cards. The leader may arrange everyone's cards. Tidy up makes a grid. The focus layout is available through the command API.
+- **Arrange:** Move or resize your own cards. The leader may arrange everyone's cards. Focus a card with Tab: Enter/Space opens it, arrow keys move it, Alt + arrow resizes and Shift increases the step. Tidy up makes a grid. The focus layout is available through the command API.
 - **Teach:** In Classroom, approve raised hands from the leader panel. Revocation is enforced by the hub, not only the phone UI.
 - **Pause:** Stops participant contributions and live screen advertisements. Leader controls remain available.
 - **Clear:** Removes visible cards, ink, live screens, deliveries and the current quiz. Stored file bytes remain available until purge.
 - **Purge:** Removes the room's asset records, requests and contributions, pauses the room, and runs durable deletion jobs for uploaded bytes. If the filesystem refuses deletion, the leader sees the pending count and a retry action in Settings. Jobs also retry every 30 seconds and after restart. The metadata audit remains. See SECURITY for secure-erasure and backup limits.
 - **End:** Closes joining and revokes participant/display sessions. The current leader can still export metadata and audit.
+
+Portal tabs support Left/Right, Home and End. Escape closes dialogs and restores their original opener. Reduced motion follows the browser/OS preference, including changes while the room is open. The current keyboard/colour acceptance is representative, not a complete assistive-technology audit.
+
+During disconnection, changes are paused and the banner offers **Reconnect now**. Live resumes only after a fresh authorised socket snapshot. A lost command response gets one retry using its existing receipt ID; if confirmation still fails, inspect the canvas before trying again. File transfers are not automatically resent. An open thought draft remains in its dialog during ordinary reconnect. Expired/removed access offers **Join again** or **Leader login**. A Wall can reconnect to a still-active screen source; if the sharing owner's connection drops, capture ends and the owner must explicitly share again.
 
 Sessions last twelve hours. Startup and 30-second maintenance remove expired/revoked session credentials and their command receipts. A current session retains its complete retry history. Retired devices lose pending drawing requests, drawing grants and inbox entries; their submitted notes, files, ink and quiz answers remain. Ending a room does not erase its metadata audit, and pruning SQL rows does not erase older backups. Room/audit retention policy remains a managed-deployment requirement.
 
