@@ -40,4 +40,4 @@ The conformance script creates a temporary loopback hub, passes its token throug
 
 ## Acceptance boundaries
 
-Compilation, library tests, headless engine rendering, OS picker/stop, actual captured frames, LAN transmission, physical phone gestures and virtual monitor enumeration are separate results. The initial native capture test here returned zero complete frames after OS selection; the adapter correctly reports missing frames, and that failure remains open. Do not relabel it as working capture.
+Compilation, library tests, headless engine rendering, OS picker/stop, actual captured frames, LAN transmission, physical phone gestures and virtual monitor enumeration are separate results. Local Mac capture, live updates and Stop were demonstrated and accepted on 3 November after recovery of the macOS capture service (see BUILD_HANDOFF). LiveKit publishing and Wall playback remain unverified. Swift dependencies are public; use `swift package --disable-keychain resolve` to avoid an unrelated Keychain credential prompt. The native verification script uses the same option.

@@ -4,6 +4,17 @@
 
 Read VISION.md first, then PRODUCT.md and DESIGN.md, then README, PRD, CAPABILITIES, ARCHITECTURE and DELIVERY. The original conversation is preserved in `docs/source/` and checked against SHA-256. The repository began with only a README at main commit `7b773ca855f0438bdd6e5f08d4e71b556037fd50`.
 
+## Milestone 1 · actual LiveKit installed and control path verified · 3 November 2026
+
+The user freed disk space; 6.7 GiB was initially available and later 15 GiB. Retried Homebrew installation successfully: `/opt/homebrew/bin/livekit-server --version` reports **1.13.11**. The previous disk blocker is resolved.
+
+- Started the actual managed server and Node hub with `BORDERLESS_MEDIA=1 BORDERLESS_DATA=output/native/m1-room BORDERLESS_PORT=8444 npm start`; authenticated readiness succeeded and `/api/health` returned OK. Development hub URL is `http://127.0.0.1:8444`; it is loopback-only. Process output is in ignored `output/native/m1-room.log`.
+- Added `scripts/verify-livekit.mjs` and ran it successfully against a second, actual LiveKit process with disposable state on ports 17880–17882. It exercises authenticated hub publisher/viewer grants, room creation, a real WebSocket signalling join, Stop deleting the room, and rejection of the still-valid old JWT when attempting to recreate that deleted room. This is **real SFU control/signalling evidence**, not video-frame or remote-device evidence.
+- Pinned LiveKit Swift **2.14.1** and committed resolution metadata for this Mac's compiler 6.0.3; the app compiles successfully with the SDK. Current SDK 2.18.0 requires Swift 6.1/Xcode 16.3. The first resolver stalled in `SecItemCopyMatching` during a Keychain credential lookup. Terminated that resolver and used `--disable-keychain` for these public dependencies; both binary downloads completed. Native verification now uses that option. No credential store or privacy setting was altered. Logs: `output/native/m1-swift-resolve.log` and `m1-sdk-native.log`.
+- Updated local bundling to embed and ad-hoc sign LiveKitWebRTC and RustLiveKitUniFFI, add the app-relative framework search path, and retain privacy manifests and upstream licence notices. `npm run native:mac:package` and deep/strict signature verification pass. This is not Developer ID signing or notarisation. Two attempts to select the running diagnostic through app automation timed out; PID 11107 remains the older accepted process. A fresh launch of the SDK-linked package and capture permission after its changed signature are not yet verified.
+- Verification: Node 24 `npm run verify` passes 66 tests/check/build; `DOTNET_ROOT=/Users/augustusedem/.dotnet npm run native:verify` passes including Swift/LiveKit compilation (37 seconds), four Swift tests and the legacy Godot compilation-only gate. Real LiveKit control/signalling acceptance passes again.
+- Next: connect the accepted SCK frame path to the SDK buffer capturer and authenticated hub session, build the shared TypeScript Wall using design-system/ components and Tauri, then test actual live frames and Stop. Milestone 1 remains incomplete.
+
 ## Milestone 1 · managed media process · 3 November 2026
 
 - Added optional managed startup: `BORDERLESS_MEDIA=1 npm start` launches `livekit-server` (or `BORDERLESS_LIVEKIT_BINARY`) with per-run random credentials in a private runtime file, waits for an authenticated room-service response, then starts the hub with that media adapter. Startup failure removes the temporary credentials. Shutdown terminates the owned child and removes its configuration; unexpected media-process exit closes the hub so clients cannot mistake it for a healthy media session.
@@ -173,10 +184,9 @@ Run from a real desktop for browser/native work. For phone access, follow OPERAT
 
 ## Next priorities
 
-1. Follow NATIVE_ARCHITECTURE's restored Go/Rust/Godot-.NET boundaries. Instrument and resolve native Swift complete-frame delivery, then implement hardware encode, authenticated transport and native decode/render in the current authoritative room. The current Rust/.NET/Go units and note scene are foundations, not the completed native platform.
-2. Complete native spatial content/personal-window interaction and the connected phone flick/destination experience, then qualify them on two physical clients with trusted HTTPS/capture/audio and a physical phone. Preserve working room state and obtain final product review. The older Electron zero-frame capture and generated-media ICE failures remain separately recorded; controlled fixtures cannot satisfy G3.
-3. Continue WP10–14 native display/window-edge handoff and hardware commissioning. A real OS window must cross into an extended display with safe return; room-window focus is separate.
-4. Complete VoiceOver/full keyboard, preview/codec and Windows/Linux/display hotplug breadth, then signing/notarisation and quarantined installation. Keep exact-head CI and unsigned local receipts distinct from release acceptance. No merge/release has been performed.
-5. Continue the remaining full-scope packages in DELIVERY after the spatial experience: room/content/audit retention, broader crash/load/backup drills, managed identity/updates and measured hardware/HA work.
+1. Complete CODEX_BRIEF milestone 1 on the approved Swift/Rust/LiveKit/TypeScript/Tauri stack. Local Mac capture is accepted. Finish Swift SDK compilation and publishing, then the shared TypeScript Wall and Tauri shell using design-system/ tokens and components. Keep the existing Node hub as the sole room authority.
+2. Demonstrate real Mac capture on the second display: actual updates during movement/resizing, Stop clearing all viewers within one second, revocation/reconnect and measured glass-to-glass latency. Obtain the user's acceptance; control-plane checks alone do not complete this milestone.
+3. Follow milestones 2–4 in order: real phone flick and send-back, private native receiver windows, then true extended-display edge handoff with safe return. Physical devices and the user's visual review are required.
+4. Finish the combined core-moment review before broadening classroom tools, operations, hub migration or release packaging. The full remaining scope stays in CODEX_BRIEF and DELIVERY.
 
-All remaining work has acceptance criteria in DELIVERY. The product name remains Borderless. Do not silently rename it, replace the preserved source or describe aspirational native features as complete.
+Historical checkpoints above retain the architecture and evidence recorded at the time. CODEX_BRIEF section 3 and ARCHITECTURE_DECISION define the approved current stack; older Go/Godot instructions are superseded. No merge or release has been performed.
