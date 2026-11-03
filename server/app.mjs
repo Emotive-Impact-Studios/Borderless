@@ -19,7 +19,7 @@ import {
 } from "./store.mjs";
 import { assetStorage, safeName, mimeFor } from "./assets.mjs";
 import { minimumSurfaceSize, raiseSurface, focusSurface, arrangeScene } from "./spatial.mjs";
-import { currentInvitation, invitationLifetime, mayReceiveStream, removeStreamRecipient } from "./stream-policy.mjs";
+import { audiences, currentInvitation, invitationLifetime, mayKnowStream, mayReceiveStream, removeStreamRecipient } from "./stream-policy.mjs";
 import {
   fail,
   text,
@@ -657,6 +657,7 @@ export async function createApp(options = {}) {
           connectionId: input.connectionId || null,
           ownerName: s.name,
           title: text(input.title || `${s.name}’s screen`, 120, "Title"),
+          audience: choice(input.audience ?? "room", audiences, "Audience"),
           colour: s.colour,
           x: .14 + state.streams.length % 3 * .12,
           y: .16 + state.streams.length % 3 * .1,
@@ -672,7 +673,7 @@ export async function createApp(options = {}) {
       case "stream.focus":
       case "stream.raise": {
         requireContributor(s, room);
-        const stream = state.streams.find(value => value.id === input.streamId);
+        const stream = state.streams.find(value => value.id === input.streamId && mayKnowStream(value, s));
         if (!stream) fail(404, "This screen share has already stopped.");
         owned(stream, s);
         if (input.version !== stream.version) fail(409, "This screen window changed on another device. Try again with the latest version.");
@@ -695,7 +696,7 @@ export async function createApp(options = {}) {
       }
       case "stream.invite": {
         requireContributor(s, room);
-        const stream = state.streams.find(value => value.id === input.streamId);
+        const stream = state.streams.find(value => value.id === input.streamId && mayKnowStream(value, s));
         if (!stream) fail(404, "This screen share has already stopped.");
         if (stream.ownerId !== s.device_id) fail(403, "Only the person sharing this screen can invite another viewer.");
         const target = devices(room.id).find(device => device.id === input.deviceId && device.id !== s.device_id && device.role !== "wall");
@@ -711,7 +712,7 @@ export async function createApp(options = {}) {
       case "stream.decline":
       case "stream.revoke": {
         if (s.role === "wall") fail(403, "The display is read-only.");
-        const stream = state.streams.find(value => value.id === input.streamId);
+        const stream = state.streams.find(value => value.id === input.streamId && mayKnowStream(value, s));
         if (!stream) fail(404, "This screen share has already stopped.");
         const invitation = (stream.invitations || []).find(value => value.id === input.invitationId);
         if (!invitation) fail(409, "This invitation is no longer available. Ask the owner to send a new one.");
@@ -727,7 +728,7 @@ export async function createApp(options = {}) {
         break;
       }
       case "stream.stop": {
-        const stream = state.streams.find((x) => x.id === input.streamId);
+        const stream = state.streams.find((x) => x.id === input.streamId && mayKnowStream(x, s));
         if (!stream) fail(404, "This screen share has already stopped.");
         owned(stream, s);
         state.streams = state.streams.filter((x) => x.id !== stream.id);
@@ -1340,7 +1341,7 @@ export async function createApp(options = {}) {
         }
         if (input.type === "rtc") {
           const stream = room.state.streams.find(
-            (x) => x.id === input.streamId,
+            (x) => x.id === input.streamId && mayKnowStream(x, fresh),
           );
           if (!stream) fail(404, "Screen share not found");
           const target = store.db

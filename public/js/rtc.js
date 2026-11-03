@@ -39,7 +39,7 @@ export class ScreenSharing {
     return Boolean(this.local && stream.ownerId === state.me.id && (!stream.connectionId || stream.connectionId === this.client.connectionId));
   }
   receives(stream) { return Boolean(stream.canReceive && this.getVideo(stream.id)); }
-  async start() {
+  async start({ audience = "room" } = {}) {
     if (this.starting) throw new Error("A screen selection is already open.");
     if (!navigator.mediaDevices?.getDisplayMedia)
       throw new Error(
@@ -55,23 +55,71 @@ export class ScreenSharing {
       });
       this.local = stream;
       this.client.emit("sharing");
+      const track = stream.getVideoTracks()[0];
+      // Attach before any await: the browser's own Stop control can end the
+      // track while the room is still registering it.
+      track.onended = () => {
+        if (this.local === stream) this.stop().catch((error) => this.onError(error.message));
+      };
       try {
         await this.client.command("stream.start", {
           title: `${this.client.state.me.name}’s screen`,
           connectionId: this.client.connectionId,
+          audience,
         });
       } catch (error) {
         this.stopLocal();
         throw error;
       }
-      stream.getVideoTracks()[0].onended = () =>
-        this.stop().catch((error) => this.onError(error.message));
+      if (track.readyState === "ended" || this.local !== stream) {
+        // Stopped during registration: remove the room record we just created.
+        if (this.local === stream) this.stopLocal();
+        await this.stopRegistered();
+        return;
+      }
+      this.watchFirstFrame(stream, track);
       const state = await this.client.api("state");
       this.sync(state);
     } finally {
       this.starting = false;
       this.client.emit("sharing");
     }
+  }
+  // A live track is not a live share. Wait for a real captured frame, and treat
+  // none within the deadline as a capture failure (PRD B12, F03).
+  watchFirstFrame(stream, track, timeout = 10_000) {
+    const viaVideo = () => {
+      const probe = document.createElement("video");
+      probe.muted = true;
+      probe.srcObject = stream;
+      return new Promise((resolve) => {
+        if (probe.requestVideoFrameCallback) probe.requestVideoFrameCallback(() => resolve());
+        else probe.addEventListener("loadeddata", () => resolve(), { once: true });
+        probe.play().catch(() => {});
+      }).finally(() => { probe.srcObject = null; });
+    };
+    // grabFrame resolves only once a real frame exists; fall back where it is unsupported.
+    const frame = globalThis.ImageCapture
+      ? new ImageCapture(track).grabFrame().then((bitmap) => bitmap.close?.(), viaVideo)
+      : viaVideo();
+    const deadline = new Promise((resolve) => setTimeout(() => resolve("timeout"), timeout));
+    Promise.race([frame.then(() => "frame"), deadline]).then((result) => {
+      if (this.local !== stream) return;
+      this.firstFrame = result === "frame";
+      this.client.emit("sharing");
+      if (result !== "frame") {
+        this.stop().catch(() => {});
+        this.onError("Your screen share stopped because no picture arrived from the selected window within 10 seconds. Choose the window again.");
+      }
+    });
+  }
+  async stopRegistered() {
+    const state = await this.client.api("state").catch(() => this.client.state);
+    const stream = state?.streams.find(
+      (s) => s.ownerId === this.client.state.me.id &&
+        (!s.connectionId || s.connectionId === this.client.connectionId),
+    );
+    if (stream) await this.client.command("stream.stop", { streamId: stream.id }).catch(() => {});
   }
   sync(state) {
     if (

@@ -126,3 +126,48 @@ test("live-window routes serve only an external-script shell and keep room state
   assert.equal((await request(app, `/api/rooms/${roomId}/state`)).status, 401);
   assert.equal((await request(app, `/screen/${roomId}/not-a-stream`)).status, 404);
 });
+
+test("a private live window reaches only its owner and accepted invitees, never the leader or Wall", async t => {
+  const app = await fixture(t), { admin } = await room(app);
+  const owner = await participant(app, admin, "Designer"), viewer = await participant(app, admin, "Colleague"), other = await participant(app, admin, "Bystander");
+  const { actor: display } = await wall(app, admin);
+  const leaderSocket = await connect(app, admin), displaySocket = await connect(app, display), source = await connect(app, owner);
+  t.after(() => [leaderSocket, displaySocket, source].forEach(socket => socket.terminate()));
+  const captureId = (await event(source, e => e.type === "hello")).connectionId;
+  assert.equal((await command(app, owner, "stream.start", { connectionId: captureId, audience: "everyone" })).status, 400);
+  assert.equal((await command(app, owner, "stream.start", { connectionId: captureId, audience: "private" })).status, 200);
+  const screen = await stream(app, owner);
+  assert.equal(screen.audience, "private");
+  for (const actor of [admin, display, viewer, other]) assert.equal((await snapshot(app, actor)).streams.length, 0);
+  assert.deepEqual(screen.receivers, [owner.id]);
+  // Knowing the identifier grants nothing: geometry, stop and signalling all refuse.
+  assert.equal((await command(app, admin, "stream.stop", { streamId: screen.id })).status, 404);
+  assert.equal((await command(app, admin, "stream.move", { streamId: screen.id, version: screen.version, x: 0, y: 0 })).status, 404);
+  const ready = { type: "rtc", streamId: screen.id, targetId: owner.id, targetConnectionId: captureId, kind: "ready" };
+  leaderSocket.send(JSON.stringify(ready));
+  assert.match((await event(leaderSocket, e => e.type === "error")).error, /not found/i);
+  displaySocket.send(JSON.stringify(ready));
+  assert.match((await event(displaySocket, e => e.type === "error")).error, /not found/i);
+  await command(app, owner, "stream.invite", { streamId: screen.id, deviceId: viewer.id });
+  const invited = await stream(app, viewer);
+  assert.equal(invited.canReceive, false);
+  assert.equal((await snapshot(app, other)).streams.length, 0);
+  await command(app, viewer, "stream.accept", { streamId: screen.id, invitationId: invited.invitations[0].id });
+  assert.equal((await stream(app, viewer)).canReceive, true);
+  assert.deepEqual((await stream(app, owner)).receivers.sort(), [owner.id, viewer.id].sort());
+  for (const actor of [admin, display, other]) assert.equal((await snapshot(app, actor)).streams.length, 0);
+  assert.equal(source.messages.some(e => e.type === "rtc" && e.kind === "ready"), false);
+  assert.equal((await command(app, owner, "stream.stop", { streamId: screen.id })).status, 200);
+  assert.equal(app.store.verifyAudit().valid, true);
+});
+
+test("a room live window still reaches the leader and Wall by default", async t => {
+  const app = await fixture(t), { admin } = await room(app);
+  const owner = await participant(app, admin);
+  const { actor: display } = await wall(app, admin);
+  await command(app, owner, "stream.start");
+  const screen = await stream(app, owner);
+  assert.equal(screen.audience, "room");
+  assert.equal((await stream(app, admin)).canReceive, true);
+  assert.equal((await stream(app, display)).canReceive, true);
+});

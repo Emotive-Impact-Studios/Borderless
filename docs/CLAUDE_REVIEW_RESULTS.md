@@ -6,6 +6,10 @@ Review only. No product code, archive or other documentation was changed. Nothin
 
 **Confidence labels.** **Confirmed** means I reproduced the problem or read code that shows it directly. **Hypothesis** means a likely cause I have not proved.
 
+## Status after fixes (same day)
+
+After this review the user authorised fixes. Done: PRD v3 and VISION.md (fidelity table items B37-B41), H2 private audience, M1 and M2 Swift failed state and diagnostics, M3 web Stop race, M4 web first-frame check. Still open: H1 (needs the user's real capture re-test), H3, M5-M8, L1-L8, V1, V2. See BUILD_HANDOFF.md for evidence.
+
 ## Overall assessment
 
 **Fidelity.** PRD v2 is a faithful and unusually honest reconstruction. I read all 1,032 non-code lines of the original conversation (every user turn and every assistant proposal). Nearly every meaningful request has a requirement ID and an acceptance contract, and the source audit correctly separates useful intent from code that is invalid or insecure. The omissions I found are narrow and listed below. The most significant is a privacy gap in the running implementation rather than in the PRD: today every live screen is delivered to the leader and the Wall, so there is no private personal-only patch.

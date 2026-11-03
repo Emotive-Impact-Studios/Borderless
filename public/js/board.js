@@ -392,7 +392,8 @@ export class Board {
           state.effect,
         );
     });
-    const visibleStreams = state.streams.filter(stream => ["admin", "wall"].includes(state.me.role) || stream.ownerId === state.me.id);
+    // Private live windows never occupy the shared canvas; they open only as personal windows.
+    const visibleStreams = state.streams.filter(stream => stream.audience !== "private" && (["admin", "wall"].includes(state.me.role) || stream.ownerId === state.me.id));
     const empty = this.element.querySelector(".canvas-empty");
     empty.hidden =
       state.items.length > 0 ||

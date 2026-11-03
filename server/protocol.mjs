@@ -1,4 +1,4 @@
-import { currentInvitation, mayReceiveStream } from "./stream-policy.mjs";
+import { currentInvitation, mayKnowStream, mayReceiveStream } from "./stream-policy.mjs";
 
 export class HttpError extends Error {
   constructor(status, message) {
@@ -58,6 +58,7 @@ export function publicSession(s) {
 }
 export function publicState(room, s, devices) {
   const state = structuredClone(room.state);
+  state.streams = state.streams.filter(stream => mayKnowStream(stream, s));
   for (const stream of state.streams) {
     stream.canReceive = mayReceiveStream(stream, s);
     const owner = stream.ownerId === s.device_id;

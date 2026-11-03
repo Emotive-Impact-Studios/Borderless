@@ -2,7 +2,18 @@
 
 ## Start here
 
-Read PRODUCT.md and DESIGN.md first, then README, PRD, CAPABILITIES, ARCHITECTURE and DELIVERY. The original conversation is preserved in `docs/source/` and checked against SHA-256. The repository began with only a README at main commit `7b773ca855f0438bdd6e5f08d4e71b556037fd50`.
+Read VISION.md first, then PRODUCT.md and DESIGN.md, then README, PRD, CAPABILITIES, ARCHITECTURE and DELIVERY. The original conversation is preserved in `docs/source/` and checked against SHA-256. The repository began with only a README at main commit `7b773ca855f0438bdd6e5f08d4e71b556037fd50`.
+
+## Latest checkpoint · audit, fix and validate (Claude, 3 November 2026)
+
+The user authorised Claude to fix the PRD and implementation after an independent review (`CLAUDE_REVIEW_RESULTS.md`). The user's view is that the original conversation describes the app better than the previous PRD, so the conversation now leads.
+
+- **Product record:** VISION.md states the app in the conversation's words. PRD v3 puts the app paragraph and three core moments first (C1 window over the edge, C2 phone flick, C3 live window and send-back), records both drifts and adds B37-B41. AGENTS.md, DELIVERY and CAPABILITIES point builders at C1-C3.
+- **Swift capture:** the service counts every frame callback by `SCFrameStatus`, publishes typed health, and stops with "Capture failed" after 10 s without a complete frame. The diagnostic app shows the counts. Open: the real-capture re-test, which needs the user to select a disposable window from another app in Apple's picker and report the Diagnostics line.
+- **Private live audience (H2, B37):** `stream.start` takes `audience: room | private`. Private shares reach only the owner and accepted invitees, never the leader or Wall, and are hidden from everyone else, including stream commands and signalling by identifier. Two new server tests. People and Portal show "Share privately"; private shares have no shared-canvas tile and a Stop control in the live-window list.
+- **Web capture (M3, M4):** the track's end handler is attached before registration, so the browser's Stop control during start-up removes the share. The source waits for a real first frame (ImageCapture, or video fallback) and stops after 10 s without one.
+- **Evidence:** Node 24 `npm run verify` 56/56. `npm run native:verify` with the Godot engine gate passes (8 Rust, Go race, 19 .NET, 4 Swift, Godot scene). Electron smoke with `BORDERLESS_QA_ICE_MODE=loopback` passed 35/35 on the second run. The first run timed out at the live-window Focus step on the Wall (`desktop/smoke.mjs:586`), a timing flake outside the changed code. Watch for repeats.
+- **Not done:** pushing was blocked by a local permission rule; commits are local until the user allows `git push` or pushes. No real OS capture re-test yet. No physical devices.
 
 ## Latest checkpoint — whole-source correction and native foundations
 

@@ -967,6 +967,11 @@ document.addEventListener("click", async (event) => {
       else await sharing.start();
       return;
     }
+    if (action === "screen.private") {
+      await sharing.start({ audience: "private" });
+      if (sharing.local) toast("Shared privately. Choose Invite a viewer to decide who can see it.");
+      return;
+    }
     if (["screen.invite", "screen.invite.send", "screen.revoke", "screen.decline"].includes(action)) {
       await liveWindowAction(action, target, client, state);
       return;

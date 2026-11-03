@@ -6,11 +6,16 @@ const shownInvitations = new Set();
 
 export function liveWindowsHTML(state) {
   const streams = state.streams.filter(stream => stream.ownerId === state.me.id || received(stream, state));
-  if (!streams.length) return "";
-  return `<section class="live-window-inbox" aria-label="Live windows"><h3>Live windows</h3>${streams.map(stream => {
+  const sharing = state.streams.some(stream => stream.ownerId === state.me.id);
+  // Private sharing: a live window only for people the owner invites (PRD B37).
+  const privateOffer = state.me.role !== "wall" && !sharing
+    ? `<div class="live-window-row"><div><strong>Share a window privately</strong><p>Only people you invite can see it. It does not appear on the room display or to the leader.</p></div><div class="live-window-actions"><button class="btn small outline" data-action="screen.private">${icon("screen", 16)}Share privately</button></div></div>`
+    : "";
+  if (!streams.length && !privateOffer) return "";
+  return `<section class="live-window-inbox" aria-label="Live windows"><h3>Live windows</h3>${privateOffer}${streams.map(stream => {
     const own = stream.ownerId === state.me.id, invitation = received(stream, state);
-    const description = own ? "Your screen is sharing with the room." : invitation.status === "invited" ? `${stream.ownerName} invited you. Open to accept.` : `Shared by ${stream.ownerName} · View only`;
-    return `<div class="live-window-row"><div><strong>${esc(stream.title)}</strong><p>${esc(description)}</p></div><div class="live-window-actions"><a class="btn small outline" href="${liveWindowURL(state.id, stream.id)}" target="_blank" rel="noopener" aria-label="${esc(own ? "Open your live window" : `Open live window from ${stream.ownerName}`)}">${icon("screen", 16)}${own ? "Open preview" : "Open live window"}</a>${own ? `<button class="btn small subtle" data-action="screen.invite" data-id="${stream.id}">Invite a viewer</button>` : `<button class="btn small subtle" data-action="screen.decline" data-id="${stream.id}" data-invitation="${invitation.id}">${invitation.status === "invited" ? "Decline" : "Stop receiving"}</button>`}</div></div>`;
+    const description = own ? stream.audience === "private" ? "Private · only people you invite can see it." : "Your screen is sharing with the room." : invitation.status === "invited" ? `${stream.ownerName} invited you. Open to accept.` : `Shared by ${stream.ownerName} · View only`;
+    return `<div class="live-window-row"><div><strong>${esc(stream.title)}</strong><p>${esc(description)}</p></div><div class="live-window-actions"><a class="btn small outline" href="${liveWindowURL(state.id, stream.id)}" target="_blank" rel="noopener" aria-label="${esc(own ? "Open your live window" : `Open live window from ${stream.ownerName}`)}">${icon("screen", 16)}${own ? "Open preview" : "Open live window"}</a>${own ? `<button class="btn small subtle" data-action="screen.invite" data-id="${stream.id}">Invite a viewer</button>${stream.audience === "private" ? '<button class="btn small subtle" data-action="screen.toggle">Stop sharing</button>' : ""}` : `<button class="btn small subtle" data-action="screen.decline" data-id="${stream.id}" data-invitation="${invitation.id}">${invitation.status === "invited" ? "Decline" : "Stop receiving"}</button>`}</div></div>`;
   }).join("")}</section>`;
 }
 
