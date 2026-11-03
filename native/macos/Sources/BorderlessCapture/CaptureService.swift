@@ -62,6 +62,12 @@ private final class FrameMailbox: NSObject, SCStreamOutput {
     }
 }
 
+public struct CaptureWindow: Identifiable {
+    public let id: CGWindowID
+    public let application: String
+    public let title: String
+}
+
 /// Reusable native capture adapter. No network transmission or virtual display is implied.
 @MainActor public final class CaptureService: NSObject, ObservableObject, SCContentSharingPickerObserver, SCStreamDelegate {
     @Published public private(set) var status = "Choose a window to share"
@@ -79,6 +85,10 @@ private final class FrameMailbox: NSObject, SCStreamOutput {
     private var started: UInt64 = 0
     private var generation: UInt64 = 0
     private let queue = DispatchQueue(label: "studio.emotive.borderless.capture", qos: .userInteractive)
+    @Published public var choosingWindow = false
+    @Published public private(set) var availableWindows: [CaptureWindow] = []
+    private var sourceWindows: [CGWindowID: SCWindow] = [:]
+    private var sourceRequest: UInt64 = 0
 
     public override init() {
         super.init()
@@ -87,16 +97,66 @@ private final class FrameMailbox: NSObject, SCStreamOutput {
     }
 
     public func chooseSource() {
+        cancelWindowSelection()
         let picker = SCContentSharingPicker.shared
         var configuration = SCContentSharingPickerConfiguration()
         configuration.allowedPickerModes = [.singleWindow, .singleDisplay]
         configuration.allowsChangingSelectedContent = false
         picker.defaultConfiguration = configuration
         picker.isActive = true
-        picker.present()
+        status = "Select a window in the macOS sharing picker"
+        // Enter window selection directly rather than its intermediate menu.
+        picker.present(using: .window)
+    }
+
+    /// Alternative native source selection for systems where the sharing picker
+    /// does not respond. macOS permission is still mandatory; no capture starts
+    /// until the person selects a window from the menu.
+    public func chooseWindowFromList() async {
+        sourceRequest &+= 1
+        let request = sourceRequest
+        guard CGPreflightScreenCaptureAccess() else {
+            status = "Window list needs Screen Recording access for Borderless Native in System Settings"
+            return
+        }
+        status = "Finding available windows…"
+        do {
+            let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
+            guard request == sourceRequest else { return }
+            let windows = content.windows.filter {
+                $0.windowLayer == 0 && $0.owningApplication != nil &&
+                $0.owningApplication?.processID != ProcessInfo.processInfo.processIdentifier &&
+                $0.frame.width > 0 && $0.frame.height > 0
+            }.sorted { ($0.owningApplication?.applicationName ?? "") < ($1.owningApplication?.applicationName ?? "") }
+            guard !windows.isEmpty else { status = "Open a window in another app, then try again"; return }
+            sourceWindows = Dictionary(uniqueKeysWithValues: windows.map { ($0.windowID, $0) })
+            availableWindows = windows.map {
+                CaptureWindow(id: $0.windowID, application: $0.owningApplication?.applicationName ?? "Application",
+                              title: $0.title.flatMap { $0.isEmpty ? nil : $0 } ?? "Untitled window")
+            }
+            status = "Choose a window to preview locally"
+            choosingWindow = true
+        } catch {
+            guard request == sourceRequest else { return }
+            status = "Windows unavailable: \(error.localizedDescription)"
+        }
+    }
+
+    public func selectWindow(_ id: CGWindowID) async {
+        guard choosingWindow, let window = sourceWindows[id], CGPreflightScreenCaptureAccess() else { return }
+        cancelWindowSelection()
+        await start(filter: SCContentFilter(desktopIndependentWindow: window), fromPicker: false)
+    }
+
+    public func cancelWindowSelection() {
+        sourceRequest &+= 1
+        choosingWindow = false
+        availableWindows = []
+        sourceWindows = [:]
     }
 
     public func stop() async {
+        cancelWindowSelection()
         _ = await endCapture(deactivatePicker: true)
     }
 
@@ -113,11 +173,11 @@ private final class FrameMailbox: NSObject, SCStreamOutput {
         return token
     }
 
-    private func start(filter: SCContentFilter) async {
-        guard SCContentSharingPicker.shared.isActive else { return }
+    private func start(filter: SCContentFilter, fromPicker: Bool = true) async {
+        guard fromPicker ? SCContentSharingPicker.shared.isActive : CGPreflightScreenCaptureAccess() else { return }
         // The picker owns the selected filter's authorisation. Keep it active
         // while replacing the previous capture; deactivation invalidates that grant.
-        let token = await endCapture(deactivatePicker: false)
+        let token = await endCapture(deactivatePicker: !fromPicker)
         // Stopping the old stream yields the actor. A later Stop or selection
         // must win; never start this obsolete selection after that await.
         guard token == generation else { return }
@@ -138,7 +198,7 @@ private final class FrameMailbox: NSObject, SCStreamOutput {
             try capture.addStreamOutput(sink, type: .screen, sampleHandlerQueue: queue)
             stream = capture; mailbox = sink; frames = 0; failed = false; diagnostics = CaptureDiagnostics()
             started = monotonicMilliseconds(); active = true; health = .starting; status = "Starting capture…"
-            SCContentSharingPicker.shared.isActive = true
+            SCContentSharingPicker.shared.isActive = fromPicker
             try await capture.startCapture()
             guard token == generation else { try? await capture.stopCapture(); return }
             timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 15.0, repeats: true) { [weak self] _ in

@@ -4,6 +4,16 @@
 
 Read VISION.md first, then PRODUCT.md and DESIGN.md, then README, PRD, CAPABILITIES, ARCHITECTURE and DELIVERY. The original conversation is preserved in `docs/source/` and checked against SHA-256. The repository began with only a README at main commit `7b773ca855f0438bdd6e5f08d4e71b556037fd50`.
 
+## Milestone 0 · native source chooser and permission evidence · 3 November 2026, 16:56 UTC
+
+- Added a persistent native window-selection sheet as an alternative to Apple's unresponsive sharing picker. It enumerates ScreenCaptureKit windows only after the app's Screen Recording preflight succeeds. Capture starts only on an explicit selection; Cancel, Stop and switching to the system picker invalidate pending enumeration. The sheet uses native controls; this diagnostic is not the approved finished product interface.
+- The user explicitly authorised **Borderless Native** Screen Recording. The older **Borderless** entry was for a different app. Adding the exact native bundle and restarting made preflight/enumeration succeed. Rebuilding the ad-hoc binary then made preflight fail despite Settings showing its toggle on. Toggling off/on did not repair it; removing and re-adding the exact rebuilt bundle, then Quit & Reopen, did. This is verified development-signature/permission behaviour, not proof of the underlying zero-frame cause. Do not rebuild between granting access and running the capture check.
+- The sheet successfully selected the disposable TextEdit `Untitled 2` window. Repeated with that document brought forward and its test text changed during capture. Both attempts received **zero callbacks**, then showed the explicit ten-second failure and disabled Stop. Real live capture remains broken; no later milestone has started. At 16:55 both physical displays were online at 1920×1080, and power assertions showed the display on/user active. Available disk was 4.2 GiB.
+- During earlier test setup, typing unexpectedly targeted an existing TextEdit document. Immediately used Undo Typing and verified its original sentence was restored. Subsequent test edits targeted the known disposable document's accessibility field directly.
+- Verification for this change: Node 24 `npm run verify` passes all 56 tests/check/build; `DOTNET_ROOT=/Users/augustusedem/.dotnet npm run native:verify` passes. Legacy Godot scene compilation only, no engine execution. Original conversation SHA-256 remains unchanged. Private logs: `output/native/m0-chooser-{web,native}.log`.
+- Next capture hypothesis in CODEX_BRIEF.md: test queue depth 6 (current build remains 3), then inspect app-specific ScreenCaptureKit/replayd logs. Do not call permission repair a capture fix. User acceptance of milestone 0 remains outstanding.
+- Prior checkpoint `6b83779` and the preceding Claude changes were successfully pushed to `origin/feat/borderless-platform`; older notes below saying all changes are local are historical.
+
 ## Milestone 0 continuation · 3 November 2026, 16:40 UTC
 
 The current entry point is CODEX_BRIEF.md, with design-system/docs/CODEX.md controlling visual values. Its approved Rust/LiveKit/TypeScript/Tauri architecture supersedes older Go/Godot descriptions below. No milestone after real Mac capture has started. The design system already exists at checkout `29b4346`; the branch contained 20 local commits beyond its tracking ref when work resumed.
