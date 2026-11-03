@@ -4,6 +4,14 @@
 
 Read VISION.md first, then PRODUCT.md and DESIGN.md, then README, PRD, CAPABILITIES, ARCHITECTURE and DELIVERY. The original conversation is preserved in `docs/source/` and checked against SHA-256. The repository began with only a README at main commit `7b773ca855f0438bdd6e5f08d4e71b556037fd50`.
 
+## Milestone 1 · source chooser recovery · 3 November 2026
+
+- User screenshots confirm the SDK-linked app launched and displayed **Room connected**. Send to Wall was disabled without an active source. The user then reported that **Window list does nothing**; this is an unresolved real interaction failure, not user acceptance of capture or transmission.
+- Changed the custom chooser to present before permission checking/enumeration. Loading, permission denial, empty results and enumeration errors appear inside that sheet, with Retry, Screen Recording settings and the macOS picker as appropriate. A ten-second deadline invalidates late enumeration results and exposes recovery. Join and source selection now use one sheet presentation instead of two modifiers competing on the same view. This removes silent error paths; the exact cause of the user's failed click is still unproven.
+- Native automation still times out when selecting the app. A sample of the running process showed its main thread in the AppKit event loop, not proof of a blocked enumeration call. No system service or privacy setting was changed in this repair.
+- Added and ran a 35-second hold in the real Swift/hub/LiveKit session test: connection identity survived the heartbeat interval, both Swift tests passed, and Stop/cleanup passed. This does not explain the review app's disconnected sessions and does not test video.
+- Node 24 verification passes all 67 tests; native verification passes including Swift compilation and Tauri formatting/clippy/build. Rebuilt local app is prepared at `output/native/Borderless Native.app`; a relaunch and actual chooser/capture-to-Wall check remain required. No decoded Wall frames, latency, native Tauri playback or milestone acceptance is claimed. Private logs: `output/native/chooser-{verify,native-verify,package}.log`.
+
 ## Milestone 1 · shared TypeScript Wall and Tauri shell · 3 November 2026
 
 - Added the `web/` npm workspace with pinned LiveKit JS 2.23.0, TypeScript 7.0.2 and Vite 8.3.5. `npm ci` installs it through the root lockfile. Root verification now builds before tests, including the real built-asset route test. The source distribution includes the shared web app, design system and shell; repository-relative Swift token symlinks remain relative in the copy.

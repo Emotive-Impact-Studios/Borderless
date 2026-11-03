@@ -17,7 +17,7 @@ try {
   const status = await new Promise((resolve, reject) => {
     const child = spawn('swift', ['test', '--package-path', 'native/macos', '--disable-keychain', '--filter', 'HubSessionTests'], {
       stdio: 'inherit', env: { ...process.env, BORDERLESS_TEST_ORIGIN: app.localURL,
-        BORDERLESS_TEST_ROOM: admin.roomId, BORDERLESS_TEST_CODE: state.joinCode },
+        BORDERLESS_TEST_ROOM: admin.roomId, BORDERLESS_TEST_CODE: state.joinCode, BORDERLESS_TEST_HOLD: '1' },
     });
     const timeout = setTimeout(() => child.kill('SIGTERM'), 180_000);
     child.once('error', reject);

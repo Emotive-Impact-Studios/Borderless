@@ -101,6 +101,8 @@ public struct CaptureWindow: Identifiable {
     @Published public private(set) var availableWindows: [CaptureWindow] = []
     private var sourceWindows: [CGWindowID: SCWindow] = [:]
     private var sourceRequest: UInt64 = 0
+    @Published public private(set) var findingWindows = false
+    @Published public private(set) var needsScreenRecording = false
 
     public override init() {
         super.init()
@@ -127,11 +129,30 @@ public struct CaptureWindow: Identifiable {
     public func chooseWindowFromList() async {
         sourceRequest &+= 1
         let request = sourceRequest
+        choosingWindow = true
+        availableWindows = []
+        sourceWindows = [:]
+        findingWindows = false
+        needsScreenRecording = false
         guard CGPreflightScreenCaptureAccess() else {
+            needsScreenRecording = true
             status = "Window list needs Screen Recording access for Borderless Native in System Settings"
             return
         }
         status = "Finding available windows…"
+        findingWindows = true
+        // An unresponsive OS request must not leave the chooser looking inert.
+        let deadline = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(10))
+            guard !Task.isCancelled, let self, self.sourceRequest == request else { return }
+            self.sourceRequest &+= 1
+            self.findingWindows = false
+            self.status = "macOS did not return a window list. Try again or use the macOS picker."
+        }
+        defer {
+            deadline.cancel()
+            if sourceRequest == request { findingWindows = false }
+        }
         do {
             let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
             guard request == sourceRequest else { return }
@@ -163,6 +184,7 @@ public struct CaptureWindow: Identifiable {
     public func cancelWindowSelection() {
         sourceRequest &+= 1
         choosingWindow = false
+        findingWindows = false
         availableWindows = []
         sourceWindows = [:]
     }

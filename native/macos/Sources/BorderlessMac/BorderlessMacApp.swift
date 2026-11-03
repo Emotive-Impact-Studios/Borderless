@@ -47,7 +47,11 @@ struct Preview: NSViewRepresentable {
                         .buttonStyle(.borderedProminent)
                         .disabled(!publisher.joined || publisher.sharing || publisher.busy || !capture.active || capture.frames == 0)
                 }.padding(BL.Space.s5)
-            }.sheet(isPresented: $joining) {
+            }.sheet(isPresented: Binding(
+                get: { joining || capture.choosingWindow },
+                set: { if !$0 { joining = false; capture.cancelWindowSelection() } }
+            )) {
+                if joining {
                 Form {
                     Text("Join the room").font(.headline)
                     TextField("Room invitation link", text: $roomLink)
@@ -64,11 +68,18 @@ struct Preview: NSViewRepresentable {
                         }.disabled(publisher.busy || roomLink.isEmpty || roomCode.isEmpty || participantName.isEmpty)
                     }
                 }.padding(BL.Space.s6)
-            }.sheet(isPresented: $capture.choosingWindow, onDismiss: { capture.cancelWindowSelection() }) {
-                Form {
+                } else {
+                VStack(alignment: .leading, spacing: BL.Space.s5) {
                     Text("Choose a window").font(.headline)
                     Text("Only the selected window will appear in this local preview.")
                         .foregroundStyle(.secondary)
+                    Text(capture.status).textSelection(.enabled)
+                    if capture.findingWindows { ProgressView("Finding windows…") }
+                    if capture.needsScreenRecording {
+                        Button("Open Screen Recording settings") {
+                            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
+                        }
+                    }
                     List(capture.availableWindows) { window in
                         Button {
                             Task { await capture.selectWindow(window.id) }
@@ -79,8 +90,15 @@ struct Preview: NSViewRepresentable {
                             }
                         }.buttonStyle(.plain)
                     }
-                    Button("Cancel") { capture.cancelWindowSelection() }.keyboardShortcut(.cancelAction)
-                }.padding()
+                    HStack {
+                        Button("Cancel") { capture.cancelWindowSelection() }.keyboardShortcut(.cancelAction)
+                        Spacer()
+                        Button("Try again") { Task { await capture.chooseWindowFromList() } }
+                            .disabled(capture.findingWindows)
+                        Button("Use macOS picker") { capture.chooseSource() }
+                    }
+                }.padding(BL.Space.s6).frame(minWidth: 480, minHeight: 360)
+                }
             }.onChange(of: capture.active) { _, active in
                 if !active && publisher.sharing { Task { await publisher.stop() } }
             }.onDisappear { Task { await publisher.stop(); await capture.stop() } }
