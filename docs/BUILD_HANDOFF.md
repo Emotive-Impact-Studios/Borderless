@@ -4,6 +4,17 @@
 
 Read VISION.md first, then PRODUCT.md and DESIGN.md, then README, PRD, CAPABILITIES, ARCHITECTURE and DELIVERY. The original conversation is preserved in `docs/source/` and checked against SHA-256. The repository began with only a README at main commit `7b773ca855f0438bdd6e5f08d4e71b556037fd50`.
 
+## Milestone 1 · Swift room client and publisher wiring · 3 November 2026
+
+- Added `BorderlessRoom/HubSession.swift`: an ephemeral participant session against the existing Node authority, room-code join, scoped cookies/CSRF, live WebSocket identity, connection-owned stream registration, media grants and Stop. It refuses non-loopback HTTP, credentials in origins and redirects. The native join sheet takes a participant invitation link, name and room code; it does not ask for leader credentials.
+- Connected complete SCK buffers to LiveKit's buffer capturer without per-frame tasks or pixel serialisation. One cached complete frame seeds dimensions for an idle source. `WindowPublisher` uses the hub's publisher grant, requests H.264, refreshes media authority and reconnects after room-generation changes. This is compiled implementation, **not evidence of hardware encoding or delivered video**.
+- Stop detaches the frame consumer immediately and retires the hub stream concurrently with local/SDK teardown. Source loss and room disconnection stop sharing; incomplete starts close their owning connection so an advertisement is not stranded. Start/Stop generations prevent obsolete asynchronous work from publishing after Stop.
+- Added Join room and Send to Wall actions to the existing native diagnostic, importing the generated Swift design tokens by repository-relative symlink. This remains an integration interface, not the completed visual experience or the shared Wall. The source chooser remains explicit and is disabled during transmission.
+- `node scripts/test-native-media-session.mjs` starts an actual disposable Node hub and LiveKit server, then runs the real Swift client's cookie join, live handshake, publisher grant, Stop/refusal and connection-loss cleanup. Both Swift integration tests pass; the harness confirms no stream or media room remains. No generated or real video is sent by this test.
+- Required Node 24 verification passes 66 checks; native verification passes (five Swift tests pass, the separately invoked real-hub test is skipped without its harness; legacy Godot compilation only). The SDK-linked publisher compiles. App automation again timed out selecting Borderless; process sampling shows the old PID 11107 in its event loop, not proof of a crash. No relaunch, new capture, live transmission, Wall rendering or user acceptance is claimed.
+- Rebuilt the local app bundle successfully with deep/strict signature verification. Fixed repeated packaging of upstream read-only licence notices by replacing the previous notice file. This package has not been relaunched or capture-tested.
+- Next: build the shared TypeScript receiver with design-system/ components and Tauri, then exercise the real source-to-Wall flow and its Stop/reconnect/latency gates. Milestone 1 stays open; no later milestone has begun.
+
 ## Milestone 1 · actual LiveKit installed and control path verified · 3 November 2026
 
 The user freed disk space; 6.7 GiB was initially available and later 15 GiB. Retried Homebrew installation successfully: `/opt/homebrew/bin/livekit-server --version` reports **1.13.11**. The previous disk blocker is resolved.

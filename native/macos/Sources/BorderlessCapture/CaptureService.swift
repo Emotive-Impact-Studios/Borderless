@@ -31,15 +31,25 @@ func frameStatusName(_ status: SCFrameStatus?) -> String {
 }
 
 /// Latest-frame mailbox bounds retained pixel buffers to one, regardless of UI speed.
-/// Future encoder integration consumes frames on this boundary without serialising pixels to JSON.
+/// The encoder consumes complete frames directly; no per-frame tasks or JSON copies.
 private final class FrameMailbox: NSObject, SCStreamOutput {
     private let lock = NSLock()
     private var latest: CMSampleBuffer?
     private var count: UInt64 = 0
     private var last: UInt64 = 0
     private var diagnostics = CaptureDiagnostics()
+    private var consumer: (@Sendable (CMSampleBuffer) -> Void)?
+    private var lastComplete: CMSampleBuffer?
+    func setConsumer(_ value: (@Sendable (CMSampleBuffer) -> Void)?) {
+        lock.lock()
+        consumer = value
+        let first = lastComplete
+        lock.unlock()
+        if let first { value?(first) }
+    }
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
-        lock.lock(); defer { lock.unlock() }
+        var deliver: (@Sendable (CMSampleBuffer) -> Void)?
+        lock.lock(); defer { lock.unlock(); deliver?(sampleBuffer) }
         diagnostics.callbacks &+= 1
         guard type == .screen else { diagnostics.otherOutputs &+= 1; return }
         guard sampleBuffer.isValid else { diagnostics.invalidBuffers &+= 1; return }
@@ -51,6 +61,8 @@ private final class FrameMailbox: NSObject, SCStreamOutput {
         guard let image = sampleBuffer.imageBuffer,
               CVPixelBufferGetWidth(image) > 0, CVPixelBufferGetHeight(image) > 0 else { diagnostics.missingImage &+= 1; return }
         latest = sampleBuffer
+        lastComplete = sampleBuffer
+        deliver = consumer
         count &+= 1
         last = monotonicMilliseconds()
     }
@@ -160,11 +172,18 @@ public struct CaptureWindow: Identifiable {
         _ = await endCapture(deactivatePicker: true)
     }
 
+    /// Attach only after an explicit share action. A complete cached frame seeds
+    /// the encoder's dimensions even when the selected source is currently idle.
+    public func setFrameConsumer(_ consumer: (@Sendable (CMSampleBuffer) -> Void)?) {
+        mailbox?.setConsumer(consumer)
+    }
+
     private func endCapture(deactivatePicker: Bool) async -> UInt64 {
         generation &+= 1
         let token = generation
         timer?.invalidate(); timer = nil
         let previous = stream
+        mailbox?.setConsumer(nil)
         stream = nil; mailbox = nil; active = false; health = .stopped
         if deactivatePicker { SCContentSharingPicker.shared.isActive = false }
         preview.flushAndRemoveImage()

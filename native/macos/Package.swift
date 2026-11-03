@@ -13,7 +13,9 @@ let package = Package(
         .systemLibrary(name: "CBorderlessCore"),
         .target(name: "BorderlessCapture", dependencies: ["CBorderlessCore"],
                 linkerSettings: [.unsafeFlags(["-Xlinker", "../core/target/debug/libborderless_core.a"])]),
-        .executableTarget(name: "BorderlessMac", dependencies: ["BorderlessCapture", .product(name: "LiveKit", package: "client-sdk-swift")]),
-        .testTarget(name: "BorderlessCaptureTests", dependencies: ["BorderlessCapture"])
+        .target(name: "BorderlessRoom"),
+        .executableTarget(name: "BorderlessMac", dependencies: ["BorderlessCapture", "BorderlessRoom", .product(name: "LiveKit", package: "client-sdk-swift")]),
+        .testTarget(name: "BorderlessCaptureTests", dependencies: ["BorderlessCapture"]),
+        .testTarget(name: "BorderlessRoomTests", dependencies: ["BorderlessRoom"])
     ], swiftLanguageModes: [.v5]
 )

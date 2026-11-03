@@ -29,7 +29,8 @@ for(const name of ['LiveKit_LiveKit.bundle','SwiftProtobuf_SwiftProtobuf.bundle'
 const notices=join(app,'Contents/Resources/ThirdPartyNotices');
 await mkdir(notices,{recursive:true});
 for(const [dependency,file] of [['client-sdk-swift','LICENSE'],['webrtc-xcframework','LICENSE'],['livekit-uniffi-xcframework','LICENSE'],['swift-protobuf','LICENSE.txt']]) {
-  await copyFile(join(root,'native/macos/.build/checkouts',dependency,file),join(notices,`${dependency}.txt`));
+  // SwiftPM checkouts are read-only; cp replaces an earlier read-only notice.
+  await cp(join(root,'native/macos/.build/checkouts',dependency,file),join(notices,`${dependency}.txt`),{force:true});
 }
 run('install_name_tool',['-add_rpath','@executable_path/../Frameworks',join(app,'Contents/MacOS/BorderlessMac')]);
 await writeFile(join(app,'Contents/Info.plist'),`<?xml version="1.0" encoding="UTF-8"?>
