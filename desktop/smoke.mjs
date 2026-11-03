@@ -125,7 +125,9 @@ try {
   const leader = await application.firstWindow();
   watch(leader);
   await leader.addInitScript(installSocketDiagnostics);
-  await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setContentSize(1440, 1000));
+  // Keep local acceptance constrained too: hosted Mac displays can clamp a
+  // requested 1000px height to roughly 640px of app content.
+  await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setContentSize(1440, 640));
   await leader.getByRole("button", { name: "Create your room" }).waitFor();
   const native = await application.evaluate(({ app, BrowserWindow }) => ({
     profile: app.getPath("userData"),
@@ -666,14 +668,17 @@ try {
     await contrast(wall, theme, ["#wall-invite small", ".note-text", ".item-window-title"]);
   }
   check("representative text/control contrast meets 4.5:1 across all five themes; settings focus survives refresh");
+  await leader.getByRole("button", { name: "Close Room settings window", exact: true }).click();
   await leader.getByRole("button", { name: "Zoom in", exact: true }).click();
   assert.equal(await leader.locator("#zoom-value").textContent(), "110%");
   await leader.getByRole("button", { name: "Fit canvas", exact: true }).click();
   assert.equal(await leader.locator("#zoom-value").textContent(), "100%");
+  await leader.getByRole("button", { name: "Room settings", exact: true }).click();
   await leader.getByRole("button", { name: "Pause contributions", exact: true }).click();
   await portal.getByText("The leader has paused contributions", { exact: true }).waitFor();
   await leader.getByRole("button", { name: "Resume contributions", exact: true }).click();
   await portal.getByText("Connected to the canvas", { exact: true }).waitFor();
+  await leader.getByRole("button", { name: "Close Room settings window", exact: true }).click();
   await leader.getByRole("button", { name: "People", exact: true }).click();
   check("five themes propagate to every interface; zoom/fit and pause/resume stay connected");
 
