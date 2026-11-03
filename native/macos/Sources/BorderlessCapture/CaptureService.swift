@@ -146,7 +146,8 @@ private final class FrameMailbox: NSObject, SCStreamOutput {
             }
         } catch {
             guard token == generation else { return }
-            await stop()
+            let stoppedGeneration = await endCapture(deactivatePicker: true)
+            guard stoppedGeneration == generation else { return }
             status = "Capture could not start: \(error.localizedDescription)"
         }
     }
@@ -163,9 +164,12 @@ private final class FrameMailbox: NSObject, SCStreamOutput {
         case .starting: status = "Waiting for the first frame…"
         case .stale where count == 0:
             // Connected without a complete frame is a capture failure (PRD F03), not a live share.
+            let timedOutGeneration = generation
+            timer?.invalidate(); timer = nil
             Task { @MainActor [weak self] in
-                guard let self else { return }
-                await self.stop()
+                guard let self, self.generation == timedOutGeneration, self.active else { return }
+                let stoppedGeneration = await self.endCapture(deactivatePicker: true)
+                guard stoppedGeneration == self.generation else { return }
                 self.failed = true
                 self.health = .stale
                 self.status = "Capture failed: no complete frames within 10 seconds"
@@ -196,7 +200,8 @@ private final class FrameMailbox: NSObject, SCStreamOutput {
     public nonisolated func stream(_ stream: SCStream, didStopWithError error: Error) {
         Task { @MainActor [weak self] in
             guard let self, self.stream === stream else { return }
-            await self.stop()
+            let stoppedGeneration = await self.endCapture(deactivatePicker: true)
+            guard stoppedGeneration == self.generation else { return }
             self.status = "Source stopped: \(error.localizedDescription)"
         }
     }

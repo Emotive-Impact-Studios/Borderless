@@ -4,6 +4,19 @@
 
 Read VISION.md first, then PRODUCT.md and DESIGN.md, then README, PRD, CAPABILITIES, ARCHITECTURE and DELIVERY. The original conversation is preserved in `docs/source/` and checked against SHA-256. The repository began with only a README at main commit `7b773ca855f0438bdd6e5f08d4e71b556037fd50`.
 
+## Milestone 0 continuation · 3 November 2026, 16:40 UTC
+
+The current entry point is CODEX_BRIEF.md, with design-system/docs/CODEX.md controlling visual values. Its approved Rust/LiveKit/TypeScript/Tauri architecture supersedes older Go/Godot descriptions below. No milestone after real Mac capture has started. The design system already exists at checkout `29b4346`; the branch contained 20 local commits beyond its tracking ref when work resumed.
+
+- Rebuilt and launched the existing Swift diagnostic. Source selection through automation did not yield a selectable system picker: Control Centre accessibility repeatedly timed out, including after a confirmed diagnostic quit/relaunch. No new capture was established. Asked the user to click **Choose source…** and report whether a menu appears; that observation is pending. A disposable TextEdit document was created without touching the pre-existing document; TextEdit was no longer running at the subsequent process check.
+- App-specific logs show no delivered preview frames. System-wide replayd queue errors were also observed, but they have not been attributed to Borderless. Do not report a root cause from those logs. No OS privacy settings were changed.
+- Disk exhaustion became concrete: a shell could not create a temporary file and the screenshot tool failed to create an image destination. Removed only this task's ignored downloaded `output/native/tools/Godot_mono.app` (retired by the current brief), recovering approximately 420 MB. Screenshot access returned. The first native verification attempt failed on room pairing with an HTTP 500/SQLite rollback error; the unchanged check passed after cleanup. This does not prove disk pressure caused the earlier capture failure.
+- Fixed capture lifecycle guards: a queued first-frame timeout now belongs to its original generation, its timer is cancelled once, and asynchronous start/stop failures cannot overwrite a newer attempt's state after awaiting teardown. These changes compile; real callback timing remains unverified. The currently open diagnostic is the earlier package while the user checks its picker; rebuild the package after closing it before testing the new guards.
+- Required Node 24 verification: 56 tests/check/build pass. Required native verification passes on retry (Rust, Go, .NET real-room client, four Swift tests and legacy Wall compilation); no Godot engine execution is claimed. Private logs are in `output/native/m0-*.log`.
+- Opening the local design showcase via browser automation was rejected by the browser URL policy. No alternate route was used to bypass that restriction. Design documentation/tokens have been read, but rendered showcase inspection remains pending.
+
+**Milestone 0 is not accepted:** no live preview/frame growth/Stop demonstration has been seen by the user. Continue the brief's capture hypotheses after the picker observation; do not move to LiveKit or other milestones yet.
+
 ## Latest checkpoint · audit, fix and validate (Claude, 3 November 2026)
 
 The user authorised Claude to fix the PRD and implementation after an independent review (`CLAUDE_REVIEW_RESULTS.md`). The user's view is that the original conversation describes the app better than the previous PRD, so the conversation now leads.
