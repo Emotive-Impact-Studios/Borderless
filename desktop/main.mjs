@@ -51,11 +51,12 @@ function authorised(event) {
   }
 }
 function newWindow(url, bounds) {
+  const liveWindow = /^\/screen\/[a-zA-Z0-9_-]+\/[a-f0-9-]{36}$/.test(new URL(url).pathname);
   const window = new BrowserWindow({
-    width: 1450,
-    height: 920,
+    width: liveWindow ? 960 : 1450,
+    height: liveWindow ? 640 : 920,
     minWidth: 380,
-    minHeight: 550,
+    minHeight: liveWindow ? 280 : 550,
     backgroundColor: "#f5f5ef",
     title: "Borderless",
     ...(bounds ? { ...bounds, frame: false } : {}),
@@ -74,9 +75,13 @@ function newWindow(url, bounds) {
     try {
       if (
         new URL(target).origin === origin &&
-        /^\/(wall|portal)\/[a-zA-Z0-9_-]+$/.test(new URL(target).pathname)
+        (/^\/(wall|portal)\/[a-zA-Z0-9_-]+$/.test(new URL(target).pathname) || /^\/screen\/[a-zA-Z0-9_-]+\/[a-f0-9-]{36}$/.test(new URL(target).pathname))
       )
-        newWindow(target);
+      {
+        const existing = [...windows].find(value => !value.isDestroyed() && value.webContents.getURL() === target);
+        if (existing) { if (existing.isMinimized()) existing.restore(); existing.show(); existing.focus(); }
+        else newWindow(target);
+      }
     } catch {
       /* Ignore malformed links. */
     }

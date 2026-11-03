@@ -8,6 +8,7 @@ import { createHash } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 import { _electron, chromium } from "playwright";
 import electron from "electron";
+import { liveWindowAcceptance } from "./live-window-acceptance.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const packagedExecutable = process.argv[2];
@@ -590,6 +591,8 @@ try {
   assert.equal(await wall.evaluate(() => qaLiveVideo === document.querySelector(".stream-item video") && qaLiveVideo.srcObject === qaLiveMedia), true);
   assert.equal(await wall.locator(".stream-item .item-focus, .stream-item .stream-stop").count(), 0);
   check("shared live windows move/resize/focus/restore without replacing media or interrupting decoded frames");
+  await liveWindowAcceptance({ root, executable: packagedExecutable, origin, invite, roomId, leader, wall, output, labArguments, loopbackLab,
+    installSocketDiagnostics, installPeerDiagnostics, watch, check, contrast, faulting });
   const secondWall = await wallContext.newPage();
   watch(secondWall);
   await secondWall.goto(`${origin}/wall/${roomId}`);

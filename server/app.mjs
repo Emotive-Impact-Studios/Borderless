@@ -19,6 +19,7 @@ import {
 } from "./store.mjs";
 import { assetStorage, safeName, mimeFor } from "./assets.mjs";
 import { minimumSurfaceSize, raiseSurface, focusSurface, arrangeScene } from "./spatial.mjs";
+import { currentInvitation, invitationLifetime, mayReceiveStream, removeStreamRecipient } from "./stream-policy.mjs";
 import {
   fail,
   text,
@@ -481,6 +482,7 @@ export async function createApp(options = {}) {
         state.requests = state.requests.filter((r) => r.deviceId !== target.id);
         state.permissions = state.permissions.filter((d) => d !== target.id);
         state.streams = state.streams.filter((x) => x.ownerId !== target.id);
+        removeStreamRecipient(state, target.id);
         after.push(() => closeDevice(room.id, target.id));
         break;
       }
@@ -691,6 +693,39 @@ export async function createApp(options = {}) {
         }
         break;
       }
+      case "stream.invite": {
+        requireContributor(s, room);
+        const stream = state.streams.find(value => value.id === input.streamId);
+        if (!stream) fail(404, "This screen share has already stopped.");
+        if (stream.ownerId !== s.device_id) fail(403, "Only the person sharing this screen can invite another viewer.");
+        const target = devices(room.id).find(device => device.id === input.deviceId && device.id !== s.device_id && device.role !== "wall");
+        if (!target) fail(404, "Choose another person in this room.");
+        stream.invitations ??= [];
+        const existing = stream.invitations.find(invitation => invitation.deviceId === target.id);
+        if (existing && currentInvitation(existing)) break;
+        stream.invitations = stream.invitations.filter(invitation => invitation.deviceId !== target.id);
+        stream.invitations.push({ id: id(), deviceId: target.id, status: "invited", offeredAt: now(), expiresAt: Date.now() + invitationLifetime });
+        break;
+      }
+      case "stream.accept":
+      case "stream.decline":
+      case "stream.revoke": {
+        if (s.role === "wall") fail(403, "The display is read-only.");
+        const stream = state.streams.find(value => value.id === input.streamId);
+        if (!stream) fail(404, "This screen share has already stopped.");
+        const invitation = (stream.invitations || []).find(value => value.id === input.invitationId);
+        if (!invitation) fail(409, "This invitation is no longer available. Ask the owner to send a new one.");
+        if (command === "stream.revoke") {
+          if (stream.ownerId !== s.device_id) fail(403, "Only the person sharing this screen can revoke its invitations.");
+        } else if (invitation.deviceId !== s.device_id) fail(403, "This live window was invited to another person.");
+        if (command === "stream.accept") {
+          if (!currentInvitation(invitation)) fail(410, "This invitation expired. Ask the owner to send a new one.");
+          invitation.status = "accepted";
+          invitation.acceptedAt ??= now();
+          delete invitation.expiresAt;
+        } else stream.invitations = stream.invitations.filter(value => value !== invitation);
+        break;
+      }
       case "stream.stop": {
         const stream = state.streams.find((x) => x.id === input.streamId);
         if (!stream) fail(404, "This screen share has already stopped.");
@@ -705,6 +740,7 @@ export async function createApp(options = {}) {
     store.audit(room.id, s.device_id, command, {
       itemId: input.itemId,
       streamId: input.streamId,
+      invitationId: input.invitationId,
       deviceId: input.deviceId,
       revision: state.revision + 1,
     });
@@ -894,6 +930,7 @@ export async function createApp(options = {}) {
           room.state.streams = room.state.streams.filter(
             (x) => x.ownerId !== s.device_id,
           );
+          removeStreamRecipient(room.state, s.device_id);
           store.saveRoom(room);
         });
         closeDevice(roomId, s.device_id);
@@ -1155,6 +1192,7 @@ export async function createApp(options = {}) {
     if (path.startsWith("/api/")) fail(404, "API route not found.");
     if (!["GET", "HEAD"].includes(req.method)) fail(405, "Method not allowed.");
     const requested =
+      /^\/screen\/[a-zA-Z0-9_-]{8,48}\/[a-f0-9-]{36}$/.test(path) ? "screen.html" :
       ["/", "/index.html"].includes(path) ||
       /^\/(room|wall|join|portal|leader)\/[a-zA-Z0-9_-]{8,48}$/.test(path)
         ? "index.html"
@@ -1311,21 +1349,15 @@ export async function createApp(options = {}) {
             )
             .get(input.targetId, roomId, Date.now());
           if (!target) fail(404, "Target device unavailable");
-          if (
-            fresh.device_id !== stream.ownerId &&
-            target.device_id !== stream.ownerId
-          )
-            fail(403, "Invalid screen share route");
-          if (
-            fresh.device_id !== stream.ownerId &&
-            !["wall", "admin"].includes(fresh.role)
-          )
-            fail(403, "Only a display or leader can receive live screens.");
-          if (
-            fresh.device_id === stream.ownerId &&
-            !["wall", "admin"].includes(target.role)
-          )
-            fail(403, "Only a display or leader can receive live screens.");
+          const captureSide = fresh.device_id === stream.ownerId && (!stream.connectionId || ws.connectionId === stream.connectionId);
+          if (captureSide) {
+            if (!mayReceiveStream(stream, target)) fail(403, "This person has not accepted a live-window invitation.");
+            if (!["offer", "candidate"].includes(input.kind)) fail(403, "The capture connection can offer its screen or send candidates.");
+          } else {
+            if (target.device_id !== stream.ownerId || (stream.connectionId && input.targetConnectionId !== stream.connectionId)) fail(403, "Send screen requests to the active capture connection.");
+            if (!mayReceiveStream(stream, fresh)) fail(403, "Accept the owner's live-window invitation before receiving this screen.");
+            if (!["ready", "answer", "candidate"].includes(input.kind)) fail(403, "Only the active capture connection can offer this screen.");
+          }
           choice(
             input.kind,
             ["ready", "offer", "answer", "candidate"],

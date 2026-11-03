@@ -1,3 +1,5 @@
+import { currentInvitation, mayReceiveStream } from "./stream-policy.mjs";
+
 export class HttpError extends Error {
   constructor(status, message) {
     super(message);
@@ -56,6 +58,14 @@ export function publicSession(s) {
 }
 export function publicState(room, s, devices) {
   const state = structuredClone(room.state);
+  for (const stream of state.streams) {
+    stream.canReceive = mayReceiveStream(stream, s);
+    const owner = stream.ownerId === s.device_id;
+    if (owner) stream.receivers = devices.filter(device => mayReceiveStream(stream, device)).map(device => device.id);
+    stream.invitations = (stream.invitations || []).filter(invitation =>
+      currentInvitation(invitation) && devices.some(device => device.id === invitation.deviceId) &&
+      (owner || invitation.deviceId === s.device_id));
+  }
   const quiz = state.quiz;
   if (quiz) {
     const answers = Object.values(quiz.answers);

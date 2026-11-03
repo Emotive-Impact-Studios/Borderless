@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <title>Live window · Borderless</title>
+    <link rel="icon" href="/assets/icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/screen.css">
+    <script type="module" src="/js/screen.js"></script>
+  </head>
+  <body class="screen-page">
+    <div class="screen-shell">
+      <header class="screen-header">
+        <div class="screen-identity"><h1 id="screen-title">Live window</h1><p id="screen-owner">Connecting to the room…</p></div>
+        <span id="screen-status" role="status">Connecting</span>
+        <nav class="screen-controls" aria-label="Live window controls">
+          <button class="btn small outline" id="screen-audio" hidden aria-pressed="false">Enable audio</button>
+          <button class="btn small subtle" id="screen-stop" hidden>Stop receiving</button>
+          <a class="btn small subtle" id="screen-room">Room</a>
+          <button class="icon-btn" id="screen-close" aria-label="Close live window"></button>
+        </nav>
+      </header>
+      <main class="screen-media" aria-label="Received live screen">
+        <video id="screen-video" autoplay playsinline muted aria-label="Shared live window" hidden></video>
+        <section class="screen-state" id="screen-state" aria-live="polite">
+          <div><h2 id="screen-message">Connecting to the room…</h2><p id="screen-description">Your live window will appear here.</p>
+            <div class="screen-state-actions">
+              <button class="btn primary" id="screen-accept" hidden>Accept live window</button>
+              <button class="btn outline" id="screen-decline" hidden>Decline</button>
+              <button class="btn primary" id="screen-retry" hidden>Retry connection</button>
+              <a class="btn outline" id="screen-join" hidden>Join the room</a>
+            </div>
+            <p id="screen-error" role="alert" hidden></p>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

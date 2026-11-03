@@ -29,6 +29,8 @@ To connect real phones and other computers, configure trusted HTTPS and the host
 
 Participants join at `/join/:roomId` with the room code. Returning leaders use `/leader/:roomId` with the leader password. The leader password and participant code are separate.
 
+An invited personal live window opens at `/screen/:roomId/:streamId`. Its owner chooses the recipient, and that person accepts a view-only stream. The Mac app gives it an independent desktop window; closing that window leaves the room share running. Stop receiving removes the recipient's grant, while the source keeps the capture stop control. This is separate from native OS window-edge transfer.
+
 ## Desktop source
 
 ```sh
@@ -43,6 +45,8 @@ npm --prefix desktop start -- --hub=https://your-room-hub.example:8443
 ```
 
 It includes a screen picker, explicit native file-open confirmation, display placement, a wall spanning connected displays and optional desktop edge cues. **Edge cues do not create an OS virtual monitor or move native windows.** Use consented screen sharing for live pixels. Packaging instructions and host-specific checks are in [DESKTOP.md](docs/DESKTOP.md).
+
+Native invitation joins open the full room canvas. Share a screen, use its **Invite a viewer** action, then choose someone in the room. They open the invitation in **People** and accept it in the new live window. Browser participants find invitations above their Portal tools. Same-Mac acceptance uses explicit controlled media fixtures; normal local interface-address media and physical LAN delivery still need commissioning, as recorded in the QA/handoff.
 
 ## Verify and build
 

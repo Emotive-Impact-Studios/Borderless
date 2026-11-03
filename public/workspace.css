@@ -147,8 +147,22 @@
 .spatial-workspace .item-bar { position: relative; inset: auto; display: flex; flex-shrink: 0; min-height: 34px; gap: 8px; padding: 4px 7px 4px 10px; background: var(--surface); color: var(--ink); font-size: 11px; cursor: grab; }
 .spatial-workspace .item-window-title { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 550; }
 .spatial-workspace .item-owner { color: var(--muted); flex-shrink: 0; max-width: 22%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.spatial-workspace .item-bar button { display: grid; place-items: center; flex-shrink: 0; width: 26px; height: 26px; padding: 4px; border-radius: 5px; }
+.spatial-workspace .item-bar button, .spatial-workspace .item-popout { display: grid; place-items: center; flex-shrink: 0; width: 26px; height: 26px; padding: 4px; border-radius: 5px; }
 .spatial-workspace .item-bar button:hover { color: var(--ink); background: var(--bg); }
+.live-window-inbox { margin: 22px 0; }
+.live-window-inbox h3, .live-recipient-list h3 { font-size: 13px; font-weight: 600; margin: 0 0 10px; }
+.live-window-row { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.live-window-row strong { display: block; font-size: 13px; overflow-wrap: anywhere; }
+.live-window-row p { font-size: 12px; line-height: 1.5; margin-top: 4px; color: var(--muted); }
+.live-window-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.live-invite-count { background: var(--accent); color: var(--accent-ink); padding: 2px 5px; min-width: 16px; border-radius: 5px; font-size: 10px; }
+.live-recipient-label { display: grid; gap: 8px; margin: 24px 0 16px; font-size: 13px; }
+.live-recipient-list { margin-top: 26px; }
+.live-window-context { margin-top: 12px; font-size: 12px; line-height: 1.6; color: var(--muted); }
+.live-recipient { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.live-recipient > span { min-width: 0; overflow-wrap: anywhere; }
+.live-recipient strong, .live-recipient small { display: block; font-size: 13px; }
+.live-recipient small { margin-top: 4px; font-size: 12px; color: var(--muted); }
 .spatial-workspace .item-preview { position: relative; flex: 1; min-height: 0; width: 100%; overflow: hidden; }
 .spatial-workspace .note-text { height: 100%; padding: 16px 18px; font-family: inherit; font-size: clamp(14px, 1.4vw, 20px); line-height: 1.6; letter-spacing: 0; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
 .spatial-workspace .text-preview { margin: 0; width: 100%; height: 100%; padding: 14px 16px 24px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.65; color: var(--ink); text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; overflow: auto; scrollbar-width: thin; scrollbar-color: var(--muted) transparent; }

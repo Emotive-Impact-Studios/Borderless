@@ -66,6 +66,15 @@ During disconnection, changes are paused and the banner offers **Reconnect now**
 
 Sessions last twelve hours. Startup and 30-second maintenance remove expired/revoked session credentials and their command receipts. A current session retains its complete retry history. Retired devices lose pending drawing requests, drawing grants and inbox entries; their submitted notes, files, ink and quiz answers remain. Ending a room does not erase its metadata audit, and pruning SQL rows does not erase older backups. Room/audit retention policy remains a managed-deployment requirement.
 
+## Personal live windows
+
+1. The source chooses a screen/window through the normal capture picker. The room display and leaders can view that room share.
+2. The source uses its live window's **Invite a viewer** action and selects a room member. Only the source owner can send or revoke these personal invitations.
+3. That person opens **People → Live windows** in the Mac app, or the invitation above their browser Portal tools. They open and accept the live window. It is view only; their desktop is not captured by accepting.
+4. Move/resize the separate Mac window beside local work. Its geometry is personal. **Close** leaves the room capture and accepted access available to reopen; **Stop receiving** removes that recipient's grant. The source can revoke personal access while keeping the room share live, or stop capture for everyone.
+
+Pending offers expire after ten minutes. A new identity or new capture needs a new invitation. Use **Retry video** for a failed receiver peer and **Reconnect now** for lost room access; neither silently starts capture. The current same-Mac loopback acceptance is not evidence of physical LAN delivery, audio or OS display extension. See the QA record before commissioning real devices.
+
 ## Exports versus backups
 
 | Output | Contains | Purpose |

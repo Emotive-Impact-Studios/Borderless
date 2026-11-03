@@ -15,6 +15,7 @@ import { RoomClient, createRoom } from "./client.js";
 import { Board } from "./board.js";
 import { ScreenSharing } from "./rtc.js";
 import { UtilityWindows } from "./windows.js";
+import { liveWindowsHTML, liveWindowAction, updateLiveWindowNotifications } from "./live-windows.js";
 
 const app = document.querySelector("#app"),
   dialog = document.querySelector("#modal"),
@@ -159,6 +160,7 @@ function updateWindowControls() {
 function updateRoom() {
   if (!state) return;
   updateSharingControls();
+  updateLiveWindowNotifications(state, view);
   document.documentElement.dataset.theme = state.theme;
   board?.update(state);
   if (view === "portal") {
@@ -273,8 +275,10 @@ function renderPanelContents(el, kind) {
     ${admin ? button("invite.open", "A little more company?", "plus", "invite-quiet full") : ""}
     ${admin && state.requests?.length ? `<div class="setting-section"><div class="eyebrow">Hands up · ${state.requests.length}</div>${state.requests.map((r) => `<div class="hand-request"><span>${icon("hand", 17)} ${esc(r.name)}</span><div><button class="icon-btn" data-action="hand.approve" data-id="${r.deviceId}" aria-label="Approve ${esc(r.name)}">${icon("check", 17)}</button><button class="icon-btn" data-action="hand.deny" data-id="${r.deviceId}" aria-label="Decline ${esc(r.name)}">${icon("close", 17)}</button></div></div>`).join("")}</div>` : ""}
     <div class="panel-separator"></div><div class="eyebrow">Room tools</div><div class="tool-cards">${admin ? `<button data-action="quiz.open">${icon("quiz", 21)}<div><strong>Ask the room</strong><small>A quick question. Every voice.</small></div>${arrows()}</button>` : ""}<button data-action="pointer.open">${icon("pointer", 21)}<div><strong>Point something out</strong><small>Your phone, a little more useful.</small></div>${arrows()}</button><button data-action="ink.mode">${icon("pen", 21)}<div><strong>${state.me.canDraw ? "Think out loud. In ink." : "Raise your hand"}</strong><small>${state.me.canDraw ? "Sketch, circle and connect." : "Ask for a turn at the board."}</small></div>${arrows()}</button></div>
-    ${state.quiz ? quizSummary() : ""}${inboxHTML()}
+    ${state.quiz ? quizSummary() : ""}${inboxHTML()}${liveWindowsHTML(state)}
     <div class="panel-footnote">${icon("lock", 14)}<span>Your files stay here.<br>Shared in the room, stored on this hub.</span></div>`;
+  const liveWindows = el.querySelector(".live-window-inbox");
+  if (liveWindows) el.prepend(liveWindows);
 }
 function quizSummary() {
   const q = state.quiz;
@@ -295,6 +299,9 @@ function portalShell() {
     <section id="portal-point" class="portal-tab" hidden><h2>A little direction.</h2><p>Touch and move across the pad. Your pointer appears in the same place on the wall.</p><div class="touch-pad" id="pointer-pad"><div>${icon("pointer", 36)}<span>Touch to point</span></div></div>${button("gyro.enable", "Try motion pointer", "spark", "full outline")}<p class="form-hint" id="gyro-status">Motion control uses relative tilt. Touch control always works.</p></section>
     <section id="portal-draw" class="portal-tab" hidden><div class="portal-draw-heading"><div><h2>Leave your mark.</h2><p id="draw-permission">Checking drawing permission…</p></div>${button("ink.undo", "Undo", "undo", "small")}</div><div class="touch-pad drawing-pad" id="drawing-pad"><svg viewBox="0 0 1000 562.5" preserveAspectRatio="none"></svg><div class="draw-pad-hint">Draw here. See it there.</div></div><div id="raise-hand-action"></div>${button("ink.export", "Save whiteboard", "download", "full subtle")}</section>
     <div id="portal-inbox"></div><div class="portal-contributions"><div class="eyebrow">Your contributions</div><div id="portal-files"></div></div></main><footer>${icon("lock", 13)} In this room. On this hub.<a href="/room/${state.id}">Open canvas ${icon("arrow", 14)}</a></footer><div class="connection-banner" id="connection-banner" hidden role="alert"></div></div>`;
+  const liveInbox = document.createElement("div");
+  liveInbox.id = "portal-live-windows";
+  document.querySelector("#portal-quiz").before(liveInbox);
   sharing = new ScreenSharing(
     client,
     () => null,
@@ -347,6 +354,7 @@ function updatePortalContents() {
     ? ""
     : button("hand.raise", "Raise your hand", "hand", "full primary");
   document.querySelector("#portal-inbox").innerHTML = inboxHTML();
+  document.querySelector("#portal-live-windows").innerHTML = liveWindowsHTML(state);
   const own = state.items.filter((i) => i.ownerId === state.me.id);
   document.querySelector("#portal-files").innerHTML = own.length
     ? own
@@ -959,6 +967,10 @@ document.addEventListener("click", async (event) => {
       else await sharing.start();
       return;
     }
+    if (["screen.invite", "screen.invite.send", "screen.revoke", "screen.decline"].includes(action)) {
+      await liveWindowAction(action, target, client, state);
+      return;
+    }
     if (action === "surface.focus") {
       const element = target.closest("[data-item],[data-stream]");
       if (element) await board.focus(element);
@@ -1047,7 +1059,7 @@ document.addEventListener("submit", async (event) => {
       const route = form.id === "join-form" ? "join" : "login";
       const c = new RoomClient(roomId);
       await c.api(route, { method: "POST", body: input });
-      location.replace(`/${route === "join" ? "portal" : "room"}/${roomId}`);
+      location.replace(`/${route === "join" && !window.borderless ? "portal" : "room"}/${roomId}`);
     }
     if (form.id === "note-form") {
       await client.command("note.add", input);

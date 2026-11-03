@@ -50,7 +50,7 @@ Meetings, creative sessions and classrooms often make a whole room wait while on
 | B09 | Multi-user identity and ownership. | The server assigns identities and colours. Client claims cannot impersonate another device. Owners and leaders can change items; other participants cannot. |
 | B10 | Notes and text. | Contribute and edit notes; code/text files preview as inert text. Content is escaped. |
 | B11 | Images, documents and multimedia. | Images preview; PDFs open where the browser supports them; audio and video use explicit playback controls. Office files download for their native application. No automatic shell execution or unfounded conversion claim. |
-| B12 | Live screen or window sharing. | Supported desktop clients choose a source with OS/browser consent; several streams appear at the wall through real WebRTC peer connections. No cloud relay is assumed. |
+| B12 | Live screen or window sharing. | Supported desktop clients choose a source with OS/browser consent; several streams appear at the wall through real WebRTC. A source owner can invite a person to receive a view-only live window on their desktop; that recipient accepts before receiving. Owner revocation, recipient stop and capture end have distinct effects. No cloud relay or remote input is assumed. |
 | B13 | Reverse file delivery. | Leader or sender selects a target device; only that device sees and accepts its inbox invitation. Download requires a user gesture on platforms that require it. |
 | B14 | Touch pointer and motion input. | Each participant has an independent coloured reticle. Touch is always the baseline; motion is opt-in, permission-aware, calibrated relative tilt, not absolute room localisation. |
 | B15 | Persistent multi-user whiteboard. | Ink is broadcast, saved, restored and exportable as SVG; users can undo their own last stroke. Leader can clear ink. |
@@ -85,6 +85,10 @@ Errors: size/type mismatch, disconnection, quota, room paused during upload, per
 ### Present a live screen
 
 Desktop user starts screen sharing through a supported secure browser or native shell, chooses a screen/window and retains its capture indicator and stop control. Hub registers an owned transient stream. Authorised wall/leader connections request the stream; signalling is targeted to the specific browser connection. Media travels through local-network WebRTC. A shared tab ending capture, owner disconnection, pause, purge or end removes its live advertisement and tears down tracks. The app distinguishes signalling tests from actual media/device tests.
+
+The source owner can invite another room member to open that live window beside their own desktop work. The recipient opens the invitation from People (or the browser Portal), then accepts in the receiver. The Mac app opens an independent native window; browsers use their normal separate-window/tab behaviour. Receiving is view only. Moving/resizing this personal window does not change the shared scene. Closing it leaves capture and the accepted invitation available; Stop receiving removes that recipient's grant. Source revocation clears their video, while the room display stays live. Ending capture removes live media from all receivers; a new share requires a new invitation.
+
+Pending offers expire after ten minutes. Accepted access lasts only for that capture and current room identity. Rejoining as a different identity does not inherit access. Video retry rebuilds that receiver's peer; room reconnect refreshes authority before reception resumes. These behaviours remain separate from true OS virtual-display/window-edge transfer in B25.
 
 ### Point, draw and teach
 

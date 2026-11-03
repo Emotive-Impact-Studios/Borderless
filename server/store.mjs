@@ -200,6 +200,8 @@ export function openStore(dataDir) {
           current.state.requests = current.state.requests.filter(request => active.has(request.deviceId));
           current.state.deliveries = current.state.deliveries.filter(delivery => active.has(delivery.targetId));
           current.state.streams = current.state.streams.filter(stream => active.has(stream.ownerId));
+          for (const stream of current.state.streams)
+            stream.invitations = (stream.invitations || []).filter(invitation => active.has(invitation.deviceId));
           saveRoom(current);
           audit(roomId, "hub", "sessions.retired", { sessions, commands });
         }

@@ -573,7 +573,7 @@ test("WebRTC signalling is targeted and limited to a stream owner and authorised
   );
   assert.match(
     (await event(x, (e) => e.type === "error")).error,
-    /display or leader/,
+    /Accept the owner's live-window invitation/,
   );
 });
 

@@ -14,6 +14,8 @@ Room menu includes display placement, a software wall spanning all display bound
 
 The screen picker requires consent. Native opening verifies room ownership/leader access, checks the downloaded file hash and asks the operator before launching its default application. It never runs an uploaded executable or constructs a shell command from a filename. Temporary native-open files are deleted on graceful exit; crash leftovers in the OS temp directory require normal OS retention policy.
 
+Native participant invitation joins open the full room canvas. A source-owner invitation can open a separate framed personal receiver at `/screen/:roomId/:streamId`; its recipient explicitly accepts before viewing. The window moves/resizes independently of the shared scene and keeps capture ownership visible. Close ends that viewing connection; Stop receiving removes its grant. Source revocation clears it, and source capture stop ends all related media. This is view-only WebRTC in an independent desktop window, not an OS extended monitor or native application-window handoff.
+
 ## Build an installer
 
 ```sh
@@ -53,7 +55,7 @@ Hosted Mac acceptance sets `BORDERLESS_QA_ICE_MODE=unicast` only in the smoke sc
 
 The Mac CI job runs source acceptance, builds an unsigned directory package, inspects its ASAR and runs the same acceptance against the packaged executable. Its outcome must be read from Actions after push; configuration alone is not a passing result. Windows/Linux native acceptance, Developer ID/notarisation and hardware hotplug remain separate gates.
 
-Current local source, arm64 directory and read-only DMG acceptance each pass 26 checks. The continuation includes keyboard/focus, live reduced motion, representative settled colour contrast, dropped command acknowledgement, draft/authority reconnect and two-Wall media recovery. Owner disconnection ends capture and requires a new share. `output/playwright-directory/desktop-smoke.json` preserves the directory receipt; `output/playwright-packaged/desktop-smoke.json` is the latest package/DMG run. See the QA record for checks and their limits.
+Current source, arm64 directory and read-only mounted DMG acceptance pass 35 checks with the explicit loopback fixture. A second native profile exercises personal invitation/consent, independent window/media identity, initial snapshot/video retry, room reconnect, revocation and distinct close/Stop receiving/capture lifetimes. Package/image checks sample 134 settled colour pairs at a minimum 4.888:1; representative samples are not a WCAG audit. Normal interface-address media still fails locally. Hosted outcomes are checked separately. Reports remain ignored under `output/playwright-directory/` and `output/playwright-packaged/`; see the QA record.
 
 ## Native QA checklist
 

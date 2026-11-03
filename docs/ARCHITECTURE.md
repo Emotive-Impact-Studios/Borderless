@@ -62,7 +62,7 @@ The client reports Live only after that socket's hello and snapshot. Reconnect f
 | `state` | Hub → connection | Authoritative per-actor snapshot after changes or reconnect. |
 | `pointer` | Both | Normalised finite coordinates and server-derived actor; paused/read-only actors rejected; not durable. |
 | `ink.preview` | Both | Requires current drawing authority; not durable. Committed ink uses `stroke.add`. |
-| `rtc` | Both | `ready`, `offer`, `answer`, `candidate`; route only between the stream owner and a current leader/display, optionally to one connection ID. |
+| `rtc` | Both | `ready`, `offer`, `answer`, `candidate`; route between the active capture connection and a current leader/display, source-owner preview or explicitly accepted personal viewer. Connection-specific routing isolates tabs. |
 | `rtc.peer.left` | Hub → capture connection | Retire that departed socket's peer/candidate queue; sent only to the stream's owning capture connection. |
 | `ping` / `pong` | Both | Round-trip measurement; transport heartbeat independently retires dead peers. |
 | `canvas.cleared`, `streams.stopped` | Hub → room | Stop local representations and media lifetimes. |
@@ -73,6 +73,14 @@ Inbound frames are limited to 64 KiB, SDP/signalling payloads to 32 KiB, per-dev
 WebRTC uses no external ICE servers. That means no unsolicited third-party STUN/TURN traffic and no guarantee across isolated VLANs, NAT or internet links. Media transport is not proxied through the JSON WebSocket. Audio activation obeys user gesture and platform capture restrictions. Multiple tabs under one device identity use connection-specific routing to avoid mixing SDP negotiations.
 
 A reconnecting Wall requests the still-active owner's media under its new connection ID. The owner's socket loss instead stops local tracks and removes its advertisement; reconnect never silently restarts capture. Local source/package acceptance exercises both lifetimes with generated pixels, independently from physical LAN and OS capture consent.
+
+### Personal live-window access
+
+`stream.invite` is source-owner-only, including when another actor is a leader. A fresh invitation ID names one current room device and expires after ten minutes while pending. `stream.accept` derives the recipient from its session; `stream.decline` removes that recipient's invitation/access, and `stream.revoke` is source-owner-only. Room membership, CSRF and receipt deduplication apply. Accepted grants last for that capture and session, and disappear on logout/eviction/retirement or capture reset. A retired or replaced invitation cannot be accepted to restore revoked access. Default leader/display access to a room share remains explicit and separate.
+
+Snapshots reveal invitation records only to the source or their named recipient. The source gets an authoritative list of currently permitted receiver identities; each actor gets its own `canReceive` flag. The server rechecks fresh stored sessions and full grants for every signal. A known capture connection alone can offer its screen; receivers send requests/answers/candidates back to that connection. The client closes media peers and clears video when access ends. Late candidates from retired peers are ignored. Explicit receiver retry creates a fresh peer without restarting the owner's capture or changing the room socket.
+
+`/screen/:roomId/:streamId` serves a generic receiver shell; its state and media signalling still require the room session and grant. A pending recipient receives no media until acceptance. Its persistent video fills the content area below compact owner/status/stop controls. Native Electron links open a separate resizable framed window with its own bounds, rather than changing shared geometry. Native invitation joins land on the full room canvas; browser joins retain the Portal. Receiver socket closure retires its source peer without ending capture. These are view-only pixels, not remote input or an OS extended monitor.
 
 ## File integrity and rendering
 
@@ -88,7 +96,7 @@ Canvas coordinates are normalised to a bounded shared viewport which fills the a
 
 Room, People, Settings and Activity are independent movable/resizable/dismissible utility windows. Their normalised geometry is a per-room browser-session preference, never shared room state. They open on demand, remain inside the viewport and support title/resize arrow keys and Escape. Opening or closing them never changes the canvas bounds. Live refresh preserves focused actions. Dialogs restore their opener even after nested content; Portal tabs retain roving focus and labelled panels.
 
-File/stream media nodes survive geometry-only snapshots, preserving playback and media identity. Inert text files preview at most the first 16 KB using textContent and an authenticated range request. Pending previews are aborted on removal. The WebGL arrival layer is decorative and bounded; live reduced-motion changes cancel current effects, and lack of WebGL leaves contributions functional. The whiteboard uses persisted vector points rendered as SVG. Personal-desktop screen patching and native OS edge handoff are still outstanding; a movable room tile does not implement either.
+File/stream media nodes survive geometry-only snapshots, preserving playback and media identity. Inert text files preview at most the first 16 KB using textContent and an authenticated range request. Pending previews are aborted on removal. The WebGL arrival layer is decorative and bounded; live reduced-motion changes cancel current effects, and lack of WebGL leaves contributions functional. The whiteboard uses persisted vector points rendered as SVG. Personal receivers now extend this room model into independent desktop windows; true native OS display/window-edge handoff remains separate and outstanding.
 
 Themes are room state. Leader changes propagate to all clients. There are no runtime web font or external image dependencies. The desktop shell can place the same Wall on a display or span a software viewport across connected display bounds. It does not assert synchronised scanout across physical panels.
 
