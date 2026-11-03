@@ -1,0 +1,24 @@
+name: Verify Borderless
+on:
+  push:
+    branches: [main, 'feat/**']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run verify
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: borderless-source
+          path: dist/
+          retention-days: 14

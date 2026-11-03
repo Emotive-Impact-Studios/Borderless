@@ -1,0 +1,31 @@
+{
+  "name": "borderless",
+  "version": "0.1.0",
+  "private": true,
+  "main": "desktop/main.mjs",
+  "license": "UNLICENSED",
+  "author": "Emotive Impact Studios",
+  "description": "A shared canvas for every screen in the room.",
+  "type": "module",
+  "engines": { "node": ">=24.15.0 <25" },
+  "scripts": {
+    "start": "node server/index.mjs",
+    "dev": "node --watch server/index.mjs",
+    "test": "node scripts/run-tests.mjs",
+    "check": "node scripts/check.mjs",
+    "build": "node scripts/build.mjs",
+    "verify": "npm run check && npm test && npm run build",
+    "cert": "node scripts/cert.mjs",
+    "audit:verify": "node scripts/audit.mjs",
+    "backup": "node scripts/backup.mjs",
+    "restore": "node scripts/restore.mjs",
+    "desktop": "npm --prefix desktop start",
+    "desktop:install": "npm --prefix desktop ci",
+    "release:verify": "node scripts/verify-release.mjs"
+  },
+  "dependencies": {
+    "bonjour-service": "1.4.4",
+    "qrcode": "1.5.4",
+    "ws": "8.22.1"
+  }
+}

@@ -1,0 +1,44 @@
+# Desktop wrapper and packaging
+
+## Run source
+
+Install root dependencies with `npm ci`, then `npm run desktop:install` and `npm run desktop`. The desktop tooling lockfile pins Electron 45.2.1. The wrapper loads the same local hub and application, not a separate demo.
+
+The wrapper runs its embedded hub from `<Electron userData>/hub`. Optional `--hub=https://...` connects to an existing trusted hub. Remote HTTP is refused; local loopback HTTP remains available for development. The app does not load arbitrary external content into its privileged window or ignore certificate failures.
+
+Room menu includes display placement, a software wall spanning all display bounds and opt-in global desktop edge cues. Edge cues observe the global cursor near a display border and send an entry cue. They do not create a virtual monitor, capture or inject global input, move native application windows or implement seamless remote KVM.
+
+The screen picker requires consent. Native opening verifies room ownership/leader access, checks the downloaded file hash and asks the operator before launching its default application. It never runs an uploaded executable or constructs a shell command from a filename. Temporary native-open files are deleted on graceful exit; crash leftovers in the OS temp directory require normal OS retention policy.
+
+## Build an installer
+
+```sh
+npm ci
+npm run desktop:install
+npm --prefix desktop run package
+```
+
+`desktop/build.mjs` uses locked `electron-builder@26.18.0` with `desktop/electron-builder.json`. Outputs go to `release/`. The manual GitHub Actions packaging workflow builds on the corresponding native runners and retains build artefacts for review. It does not publish releases.
+
+| Platform | Configured target | Release gates |
+| --- | --- | --- |
+| macOS | DMG | Developer ID signing, notarisation, validated entitlements, capture permission, launch and first-run testing. |
+| Windows | NSIS installer | Authenticode signing, SmartScreen assessment, standard-user launch, firewall and display/capture testing. |
+| Linux | AppImage / deb | Distribution compatibility, sandbox support, X11/Wayland and PipeWire capture, package installation testing. |
+
+Do not label an unsigned build as a signed release. No signing keys or paid vendor accounts are created by these scripts. No platform installer was produced or launched in the managed Linux build environment.
+
+## Native QA checklist
+
+1. Start the wrapper on the target OS, create a room and pair an external browser wall.
+2. Confirm consented screen/window selection and capture stop. Declining permission must leave the app usable.
+3. Share to two wall/leader tabs, including tabs using the same device cookie. Confirm connection-specific SDP routing and independent media lifetimes.
+4. Send a benign file, verify its SHA-256, confirm native opening and cancel it. An untrusted origin/subframe must fail IPC checks.
+5. Exercise Room menu display placement/spanning on mixed-DPI displays, then hotplug, sleep and resume.
+6. Enable edge cues; cross each display edge. Confirm the wall cue while making no claim that a native window has transferred.
+7. Quit normally, restart, inspect the persisted room and verify temp-file cleanup. Test the documented crash recovery process.
+8. Inspect CSP, renderer sandbox and certificate failure handling in the packaged app.
+
+## Update boundary
+
+`npm run release:verify -- <manifest> <package> <trusted-ed25519-public-key.pem> [installed-version]` verifies a staged package. The manifest signs the canonical JSON fields `version`, `platform`, `sha256`, `bytes` and `expires`. Its `signature` is base64 Ed25519. Trusted key enrolment, package installation, platform signature validation, staged apply and rollback are outstanding work packages. There is no silent arbitrary binary download-and-replace loop.
