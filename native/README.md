@@ -1,11 +1,11 @@
 # Borderless native implementation
 
-Read `../docs/PRD.md`, `SOURCE_AUDIT.md` and `NATIVE_ARCHITECTURE.md` first. These components are intended to remain in the shipping architecture. They are not a completed replacement application.
+Read `../docs/VISION.md`, `../docs/CODEX_BRIEF.md` and `../design-system/docs/CODEX.md` first. The approved stack is Swift/Rust agents, LiveKit, a shared TypeScript front end and Tauri Wall; Go/.NET/Godot units below are retained as reference. These components are intended to remain in the shipping architecture. They are not a completed replacement application.
 
 | Directory | Actual code now | Still missing |
 | --- | --- | --- |
 | `core` | Dependency-free Rust display-coordinate mapping and complete-frame health policy, C ABI, eight tests. | Display creation, encode/decode, native transport, input leases. |
-| `macos` | Reusable Swift ScreenCaptureKit service, system picker, bounded latest-frame mailbox, local preview, stop and Rust health binding; verification host. | Successful real-frame receipt on this Mac, encoder/network path, personal receiver, full native host integration and virtual display. |
+| `macos` | Reusable Swift ScreenCaptureKit service, system picker, bounded latest-frame mailbox, local preview, stop and Rust health binding; local real capture/update/Stop accepted on 3 November after capture-service recovery. | Encoder/network path, personal receiver, full native host integration and virtual display. |
 | `dotnet` | Rust P/Invoke, trusted-origin room pairing/snapshot/live client, fragmented bounded WebSocket receive, validated Wall model, executable conformance checks. | Full commands/reconnect/media and Windows OS host. |
 | `wall` | Buildable Godot C# scene using the room client; actual note text/owner/geometry, stable nodes and removal; engine smoke test. | File/media/ink/quiz renderers, interactive shared layout, viewport/world migration, full spatial experience/accessibility. |
 | `hub` | Compiled Go strict move-envelope validation and trusted actor/ownership/version policy, race-tested. | Complete Go server, persistence, receipts, assets, live routing and migration parity. No Go server is launched. |

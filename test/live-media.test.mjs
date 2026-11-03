@@ -12,7 +12,7 @@ function setup() {
   const stream = { id: "stream-a", ownerId: "owner", audience: "room", invitations: [] };
   const room = { id: "room-a", state: { streams: [stream] } };
   const deleted = [];
-  const service = { async deleteRoom(name) { deleted.push(name); } };
+  const service = { async createRoom() {}, async deleteRoom(name) { deleted.push(name); } };
   const apiKey = "test-only-key", apiSecret = "test-only-secret-that-is-not-a-production-credential";
   const media = new LiveMedia({ apiKey, apiSecret, url: "ws://127.0.0.1:7880", service,
     readRoom: id => id === room.id ? { room, sessions } : { room: null, sessions: [] },
@@ -76,5 +76,11 @@ test("expired owner sessions retire their stream and reject all viewers", async 
   sessions[0].expires = Date.now() - 1;
   await media.synchronise("room-a");
   assert.deepEqual(deleted, [first.room]);
+  await assert.rejects(media.access("room-a", "stream-a", "session-wall"), { status: 403 });
+});
+
+test("access revoked during a control API await cannot escape in a signed token", async () => {
+  const { media, sessions, service } = setup();
+  service.createRoom = async () => { sessions[1].revoked = true; };
   await assert.rejects(media.access("room-a", "stream-a", "session-wall"), { status: 403 });
 });

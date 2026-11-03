@@ -48,7 +48,11 @@ export class LiveMedia {
       entries.delete(id);
     }
     for (const [id, value] of desired) {
-      if (!entries.has(id)) entries.set(id, { ...value, mediaRoom: `bl-${randomUUID()}` });
+      if (!entries.has(id)) {
+        const mediaRoom = `bl-${randomUUID()}`;
+        await this.service.createRoom({ name: mediaRoom, emptyTimeout: 60, maxParticipants: 64 });
+        entries.set(id, { ...value, mediaRoom });
+      }
       else Object.assign(entries.get(id), value);
     }
     return entries;
@@ -79,6 +83,9 @@ export class LiveMedia {
       const entry = entries.get(streamId);
       const session = entry?.members.find(s => s.token_hash === tokenHash);
       if (!session) throw Object.assign(new Error("This screen is not available to your session."), { status: 403 });
+      // An unused room may have reached its empty timeout. Only the hub may
+      // recreate it, after checking current access; auto-create is disabled.
+      await this.service.createRoom({ name: entry.mediaRoom, emptyTimeout: 60, maxParticipants: 64 });
       const publisher = session.device_id === entry.stream.ownerId;
       const ttl = Math.min(30, Math.floor((session.expires - Date.now()) / 1000));
       if (ttl < 1) throw Object.assign(new Error("Your session has expired."), { status: 401 });
@@ -91,7 +98,18 @@ export class LiveMedia {
         canPublish: publisher, canPublishSources: publisher ? [TrackSource.SCREEN_SHARE] : [],
         canSubscribe: !publisher, canPublishData: false, canUpdateOwnMetadata: false,
       });
-      return { url: this.url, room: entry.mediaRoom, token: await token.toJwt(), publisher };
+      const jwt = await token.toJwt();
+      // Control API calls and signing yield. Re-read the authority before
+      // returning a grant in case access changed while those calls ran.
+      const fresh = this.readRoom(roomId);
+      const currentStream = fresh.room?.state.streams.find(s => s.id === streamId);
+      const currentSession = fresh.sessions.find(s => s.token_hash === tokenHash &&
+        s.room_id === roomId && !s.revoked && s.expires > Date.now());
+      if (fresh.room?.state.ended || !currentStream || !currentSession ||
+          !mayReceiveStream(currentStream, currentSession) ||
+          (currentSession.device_id === currentStream.ownerId) !== publisher)
+        throw Object.assign(new Error("Screen access changed. Request a new grant."), { status: 403 });
+      return { url: this.url, room: entry.mediaRoom, token: jwt, publisher };
     });
   }
 }

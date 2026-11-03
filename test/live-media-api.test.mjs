@@ -8,7 +8,7 @@ function configuration() {
   const media = {
     apiKey: "api-test-key", apiSecret: "api-test-secret-not-a-production-credential",
     url: "ws://127.0.0.1:7880",
-    service: { async deleteRoom(name) { deleted.push(name); } },
+    service: { async createRoom() {}, async deleteRoom(name) { deleted.push(name); } },
   };
   return { media, deleted, verifier: new TokenVerifier(media.apiKey, media.apiSecret) };
 }

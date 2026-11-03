@@ -1,7 +1,14 @@
 import { createApp } from "./app.mjs";
 import { Bonjour } from "bonjour-service";
+import { startMediaProcess } from "./media-process.mjs";
 
-const app = await createApp();
+const media = process.env.BORDERLESS_MEDIA === "1" ? await startMediaProcess({
+  executable: process.env.BORDERLESS_LIVEKIT_BINARY || "livekit-server",
+  dataDir: process.env.BORDERLESS_DATA || ".borderless",
+}) : null;
+let app;
+try { app = await createApp({ media }); }
+catch (error) { await media?.close(); throw error; }
 console.log(
   `\nBorderless 0.1.0\nOpen ${app.localURL}\nData stays on this host. Press Ctrl+C to stop.\n`,
 );
@@ -31,6 +38,17 @@ for (const signal of ["SIGINT", "SIGTERM"])
     if (stopping) return;
     stopping = true;
     bonjour?.destroy();
-    await app.close();
+    try { await app.close(); }
+    finally { await media?.close(); }
     process.exit(0);
   });
+
+if (media) media.exited.then(async () => {
+  if (stopping) return;
+  stopping = true;
+  console.error("The local media server stopped. Closing the hub; restart it to reconnect safely.");
+  bonjour?.destroy();
+  try { await app.close(); }
+  catch { /* The media service has already stopped. */ }
+  finally { await media.close(); process.exitCode = 1; }
+});

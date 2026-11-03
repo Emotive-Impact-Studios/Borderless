@@ -4,6 +4,14 @@
 
 Read VISION.md first, then PRODUCT.md and DESIGN.md, then README, PRD, CAPABILITIES, ARCHITECTURE and DELIVERY. The original conversation is preserved in `docs/source/` and checked against SHA-256. The repository began with only a README at main commit `7b773ca855f0438bdd6e5f08d4e71b556037fd50`.
 
+## Milestone 1 · managed media process · 3 November 2026
+
+- Added optional managed startup: `BORDERLESS_MEDIA=1 npm start` launches `livekit-server` (or `BORDERLESS_LIVEKIT_BINARY`) with per-run random credentials in a private runtime file, waits for an authenticated room-service response, then starts the hub with that media adapter. Startup failure removes the temporary credentials. Shutdown terminates the owned child and removes its configuration; unexpected media-process exit closes the hub so clients cannot mistake it for a healthy media session.
+- The current managed configuration is loopback-only (`127.0.0.1:7880`, RTC ports 7881/7882), for the first same-Mac/two-display integration. LAN signalling through the trusted TLS hub/proxy remains to implement; do not advertise this loopback URL to phones or another machine.
+- LiveKit room auto-creation is disabled. Only the hub's control API creates media rooms; existing join tokens therefore cannot recreate a deleted room. The adapter rechecks current authority after asynchronous control/signing work before returning a token. A new race test revokes access during a control-API await and confirms refusal.
+- Process tests run a small authenticated control-API fixture as a real child: readiness, mode-0600 credentials, clean stop and missing-binary cleanup pass. This fixture does not implement video. Required Node 24 verification passes 66 tests/check/build; required native verification passes, with legacy Godot compilation only.
+- **The actual LiveKit binary is still absent after the ENOSPC build failure.** Disk has about 2.1 GiB available; the request to free 6 GB remains pending. These startup tests do not establish real LiveKit startup, media, SDK compatibility, latency or product acceptance. Next implementation can continue on the shared TypeScript Wall while installation is blocked; no claim of a completed milestone 1.
+
 ## Milestone 1 · authenticated media endpoint · 3 November 2026
 
 - Connected the media adapter to `createApp({ media })`. `POST /api/rooms/:roomId/streams/:streamId/media` requires the room cookie and CSRF token, rate-limits issuance, and derives the session identity from the store. Client fields for role, identity and media room are ignored. Without a configured media service the endpoint returns 503; the normal startup has not yet gained the managed LiveKit process.
