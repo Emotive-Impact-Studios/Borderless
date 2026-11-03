@@ -4,6 +4,16 @@
 
 Read VISION.md first, then PRODUCT.md and DESIGN.md, then README, PRD, CAPABILITIES, ARCHITECTURE and DELIVERY. The original conversation is preserved in `docs/source/` and checked against SHA-256. The repository began with only a README at main commit `7b773ca855f0438bdd6e5f08d4e71b556037fd50`.
 
+## Milestone 0 · queue-depth comparison · 3 November 2026, 16:59 UTC
+
+Tested the brief's next hypothesis: queue depth 6 rather than 3. Rebuilt, quit the old app, refreshed the existing approved Screen Recording entry against the new ad-hoc signature, then launched the exact bundle. Selected the known disposable TextEdit window and changed its text during capture. Result: **zero callbacks, zero complete frames, ten-second failure**, unchanged from depth 3. The package currently uses depth 6; this is not a claimed capture fix.
+
+The unified log ties a successful Screen Recording authorisation reply to BorderlessMac PID 8740 at 16:58:05, followed by its capture-start call and empty preview queue. Thus missing permission no longer explains this attempt. System-wide replayd logs also contain repeated invalid/terminated remote queue and missing presenter-overlay rectangle errors. These errors are not conclusively attributable to Borderless; a process sample does not establish a deadlock. Private diagnostic evidence stays in ignored `output/native/m0-queue-six.log` and `replayd-queue-six-sample.txt`.
+
+Required Node 24 `npm run verify` and `DOTNET_ROOT=/Users/augustusedem/.dotnet npm run native:verify` both pass for this checkpoint. Godot compilation only; no engine execution or capture acceptance is implied.
+
+Asked the user to approve restarting the macOS capture service before the next isolation test, because it interrupts screen recording/sharing in other apps. No service restart has been performed yet. Milestone 0 remains unaccepted and all later milestones remain untouched.
+
 ## Milestone 0 · native source chooser and permission evidence · 3 November 2026, 16:56 UTC
 
 - Added a persistent native window-selection sheet as an alternative to Apple's unresponsive sharing picker. It enumerates ScreenCaptureKit windows only after the app's Screen Recording preflight succeeds. Capture starts only on an explicit selection; Cancel, Stop and switching to the system picker invalidate pending enumeration. The sheet uses native controls; this diagnostic is not the approved finished product interface.
