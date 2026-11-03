@@ -4,7 +4,7 @@ The product scope remains the full Borderless platform. This register distinguis
 
 ## Current milestone gate
 
-Milestone 0 was accepted by the user on 3 November 2026: real Swift capture, live text update, rising complete-frame count and Stop clearing the preview, after an authorised macOS capture-service restart. Milestone 1 is now authorised: local LiveKit server, hub-controlled media grants, Swift publishing, and a design-system TypeScript/Tauri Wall. No native network media or later core moment is complete. CODEX_BRIEF.md is the build order; its approved Swift/Rust/LiveKit/TypeScript/Tauri stack supersedes older Go/Godot planning below.
+Milestone 0 was accepted by the user on 3 November 2026: real Swift capture, live text update, rising complete-frame count and Stop clearing the preview, after an authorised macOS capture-service restart. Milestone 1 is now authorised: local LiveKit server, hub-controlled media grants, Swift publishing, and a design-system TypeScript/Tauri Wall. Real Swift capture now reaches the Chrome Wall through LiveKit on this Mac, updates beyond 75 seconds, survives authoritative movement/resizing and clears on native Stop. Milestone 1 remains incomplete: Tauri playback, LAN, precise latency, reconnect/revocation and user review remain. Later core moments are still incomplete. CODEX_BRIEF.md is the build order; its approved Swift/Rust/LiveKit/TypeScript/Tauri stack supersedes older Go/Godot planning below.
 
 ## Current engineering baseline
 

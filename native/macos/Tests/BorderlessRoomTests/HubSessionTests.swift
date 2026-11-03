@@ -29,7 +29,7 @@ final class HubSessionTests: XCTestCase {
         if env["BORDERLESS_TEST_HOLD"] == "1" {
             // Exercise beyond URLSession's request/resource deadlines and the
             // hub heartbeat; a quick join test cannot prove a lasting session.
-            try await Task.sleep(for: .seconds(35))
+            try await Task.sleep(for: .seconds(75))
             XCTAssertNotNil(client.connectionID, "The joined room must survive idle time and heartbeat")
         }
         let id = try await client.startStream(title: "Swift session check")

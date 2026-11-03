@@ -37,6 +37,7 @@ private final class NoRedirects: NSObject, URLSessionTaskDelegate, @unchecked Se
     public private(set) var connectionID: String?
     public private(set) var snapshot: HubSnapshot?
     private let session: URLSession
+    private let liveSession: URLSession
     private var socket: URLSessionWebSocketTask?
     private var watch: Task<Void, Never>?
     public var changed: ((HubSnapshot) -> Void)?
@@ -53,6 +54,14 @@ private final class NoRedirects: NSObject, URLSessionTaskDelegate, @unchecked Se
         config.timeoutIntervalForResource = 15
         config.urlCache = nil
         session = URLSession(configuration: config, delegate: NoRedirects(), delegateQueue: nil)
+        // A WebSocket is a persistent resource. Sharing the HTTP session's
+        // 15-second resource deadline silently expires its upgraded connection.
+        // Keep the platform's long resource lifetime; the hub heartbeat and
+        // session expiry still retire unavailable or unauthorised connections.
+        let liveConfig = URLSessionConfiguration.ephemeral
+        liveConfig.timeoutIntervalForRequest = 10
+        liveConfig.urlCache = nil
+        liveSession = URLSession(configuration: liveConfig, delegate: NoRedirects(), delegateQueue: nil)
     }
 
     public static func isTrustedOrigin(_ url: URL) -> Bool {
@@ -86,7 +95,7 @@ private final class NoRedirects: NSObject, URLSessionTaskDelegate, @unchecked Se
         // scoped to this authenticated room endpoint into this one request.
         let cookies = session.configuration.httpCookieStorage?.cookies(for: endpoint("live")) ?? []
         for (key, value) in HTTPCookie.requestHeaderFields(with: cookies) { request.setValue(value, forHTTPHeaderField: key) }
-        let ws = session.webSocketTask(with: request)
+        let ws = liveSession.webSocketTask(with: request)
         ws.maximumMessageSize = 4 * 1024 * 1024
         socket = ws; ws.resume()
         let first = try await event(ws)
@@ -137,6 +146,7 @@ private final class NoRedirects: NSObject, URLSessionTaskDelegate, @unchecked Se
         socket?.cancel(with: .goingAway, reason: nil); socket = nil
         connectionID = nil
         session.invalidateAndCancel()
+        liveSession.invalidateAndCancel()
     }
 
     private struct Event: Decodable { let type: String; let connectionId: String?; let state: HubSnapshot? }
