@@ -4,6 +4,15 @@
 
 Read VISION.md first, then PRODUCT.md and DESIGN.md, then README, PRD, CAPABILITIES, ARCHITECTURE and DELIVERY. The original conversation is preserved in `docs/source/` and checked against SHA-256. The repository began with only a README at main commit `7b773ca855f0438bdd6e5f08d4e71b556037fd50`.
 
+## Milestone 1 in progress · media access boundary · 3 November 2026
+
+- Pinned `livekit-server-sdk` 2.19.2 (Apache-2.0, upstream package licence retained by npm). Added `server/live-media.mjs`: a media adapter consuming fresh hub-owned room/session snapshots, with one opaque LiveKit room per stream, publisher-only screen-share grants, subscriber-only viewer grants, no data publishing or media administration, and 30-second maximum join-token lifetime bounded by session expiry.
+- Recipient/session changes retire the entire media-room generation through the server API before issuing replacement grants. Deletion failure blocks issuance; only an explicit upstream not-found result counts as already removed. Token expiry is not treated as disconnect/revocation of an existing participant. Four tests verify signed JWT permissions, private audience isolation, generation rotation on revocation, failed deletion, stopped streams and owner expiry using a fake room-service boundary. **Real SFU revocation/reconnect is not verified.**
+- Verification: Node 24 `npm run verify` passes 60 tests/check/build; `DOTNET_ROOT=/Users/augustusedem/.dotnet npm run native:verify` passes on the updated Go toolchain. Godot compilation only, no engine execution.
+- This adapter is not yet exposed as a hub endpoint. Next wire authenticated session access, await synchronisation on room/session changes, expire grants on the hub tick, and test against a real local LiveKit process before enabling it. Swift publishing, shared TypeScript Wall and Tauri shell are not implemented yet.
+- Homebrew's LiveKit 1.13.11 build failed with ENOSPC during Go compilation. Its required Go upgrade succeeded (1.24.4 → 1.27.3); LiveKit itself is not installed. The installation process has ended, confirmed by the missing execution handle and absence of a build process/binary. About 2.3 GiB was available afterwards. Asked the user to free at least 6 GB for the server build and Swift SDK; do not remove personal files. Log: ignored `output/native/m1-livekit-install.log`.
+- Swift 6.0.3 is installed. Upstream LiveKit Swift 2.14.1's manifest supports Swift 6.0; newer 2.15+ requires 6.1 per its changelog. SDK selection/toolchain compatibility still needs resolution; no Swift dependency has been installed or claimed working.
+
 ## Milestone 0 accepted · 3 November 2026, 17:31 UTC
 
 The user approved restarting the capture service, then explicitly accepted the real-device demonstration: **“Yes, continue to the Wall.”** Milestone 1 may now begin, following CODEX_BRIEF.md and design-system/.
