@@ -8,6 +8,8 @@ Milestone 0 was accepted by the user on 3 November 2026: real Swift capture, liv
 
 Software latency measurements now exist without requiring the user to film: a short real-window → actual Tauri burst gave median source-paint-to-screenshot bounds of 72.5–109.5 ms. This does not certify physical glass-to-glass latency or sustained 60 fps. See [LATENCY_MEASUREMENT.md](LATENCY_MEASUREMENT.md). The permission refresh is resolved. Explicit 60 fps ceilings were tested: repeated 1280×748 runs gave median bounds 33.5–71 ms and about 54.7 presented fps. Real 1920×1080 decoding was confirmed, but a full-resolution run included a 655 ms stall. The user confirmed the later Stop was intentional. The stall cause and sustained full-resolution frame rate remain open.
 
+The 1080p transition is now identified in saved frames. A separate hidden-Wall suspension was reproduced and corrected. In a visible full-minute repeat, Tauri presented 3,134 frames with a 78 ms longest gap. See [LATENCY_MEASUREMENT.md](LATENCY_MEASUREMENT.md) for the paired runs and their limits.
+
 The trusted LAN signalling path and setup instructions are implemented. A disposable test using the Mac’s Ethernet address passed HTTPS pairing, authorised WSS signalling and Stop. The second-machine room test remains open.
 
 ## Current engineering baseline

@@ -5,6 +5,7 @@ The screenshot call bounds are observation bounds, not photon-to-photon timing.
 """
 import json
 import statistics
+from collections import Counter
 import sys
 from pathlib import Path
 from PIL import Image
@@ -52,11 +53,16 @@ def decode(path, start, end):
                         votes.append(value)
     if not votes:
         raise ValueError(f'No valid timestamp found in {path}')
-    timestamp = statistics.mode(votes)
-    if votes.count(timestamp) < 3:
+    counts = Counter(votes)
+    candidates = sorted(value for value, rows in counts.items() if rows >= 3)
+    if not candidates:
         raise ValueError(f'Timestamp lacks three-row agreement in {path}')
-    return {'paint_ms': timestamp, 'lower_ms': start - timestamp, 'upper_ms': end - timestamp,
-            'observation_ms': end - start, 'matching_rows': votes.count(timestamp)}
+    # A macOS window transition can show two copies of the source at once.
+    # Preserve both clocks and bound the observation across the whole image.
+    timestamp = counts.most_common(1)[0][0]
+    return {'paint_ms': timestamp, 'paint_candidates_ms': candidates,
+            'lower_ms': start - candidates[-1], 'upper_ms': end - candidates[0],
+            'observation_ms': end - start, 'matching_rows': counts[timestamp]}
 
 
 def summarise(results):

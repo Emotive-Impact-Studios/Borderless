@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { Room, RoomEvent, Track, ConnectionState, DisconnectReason } from 'livekit-client';
 import './style.css';
 
@@ -172,13 +173,19 @@ class LiveWindow {
       const url = new URL(grant.url);
       if (url.protocol !== 'wss:' && !(url.protocol === 'ws:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname))) throw new Error('Trusted media transport is required.');
       if (url.username || url.password) throw new Error('Invalid media address.');
-      const room = new Room({ adaptiveStream: true, dynacast: true }); this.room = room;
+      // The single-layer Wall feed must stay subscribed while macOS moves a
+      // window between Spaces. The Console can still suspend off-screen tiles.
+      const room = new Room({ adaptiveStream: route?.[1] !== 'wall', dynacast: true });
+      this.room = room;
       room.on(RoomEvent.TrackSubscribed, track => {
         if (this.closed || this.room !== room || track.kind !== Track.Kind.Video || track.source !== Track.Source.ScreenShare) return;
         track.attach(this.video);
+        if (import.meta.env.MODE === 'frame-check') {
+          void import('./frame-check').then(check => check.measureFrames(this.video, track));
+        }
         const decoded = () => {
           if (!this.closed && this.room === room) {
-            if (!track.isMuted && room.state === ConnectionState.Connected && this.video.srcObject) {
+            if (this.root.dataset.live !== '' && !track.isMuted && room.state === ConnectionState.Connected && this.video.srcObject) {
               this.root.dataset.live = ''; this.label.textContent = 'Live';
               this.placeholder.hidden = true;
             }

@@ -4,6 +4,20 @@
 
 Read VISION.md first, then PRODUCT.md and DESIGN.md, then README, PRD, CAPABILITIES, ARCHITECTURE and DELIVERY. The original conversation is preserved in `docs/source/` and checked against SHA-256. The repository began with only a README at main commit `7b773ca855f0438bdd6e5f08d4e71b556037fd50`.
 
+## Milestone 1 · actual Tauri stall investigation · 4 November 2026
+
+The old 655 ms observation occurred during a source window transition. In eight consecutive saved Tauri images two stationary timestamp bars are visible. The next image shows the restored smaller window and its title bar. The decoder now retains both confirmed timestamps. These images locate the event but cannot assign the historical delay to an individual pipeline stage.
+
+On a fresh 1080p stream, a controlled visibility comparison isolated an independent Wall fault. When WebKit reported the Wall hidden, adaptive subscription stopped after 40 decoded frames. The final presentation gap lasted 59.96 seconds while native capture continued. Disabling adaptive subscription on the single-layer Wall feed kept decoding active under the same condition. WebKit presented 1,182 frames over a minute while hidden and its receiver count rose to 3,154. The Console keeps adaptive streaming. The Wall now changes its Live label and styling on state transitions, avoiding redundant DOM writes on every presented frame.
+
+The timestamp fixture itself had crashed in repeated AppKit/Core Text font drawing. The crash was in the diagnostic source process. Source numerals now use filled rectangles. The fixed HD fixture opens on monitor two, at normal window level, with a 1920×1080 content surface and no keyboard-focus request. For these tests the Mac publisher occupied the right side and the actual Tauri Wall the left side of the 32FPDEU-DA20 secondary display.
+
+Two visible 60-second WebKit samples presented 3,206 and 3,134 frames (53.4 and 52.2 fps) at decoded 1920×1080. The repeat's longest presentation gap was 78 ms, with zero gaps over 100 ms. The first run had one gap over 100 ms. Forty-five paired screenshot samples in the first run produced median Wall software delay bounds of 39–79 ms, with a maximum upper bound of 104 ms. Evidence and reproduction details are in [LATENCY_MEASUREMENT.md](LATENCY_MEASUREMENT.md). The frame-check Vite mode reports counters from the actual Wall video and WebRTC track. The normal build strips it.
+
+A final source driven from the secondary display's refresh callback presented 3,091 frames in 60.004 seconds (51.5 fps). The longest presentation gap was 87 ms, with zero gaps over 100 ms. Across the three visible runs the measured rate was 51.5–53.4 fps. Sustained 60 fps and physical glass-to-glass timing remain open. Restored the normal build, observed the real video and clicked native Stop. The second monitor's Tauri accessibility tree showed the empty Wall 130 ms after the start of the click. Sharing was left stopped. Evidence on this Mac is in [normal-wall.png](../output/native/m1-fixed-visible/normal-wall.png) and ignored timing artefacts in the same directory.
+
+Node 24 verification passed 68 tests. Native verification passed. Logs are in `output/native/m1-stall-final-{verify,native}.log`. The next physical gate is a second computer on the same trusted LAN with its own paired viewer, followed by the user's review. Continue milestone 1 there before advancing.
+
 ## Milestone 1 · trusted LAN signalling · 4 November 2026
 
 The managed SFU now accepts an explicit room interface and advertises a TLS signalling origin. The hub issues its usual per-person grants. The supplied Caddy configuration exposes the RTC routes and keeps the control API on loopback. Setup and the disposable commissioning command are in [OPERATIONS.md](OPERATIONS.md).
