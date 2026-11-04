@@ -9,7 +9,10 @@ use tungstenite::{ClientRequestBuilder, Message};
 use ureq::tls::{RootCerts, TlsConfig};
 
 pub struct Picture {
+    /// The request key: an image's asset id, or `pdf:<asset>:<page>`.
     pub asset: String,
+    /// For PDF pages, how many pages the document has.
+    pub pages: Option<u32>,
     pub width: u32,
     pub height: u32,
     pub rgba: Vec<u8>,
@@ -199,23 +202,72 @@ fn state(agent: &ureq::Agent, t: &Target, cookie: &str) -> Result<Value, u16> {
 }
 
 /// Runs for the life of the Wall on its own thread.
-/// Downloads room images on request (asset ids) using the Wall's session.
+fn download(agent: &ureq::Agent, t: &Target, cookie: &str, asset: &str) -> Option<Vec<u8>> {
+    agent
+        .get(&format!("{}/api/rooms/{}/assets/{}", t.base, t.room, asset))
+        .header("Cookie", cookie)
+        .call()
+        .ok()
+        .filter(|r| r.status().is_success())
+        .and_then(|mut r| r.body_mut().with_config().limit(25 * 1024 * 1024).read_to_vec().ok())
+}
+
+/// PDFium is loaded from the app bundle's Frameworks, next to the executable,
+/// `BORDERLESS_PDFIUM`, or the development copy fetched by scripts/fetch-pdfium.mjs.
+fn pdfium() -> Option<pdfium_render::prelude::Pdfium> {
+    use pdfium_render::prelude::Pdfium;
+    let exe = std::env::current_exe().ok()?;
+    let dir = exe.parent()?.to_path_buf();
+    let platform = format!("{}-{}", if cfg!(target_os = "macos") { "darwin" } else if cfg!(windows) { "win32" } else { "linux" }, if cfg!(target_arch = "aarch64") { "arm64" } else { "x64" });
+    let candidates = [
+        std::env::var_os("BORDERLESS_PDFIUM").map(PathBuf::from),
+        Some(dir.join("../Frameworks")),
+        Some(dir.clone()),
+        Some(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("vendor/pdfium").join(platform).join("lib")),
+    ];
+    candidates.into_iter().flatten().find_map(|d| Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path(&d)).ok()).map(Pdfium::new)
+}
+
+/// Downloads room images and renders PDF pages on request, using the Wall's
+/// session. Only the hub's accepted image formats and PDFs are decoded.
 fn pictures(agent: ureq::Agent, t: Target, cookie: String, requests: mpsc::Receiver<String>, send: Arc<dyn Fn(RoomEvent) + Send + Sync>) {
     thread::spawn(move || {
-        for asset in requests {
-            let fetched = agent
-                .get(&format!("{}/api/rooms/{}/assets/{}", t.base, t.room, asset))
-                .header("Cookie", &cookie)
-                .call()
-                .ok()
-                .filter(|r| r.status().is_success())
-                .and_then(|mut r| r.body_mut().with_config().limit(25 * 1024 * 1024).read_to_vec().ok());
-            let Some(bytes) = fetched else { continue };
-            // Only the formats the hub accepts for images; never anything executable.
+        let mut pdf_engine = None;
+        let mut documents: Vec<(String, Vec<u8>)> = Vec::new();
+        for key in requests {
+            if let Some(rest) = key.strip_prefix("pdf:") {
+                let Some((asset, page)) = rest.split_once(':') else { continue };
+                let Ok(page) = page.parse::<i32>() else { continue };
+                if pdf_engine.is_none() {
+                    pdf_engine = pdfium();
+                    if pdf_engine.is_none() {
+                        log::warn!("PDFium is not available; PDF pages cannot be shown.");
+                    }
+                }
+                let Some(engine) = &pdf_engine else { continue };
+                if !documents.iter().any(|(a, _)| a == asset) {
+                    let Some(bytes) = download(&agent, &t, &cookie, asset) else { continue };
+                    documents.push((asset.to_owned(), bytes));
+                    if documents.len() > 4 {
+                        documents.remove(0);
+                    }
+                }
+                let bytes = documents.iter().find(|(a, _)| a == asset).map(|(_, b)| b.clone()).unwrap();
+                let Ok(document) = engine.load_pdf_from_byte_vec(bytes, None) else { continue };
+                let pages = document.pages().len();
+                let index = (page - 1).clamp(0, (pages - 1).max(0));
+                let Ok(p) = document.pages().get(index) else { continue };
+                let config = pdfium_render::prelude::PdfRenderConfig::new().set_target_width(2048).set_maximum_height(2048);
+                let Ok(bitmap) = p.render_with_config(&config) else { continue };
+                let (width, height) = (bitmap.width() as u32, bitmap.height() as u32);
+                send(RoomEvent::Picture(Picture { asset: key.clone(), pages: Some(pages as u32), width, height, rgba: bitmap.as_rgba_bytes() }));
+                continue;
+            }
+            let Some(bytes) = download(&agent, &t, &cookie, &key) else { continue };
             let Ok(image) = image::load_from_memory(&bytes) else { continue };
             let image = if image.width().max(image.height()) > 2048 { image.resize(2048, 2048, image::imageops::FilterType::Lanczos3) } else { image };
             let rgba = image.to_rgba8();
-            send(RoomEvent::Picture(Picture { asset, width: rgba.width(), height: rgba.height(), rgba: rgba.into_raw() }));
+            send(RoomEvent::Picture(Picture { asset: key, pages: None, width: rgba.width(), height: rgba.height(), rgba: rgba.into_raw() }));
         }
     });
 }

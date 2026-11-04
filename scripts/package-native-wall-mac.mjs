@@ -12,6 +12,11 @@ if (build.status !== 0) throw new Error('The native Wall did not build.');
 const app = join(root, 'output/native/Borderless Wall Native.app');
 await mkdir(join(app, 'Contents/MacOS'), { recursive: true });
 await copyFile(join(root, 'wall/target/release/borderless-wall'), join(app, 'Contents/MacOS/borderless-wall'));
+// PDF pages: the pinned PDFium from scripts/fetch-pdfium.mjs, inside the bundle.
+const pdfium = join(root, `wall/vendor/pdfium/darwin-${process.arch}/lib/libpdfium.dylib`);
+await mkdir(join(app, 'Contents/Frameworks'), { recursive: true });
+try { await copyFile(pdfium, join(app, 'Contents/Frameworks/libpdfium.dylib')); }
+catch { throw new Error('Run node scripts/fetch-pdfium.mjs first so the Wall can show PDF pages.'); }
 await writeFile(join(app, 'Contents/Info.plist'), `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>

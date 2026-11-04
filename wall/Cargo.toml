@@ -14,6 +14,7 @@ glyphon = "0.9"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
 livekit = { version = "0.10", default-features = false, features = ["native", "rustls-tls-native-roots"] }
 log = "0.4"
+pdfium-render = { version = "0.9", default-features = false, features = ["pdfium_latest", "thread_safe"] }
 png = "0.17"
 pollster = "0.4"
 serde = { version = "1", features = ["derive"] }

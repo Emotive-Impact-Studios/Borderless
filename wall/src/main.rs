@@ -79,6 +79,13 @@ struct App {
     live_state: HashMap<String, String>,
     /// Live frames shown since the last rate report (logged at info level).
     shown: (u32, Instant),
+    pdf_pages: HashMap<String, u32>,
+}
+
+/// True for two different page renders of the same PDF.
+fn same_pdf(a: &str, b: &str) -> bool {
+    let doc = |k: &str| k.strip_prefix("pdf:").and_then(|r| r.split(':').next()).map(str::to_owned);
+    a != b && doc(a).is_some() && doc(a) == doc(b)
 }
 
 fn mix(a: Rgba, b: Rgba, t: f32) -> Rgba {
@@ -185,6 +192,8 @@ impl App {
             .iter()
             .filter_map(|s| match &s.kind {
                 Kind::File { asset_id, mime, .. } if mime.starts_with("image/") => Some(asset_id.clone()),
+                // A PDF shows the hub's current page; each page is its own render.
+                Kind::File { asset_id, mime, page } if mime == "application/pdf" => Some(format!("pdf:{asset_id}:{page}")),
                 _ => None,
             })
             .collect();
@@ -195,7 +204,9 @@ impl App {
                 }
             }
         }
-        self.pictures.retain(|id, _| wanted.contains(id));
+        // Keep a PDF's previous page on screen until the new one is ready.
+        let showing: std::collections::HashSet<String> = self.pictures.keys().filter(|k| k.starts_with("pdf:")).cloned().collect();
+        self.pictures.retain(|id, _| wanted.contains(id) || (showing.contains(id) && wanted.iter().any(|w| same_pdf(w, id))));
         self.requested.retain(|id| wanted.contains(id));
         self.room = next;
     }
@@ -227,7 +238,8 @@ impl App {
         let live_state = &self.live_state;
         let text = self.text.as_mut().unwrap();
         let pictures = &self.pictures;
-        let view = View { video: &|id| videos.get(id).is_some_and(Option::is_some), live_state, room: &self.room, status: &self.status, glides: &self.glides, arrivals: &self.arrivals, reduced, loaded: &|id| pictures.contains_key(id), radius_token: self.tokens.radius_window, epoch: self.started };
+        let pdf_shown = |asset: &str| pictures.keys().find(|k| k.strip_prefix("pdf:").is_some_and(|r| r.starts_with(asset))).cloned();
+        let view = View { pdf_pages: &self.pdf_pages, pdf_shown: &pdf_shown, video: &|id| videos.get(id).is_some_and(Option::is_some), live_state, room: &self.room, status: &self.status, glides: &self.glides, arrivals: &self.arrivals, reduced, loaded: &|id| pictures.contains_key(id), radius_token: self.tokens.radius_window, epoch: self.started };
         let (shapes, layers, labels, placed, moving) = match &self.pairing {
             Some((input, message)) => pairing_scene(input, message, text, &theme, w, h),
             None => scene(&view, text, &theme, w, h, now),
@@ -281,6 +293,9 @@ type Frame = (Vec<Shape>, Vec<std::ops::Range<u32>>, Vec<Vec<Label>>, Vec<Option
 
 /// Everything the scene reads, besides text layout and the look.
 struct View<'a> {
+    pdf_pages: &'a HashMap<String, u32>,
+    /// A rendered page of this PDF to show while the current one renders.
+    pdf_shown: &'a dyn Fn(&str) -> Option<String>,
     video: &'a dyn Fn(&str) -> bool,
     live_state: &'a HashMap<String, String>,
     room: &'a Room,
@@ -357,6 +372,17 @@ fn scene(v: &View<'_>, text: &mut Text, theme: &Theme, w: f32, h: f32, now: Inst
             Kind::File { mime, asset_id, .. } if mime.starts_with("image/") && loaded(asset_id) => {
                 picture = Some((asset_id.clone(), [x, y, sw, ch], radius, 1.0));
             }
+            Kind::File { mime, asset_id, page } if mime == "application/pdf" => {
+                // The current page if rendered, otherwise the previous one while it renders.
+                let key = format!("pdf:{asset_id}:{page}");
+                let shown = if loaded(&key) { Some(key) } else { (v.pdf_shown)(asset_id) };
+                match shown {
+                    Some(k) => picture = Some((k, [x, y, sw, ch], radius, 1.0)),
+                    None => {
+                        put(text, "Opening PDF…", 22.0 * scale, 28.0 * scale, 600, Face::Sans, theme.ink_muted, y + ch / 2.0 - 14.0 * scale);
+                    }
+                }
+            }
             Kind::File { mime, .. } => {
                 let kind = if mime.starts_with("image/") { "Image" } else if mime == "application/pdf" { "PDF" } else if mime.starts_with("video/") { "Video" } else { "File" };
                 put(text, kind, 22.0 * scale, 28.0 * scale, 600, Face::Sans, theme.ink_muted, y + ch / 2.0 - 14.0 * scale);
@@ -379,7 +405,15 @@ fn scene(v: &View<'_>, text: &mut Text, theme: &Theme, w: f32, h: f32, now: Inst
             }
         }
         // Ornament: glass capsule under the window with title and owner.
-        let (mut tl, tw, _) = text.label(&s.title, 20.0 * scale, 24.0 * scale, 600, sw * 0.7, Face::Sans, theme.ink);
+        // A PDF's ornament also says which page the room is on.
+        let title = match &s.kind {
+            Kind::File { asset_id, page, .. } => match v.pdf_pages.get(asset_id) {
+                Some(total) => format!("{} · {page} of {total}", s.title),
+                None => s.title.clone(),
+            },
+            _ => s.title.clone(),
+        };
+        let (mut tl, tw, _) = text.label(&title, 20.0 * scale, 24.0 * scale, 600, sw * 0.7, Face::Sans, theme.ink);
         let (mut ol, ow_text, _) = text.label(&s.owner_name, 20.0 * scale, 24.0 * scale, 400, sw * 0.3, Face::Sans, theme.ink_muted);
         let ow = (tw + ow_text + 40.0 * scale).min(sw);
         let (ox, oy) = (x + (sw - ow) / 2.0, y + ch + gap);
@@ -513,6 +547,12 @@ impl ApplicationHandler<RoomEvent> for App {
             RoomEvent::Picture(p) => {
                 if let Some(r) = &self.renderer {
                     let picture = r.upload(p.width, p.height, &p.rgba);
+                    if let (Some(pages), Some(rest)) = (p.pages, p.asset.strip_prefix("pdf:")) {
+                        self.pdf_pages.insert(rest.split(':').next().unwrap_or_default().to_owned(), pages);
+                        // The new page replaces any other page of the same PDF.
+                        let key = p.asset.clone();
+                        self.pictures.retain(|k, _| !same_pdf(k, &key));
+                    }
                     self.pictures.insert(p.asset, picture);
                 }
             }
@@ -604,6 +644,7 @@ fn main() {
         videos: HashMap::new(),
         live_state: HashMap::new(),
         shown: (0, Instant::now()),
+        pdf_pages: HashMap::new(),
     };
     event_loop.run_app(&mut app).expect("Wall event loop");
 }
