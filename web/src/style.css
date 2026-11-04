@@ -1,0 +1,63 @@
+@import '../../design-system/dist/tokens.css';
+@import '../../design-system/components/components.css';
+html, body, #wall, #windows { margin: 0; width: 100%; height: 100%; }
+body { overflow: hidden; }
+#empty { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; padding: var(--bl-space-8); text-align: center; pointer-events: none; }
+#empty h1 { font: var(--bl-wall-heading-weight) var(--bl-wall-heading-size)/var(--bl-wall-heading-line) var(--bl-font-sans); margin: 0; }
+#empty p { color: var(--bl-ink-muted); font-size: var(--bl-wall-label-size); }
+[hidden] { display: none !important; }
+#identity { position: absolute; right: var(--bl-space-6); bottom: var(--bl-space-6); }
+#tools { position: absolute; bottom: var(--bl-space-6); left: 50%; transform: translateX(-50%); transition: opacity var(--bl-dur-fast); }
+#tools[data-idle] { opacity: 0; pointer-events: none; }
+#tools:focus-within { opacity: 1; pointer-events: auto; }
+/* Keep WebKit video composited when paused styling or fullscreen changes layers. */
+.bl-window video { width: 100%; height: 100%; display: block; object-fit: contain; transform: translateZ(0); background: var(--bl-surface-sunken); }
+.bl-window .bl-ornament { touch-action: none; }
+.bl-window[data-editable] .bl-ornament { cursor: grab; }
+.bl-window .bl-live { flex-shrink: 0; }
+.bl-window[data-live="paused"] .bl-live { color: var(--bl-ink-muted); }
+.bl-window .resize { position: absolute; right: 0; bottom: 0; width: var(--bl-space-8); height: var(--bl-space-8); opacity: 0; cursor: nwse-resize; touch-action: none; }
+.bl-window:hover .resize, .bl-window:focus-within .resize { opacity: 1; }
+.bl-window .resize:focus-visible { opacity: 1; }
+#pair-form { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: grid; gap: var(--bl-space-5); padding: var(--bl-space-7); border-radius: var(--bl-radius-window); max-width: 100%; }
+#pair-form h1 { margin: 0; font-size: var(--bl-wall-heading-size); }
+#pair-form input { font: inherit; padding: var(--bl-space-5); color: var(--bl-ink); background: var(--bl-surface); border: 0; border-radius: var(--bl-radius-sm); }
+#pair-form p { color: var(--bl-ink-muted); }
+
+.file-content { display: grid; place-items: center; }
+.file-content img { width: 100%; height: 100%; object-fit: contain; }
+#return-file { padding: var(--bl-space-7); border-radius: var(--bl-radius-window); }
+#return-file form { display: inline; }
+
+.file-content canvas { width: 100%; height: 100%; object-fit: contain; }
+.pdf-controls { position: absolute; bottom: var(--bl-space-3); display: flex; align-items: center; gap: var(--bl-space-3); }
+
+/* Phone throw arrival: real-progress spark, particle vortex, landing ripple. */
+.bl-arrival-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9000; }
+.bl-arrival-hidden { opacity: 0; }
+.bl-incoming { position: absolute; width: 0; height: 0; z-index: 9001; pointer-events: none; transition: opacity var(--bl-dur-fast) var(--bl-ease-standard); }
+.bl-incoming .bl-spark { left: 0; top: 0; }
+.bl-incoming__ring { position: absolute; left: -24px; top: -24px; width: 48px; height: 48px; transform: rotate(-90deg); overflow: visible; }
+.bl-incoming__ring circle { fill: none; stroke: var(--o); stroke-width: 3; stroke-linecap: round; opacity: .8; transition: stroke-dasharray 120ms linear; }
+.bl-incoming__label { position: absolute; top: 36px; left: 0; transform: translateX(-50%); white-space: nowrap; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; padding: var(--bl-space-2) var(--bl-space-4); border-radius: var(--bl-radius-sm); font-size: var(--bl-wall-label-size); }
+.bl-incoming--leaving { opacity: 0; }
+.bl-incoming--failed .bl-spark { animation: none; opacity: .4; }
+.bl-incoming--failed .bl-incoming__ring { display: none; }
+
+/* Link preview card (PRD B42). */
+.link-content { display: flex; flex-direction: column; justify-content: center; gap: var(--bl-space-3); padding: var(--bl-space-7); background: var(--bl-surface); border-top: 4px solid var(--o); }
+.link-site { margin: 0; color: var(--bl-ink-muted); font-size: var(--bl-wall-label-size); }
+.link-title { margin: 0; font: var(--bl-wall-heading-weight) var(--bl-wall-heading-size)/var(--bl-wall-heading-line) var(--bl-font-sans); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.link-description { margin: 0; color: var(--bl-ink-muted); font-size: var(--bl-wall-label-size); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.link-address { margin: 0; font: 500 var(--bl-wall-label-size)/1.3 var(--bl-font-mono); color: var(--bl-accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bl-window[data-preview="pending"] .link-title { color: var(--bl-ink-muted); }
+
+/* Smart layout (PRD B46): windows glide to the hub's arrangement, never while dragged. */
+.bl-window { transition: left var(--bl-dur-slow) var(--bl-ease-glide), top var(--bl-dur-slow) var(--bl-ease-glide), width var(--bl-dur-slow) var(--bl-ease-glide), height var(--bl-dur-slow) var(--bl-ease-glide); }
+.bl-window[data-dragging] { transition: none; }
+@media (prefers-reduced-motion: reduce) { .bl-window { transition: none; } }
+
+/* Thoughts (notes): flat cards, Wall-sized text, owner colour edge. */
+.note-content { display: flex; flex-direction: column; gap: var(--bl-space-4); padding: var(--bl-space-7); background: color-mix(in srgb, var(--o) 7%, var(--bl-surface)); border-left: 6px solid var(--o); overflow: hidden; }
+.note-title { margin: 0; font: var(--bl-wall-heading-weight) var(--bl-wall-heading-size)/var(--bl-wall-heading-line) var(--bl-font-sans); }
+.note-text { margin: 0; font-size: calc(28px * var(--bl-wall-scale)); line-height: 1.35; white-space: pre-wrap; overflow-wrap: anywhere; overflow: hidden; }

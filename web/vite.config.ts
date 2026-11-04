@@ -1,0 +1,2 @@
+import { defineConfig } from 'vite';
+export default defineConfig({ base: '/app/', server: { proxy: { '/api': { target: 'http://127.0.0.1:8444', ws: true } } } });

@@ -1,0 +1,58 @@
+name: Verify Borderless
+on:
+  push:
+    branches: [main, 'feat/**']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run verify
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: borderless-source
+          path: dist/
+          retention-days: 14
+  mac-desktop:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      BORDERLESS_QA_ICE_MODE: unicast
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            desktop/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run desktop:install
+      - run: npm run desktop:smoke
+      - run: npm --prefix desktop run package -- --mac --dir --publish never
+      - name: Inspect and launch the packaged application
+        shell: bash
+        run: |
+          app_path=$(find release -name Borderless.app -maxdepth 3 -print -quit)
+          test -n "$app_path"
+          node desktop/verify-package.mjs "$app_path/Contents/Resources/app.asar"
+          npm --prefix desktop run smoke -- "$PWD/$app_path/Contents/MacOS/Borderless"
+      - uses: actions/upload-artifact@v7.0.2
+        if: always()
+        with:
+          name: borderless-mac-acceptance
+          path: |
+            output/playwright/
+            output/playwright-packaged/
+          retention-days: 7

@@ -1,0 +1,33 @@
+name: Build unsigned desktop review packages
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            desktop/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run verify
+      - run: npm run desktop:install
+      - run: npm --prefix desktop run package -- --publish never
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: borderless-unsigned-${{ matrix.os }}
+          path: release/
+          retention-days: 14

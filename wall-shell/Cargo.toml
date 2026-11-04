@@ -1,0 +1,16 @@
+[package]
+name = "borderless-wall"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+publish = false
+
+[build-dependencies]
+tauri-build = "=2.6.3"
+
+[dependencies]
+tauri = "=2.11.6"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

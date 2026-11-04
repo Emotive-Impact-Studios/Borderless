@@ -1,0 +1,31 @@
+.screen-page { min-width: 0; overflow: hidden; }
+.screen-shell { display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100dvh; background: var(--surface); color: var(--ink); }
+.screen-header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; padding: 10px 16px; background: var(--surface); }
+.screen-identity { flex: 1; min-width: 120px; }
+.screen-identity h1 { font-size: 14px; line-height: 1.4; letter-spacing: -.02em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: min(62vw, 64ch); }
+.screen-identity p { font-size: 12px; line-height: 1.5; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: min(62vw, 70ch); }
+#screen-status { color: var(--muted); font-size: 12px; flex-shrink: 0; }
+#screen-status[data-live="true"] { color: var(--strong); }
+.screen-controls { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.screen-controls .btn { min-height: 34px; font-size: 12px; padding: 8px 10px; }
+.screen-controls .icon-btn { width: 34px; height: 34px; }
+.screen-media { min-width: 0; min-height: 0; position: relative; background: #101513; }
+#screen-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.screen-state { position: absolute; inset: 0; display: grid; place-items: center; overflow: auto; padding: 32px 24px; background: var(--bg); text-align: center; }
+.screen-state > div { width: min(100%, 54ch); }
+.screen-state h2 { font-size: clamp(20px, 3vw, 28px); line-height: 1.25; letter-spacing: -.025em; text-wrap: balance; }
+.screen-state p { font-size: 14px; line-height: 1.65; margin: 14px 0 0; color: var(--muted); overflow-wrap: anywhere; }
+.screen-state-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+.screen-state #screen-error { color: var(--danger); }
+.screen-page ::selection { background: var(--accent); color: var(--accent-ink); }
+.screen-state { scrollbar-width: thin; scrollbar-color: var(--muted) var(--bg); }
+@media (max-width: 600px) {
+  .screen-header { padding: 10px 12px; gap: 8px; }
+  .screen-identity { flex-basis: 65%; }
+  .screen-identity h1, .screen-identity p { max-width: 65vw; }
+  .screen-controls { width: 100%; justify-content: flex-end; }
+  .screen-state { padding: 24px 18px; }
+}
+@media (pointer: coarse) {
+  .screen-controls .btn, .screen-controls .icon-btn { min-width: 44px; min-height: 44px; }
+}

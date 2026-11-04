@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en-GB">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Borderless · Wall</title></head>
+<body class="bl" data-bl-theme="whiteboard">
+  <main id="wall" class="bl-wall bl-wall--grid" aria-label="Shared Wall">
+    <div id="empty"><h1>Room for everyone's work.</h1><p id="status" role="status">Connecting to the room…</p></div>
+    <div id="windows"></div>
+    <form id="pair-form" class="bl-glass" hidden>
+      <h1>Open your Wall</h1>
+      <label for="wall-link">Wall invitation link</label>
+      <input id="wall-link" type="url" required autocomplete="off" placeholder="Paste the link from your room leader">
+      <button class="bl-button bl-button--primary" type="submit">Open Wall</button>
+      <p id="pair-status" role="status">Use the one-use Wall invitation from your room.</p>
+    </form>
+    <dialog class="bl-glass" id="return-file" aria-labelledby="return-title">
+      <h2 id="return-title">Send back</h2>
+      <label>Recipient <select id="return-device"></select></label>
+      <p id="return-status" role="status"></p>
+      <button class="bl-button" id="return-send" type="button">Send file</button>
+      <form method="dialog"><button class="bl-button bl-button--small">Close</button></form>
+    </dialog>
+    <aside class="bl-join bl-glass" id="identity"><span><b id="room-name">Borderless</b><span id="connection">Connecting</span></span></aside>
+    <nav class="bl-toolbar bl-glass" id="tools" aria-label="Wall tools">
+      <span id="layouts" class="bl-segmented" role="group" aria-label="Arrange the Wall" hidden>
+        <button type="button" data-layout="auto" aria-pressed="false">Auto</button>
+        <button type="button" data-layout="side" aria-pressed="false">Side by side</button>
+        <button type="button" data-layout="stack" aria-pressed="false">Stack by person</button>
+        <button type="button" data-layout="focus" aria-pressed="false">Focus</button>
+        <button type="button" data-layout="free" aria-pressed="false">Free</button>
+        </span>
+      <button class="bl-button bl-button--small" data-layout="undo" id="layout-undo" hidden>Undo</button>
+      <button class="bl-button bl-button--small" id="fullscreen">Full screen</button></nav>
+  </main>
+  <script type="module" src="/src/main.ts"></script>
+</body></html>

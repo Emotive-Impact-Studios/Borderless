@@ -1,0 +1,17 @@
+{
+  "name": "borderless-desktop-tooling",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "electron ..",
+    "smoke": "node smoke.mjs",
+    "icon": "node make-icon.mjs",
+    "package": "node build.mjs"
+  },
+  "devDependencies": {
+    "electron": "45.2.1",
+    "electron-builder": "26.18.0",
+    "playwright": "1.64.1"
+  }
+}

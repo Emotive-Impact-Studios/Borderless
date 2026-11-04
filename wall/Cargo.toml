@@ -1,0 +1,44 @@
+[package]
+name = "borderless-wall"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+publish = false
+license = "UNLICENSED"
+
+[dependencies]
+arboard = { version = "3", default-features = false }
+env_logger = "0.11"
+futures-util = "0.3"
+glyphon = "0.9"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
+livekit = { version = "0.10", default-features = false, features = ["native", "rustls-tls-native-roots"] }
+log = "0.4"
+pdfium-render = { version = "0.9", default-features = false, features = ["pdfium_latest", "thread_safe"] }
+png = "0.17"
+pollster = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync"] }
+tungstenite = { version = "0.26", features = ["rustls-tls-native-roots"] }
+ureq = { version = "3", features = ["rustls", "platform-verifier"] }
+url = "2"
+wgpu = "25"
+winit = "0.30"
+
+# Keep builds small on machines with little free disk: no debug info,
+# no incremental caches, stripped release binaries.
+[profile.dev]
+debug = 0
+incremental = false
+
+[profile.release]
+incremental = false
+strip = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-av-foundation = { version = "0.3", features = ["AVPlayer", "AVPlayerItem", "AVPlayerItemOutput", "AVAsset", "objc2-core-media", "objc2-core-video"] }
+objc2-core-media = { version = "0.3", features = ["CMTime", "CMSync"] }
+objc2-core-video = { version = "0.3", features = ["CVPixelBuffer", "CVImageBuffer", "CVBuffer", "CVReturn"] }
+objc2-foundation = { version = "0.3", features = ["NSURL", "NSString", "NSDictionary", "NSValue", "NSObject"] }
