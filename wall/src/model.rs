@@ -24,6 +24,8 @@ pub struct Surface {
 
 #[derive(Clone, Debug, Default)]
 pub struct Room {
+    /// This Wall's CSRF token for room commands (media grants).
+    pub csrf: String,
     pub name: String,
     pub ended: bool,
     pub theme: Option<String>,
@@ -58,6 +60,7 @@ pub fn parse(room_id: &str, value: &Value) -> Result<Room, &'static str> {
         name: s(value, "name").ok_or("Room state has no name.")?,
         ended: value.get("ended").and_then(Value::as_bool).ok_or("Room state is incomplete.")?,
         theme: s(value, "theme"),
+        csrf: value.get("me").and_then(|m| s(m, "csrf")).unwrap_or_default(),
         surfaces: Vec::new(),
     };
     let streams = value.get("streams").and_then(Value::as_array).ok_or("Room state is incomplete.")?;

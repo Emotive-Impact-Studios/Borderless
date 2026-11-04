@@ -1,3 +1,10 @@
 [resolver]
 # Pick dependency versions that build with the pinned toolchain.
 incompatible-rust-versions = "fallback"
+
+# libwebrtc's Objective-C categories (VideoToolbox codecs) must be linked on macOS.
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-args=-ObjC"]
+
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "link-args=-ObjC"]

@@ -21,8 +21,55 @@ impl std::fmt::Debug for Picture {
     }
 }
 
+/// The Wall's authenticated session, shared with the media connections.
+pub struct Session {
+    agent: ureq::Agent,
+    target: Target,
+    cookie: String,
+}
+
+impl std::fmt::Debug for Session {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Session({})", self.target.room)
+    }
+}
+
+impl Session {
+    /// Asks the hub for a view-only grant to one live window.
+    pub fn media_grant(&self, stream: &str, csrf: &str) -> Result<crate::media::Grant, String> {
+        let mut response = self
+            .agent
+            .post(&format!("{}/api/rooms/{}/streams/{}/media", self.target.base, self.target.room, stream))
+            .header("Cookie", &self.cookie)
+            .header("X-Borderless-CSRF", csrf)
+            .header("Content-Type", "application/json")
+            .send(b"{}".as_slice())
+            .map_err(|_| "Media unavailable".to_string())?;
+        if !response.status().is_success() {
+            return Err(format!("Media unavailable ({})", response.status().as_u16()));
+        }
+        let text = response.body_mut().with_config().limit(64 * 1024).read_to_string().map_err(|_| "Media unavailable".to_string())?;
+        let v: Value = serde_json::from_str(&text).map_err(|_| "Media unavailable".to_string())?;
+        if v.get("publisher").and_then(Value::as_bool) != Some(false) {
+            return Err("View this window from a separate Wall session.".into());
+        }
+        let url = v.get("url").and_then(Value::as_str).ok_or("Media unavailable")?;
+        let token = v.get("token").and_then(Value::as_str).ok_or("Media unavailable")?;
+        let parsed = url::Url::parse(url).map_err(|_| "Invalid media address.".to_string())?;
+        let host = parsed.host_str().unwrap_or("");
+        if !(parsed.scheme() == "wss" || (parsed.scheme() == "ws" && loopback(host))) || !parsed.username().is_empty() || parsed.password().is_some() {
+            return Err("Trusted media transport is required.".into());
+        }
+        Ok(crate::media::Grant { url: url.to_owned(), token: token.to_owned() })
+    }
+}
+
 #[derive(Debug)]
 pub enum RoomEvent {
+    /// The session is ready; live windows can now ask for media grants.
+    Session(Arc<Session>),
+    /// A live window has a new frame waiting.
+    Frame,
     /// A decoded room image, at most 2048 px on its longest side.
     Picture(Picture),
     State(Room),
@@ -196,6 +243,7 @@ pub fn run(t: Target, send: impl Fn(RoomEvent) + Send + Sync + 'static) -> mpsc:
             },
         };
         pictures(agent.clone(), t.clone(), cookie.clone(), requests, send.clone());
+        send(RoomEvent::Session(Arc::new(Session { agent: agent.clone(), target: t.clone(), cookie: cookie.clone() })));
         loop {
             match state(&agent, &t, &cookie) {
                 Ok(v) => match model::parse(&t.room, &v) {

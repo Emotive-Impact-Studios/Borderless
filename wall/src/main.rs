@@ -1,6 +1,7 @@
 //! Borderless native Wall (milestone 2N). A full-screen wgpu renderer that
 //! follows the hub's room state. It has no authority of its own.
 mod arrival;
+mod media;
 mod model;
 mod render;
 mod room;
@@ -71,6 +72,13 @@ struct App {
     /// On-screen pairing: the pasted invitation and any message.
     pairing: Option<(String, String)>,
     command_key: bool,
+    media: media::Media,
+    session: Option<Arc<room::Session>>,
+    /// Each live window's newest frame on the GPU, and its connection state.
+    videos: HashMap<String, Option<render::Video>>,
+    live_state: HashMap<String, String>,
+    /// Live frames shown since the last rate report (logged at info level).
+    shown: (u32, Instant),
 }
 
 fn mix(a: Rgba, b: Rgba, t: f32) -> Rgba {
@@ -136,6 +144,19 @@ impl App {
         }
     }
 
+    /// Keeps one media connection per live window the Wall may show.
+    fn sync_media(&mut self) {
+        let Some(session) = self.session.clone() else { return };
+        let ids: Vec<String> = self.room.surfaces.iter().filter(|s| matches!(s.kind, Kind::Live)).map(|s| s.id.clone()).collect();
+        let csrf = self.room.csrf.clone();
+        let proxy = self.proxy.clone();
+        self.media.sync(&ids, Arc::new(move |id| session.media_grant(id, &csrf)), Arc::new(move || {
+            let _ = proxy.send_event(RoomEvent::Frame);
+        }));
+        self.videos.retain(|id, _| ids.contains(id));
+        self.live_state.retain(|id, _| ids.contains(id));
+    }
+
     fn apply(&mut self, next: Room) {
         let now = Instant::now();
         let reduced = std::env::var_os("BORDERLESS_REDUCED_MOTION").is_some();
@@ -189,9 +210,24 @@ impl App {
         };
         let reduced = std::env::var_os("BORDERLESS_REDUCED_MOTION").is_some();
         let effects = self.arrivals.tidy(now, reduced);
+        // Upload only the newest frame of each live window; older ones were superseded.
+        for s in self.room.surfaces.iter().filter(|s| matches!(s.kind, Kind::Live)) {
+            let Some(slot) = self.media.slot(&s.id) else { continue };
+            let (frame, state) = {
+                let mut slot = slot.lock().unwrap();
+                (slot.frame.take(), slot.state.clone())
+            };
+            self.live_state.insert(s.id.clone(), state);
+            if let (Some(frame), Some(renderer)) = (frame, &self.renderer) {
+                renderer.video_frame(self.videos.entry(s.id.clone()).or_insert(None), &frame);
+                self.shown.0 += 1;
+            }
+        }
+        let videos = &self.videos;
+        let live_state = &self.live_state;
         let text = self.text.as_mut().unwrap();
         let pictures = &self.pictures;
-        let view = View { room: &self.room, status: &self.status, glides: &self.glides, arrivals: &self.arrivals, reduced, loaded: &|id| pictures.contains_key(id), radius_token: self.tokens.radius_window, epoch: self.started };
+        let view = View { video: &|id| videos.get(id).is_some_and(Option::is_some), live_state, room: &self.room, status: &self.status, glides: &self.glides, arrivals: &self.arrivals, reduced, loaded: &|id| pictures.contains_key(id), radius_token: self.tokens.radius_window, epoch: self.started };
         let (shapes, layers, labels, placed, moving) = match &self.pairing {
             Some((input, message)) => pairing_scene(input, message, text, &theme, w, h),
             None => scene(&view, text, &theme, w, h, now),
@@ -199,22 +235,40 @@ impl App {
         let animating = moving || effects;
         let renderer = self.renderer.as_mut().unwrap();
         text.prepare(&renderer.queue, w as u32, h as u32, &labels);
+        // Live windows are marked "video:<id>" in the scene's per-layer media.
         let layer_pictures: Vec<Option<&render::Picture>> = placed
             .iter()
             .map(|p| {
-                p.as_ref().and_then(|(id, clip, radius, opacity)| {
+                p.as_ref().filter(|(id, ..)| !id.starts_with("video:")).and_then(|(id, clip, radius, opacity)| {
                     let picture = self.pictures.get(id)?;
                     renderer.place(picture, *clip, *radius, *opacity);
                     Some(picture)
                 })
             })
             .collect();
+        let layer_videos: Vec<Option<&render::Video>> = placed
+            .iter()
+            .map(|p| {
+                p.as_ref().and_then(|(id, clip, radius, opacity)| {
+                    let video = self.videos.get(id.strip_prefix("video:")?)?.as_ref()?;
+                    renderer.place_video(video, *clip, *radius, *opacity);
+                    Some(video)
+                })
+            })
+            .collect();
         let globals = Globals { size: [w, h], scale: h / 1080.0, time: now.duration_since(self.started).as_secs_f32(), wall: theme.wall, wash_a: theme.wash_a, wash_b: theme.wash_b, grid: theme.grid };
         let text_ref = &*text;
-        if let Err(e) = renderer.frame(globals, &shapes, &layers, &layer_pictures, !animating, &mut |i, pass| text_ref.render(i, pass)) {
+        if let Err(e) = renderer.frame(globals, &shapes, &layers, &layer_pictures, &layer_videos, !animating, &mut |i, pass| text_ref.render(i, pass)) {
             log::warn!("Frame skipped: {e}");
         }
         text.trim();
+        let elapsed = self.shown.1.elapsed().as_secs_f32();
+        if elapsed >= 5.0 {
+            if self.shown.0 > 0 {
+                log::info!("Live frames shown: {:.1} per second", self.shown.0 as f32 / elapsed);
+            }
+            self.shown = (0, Instant::now());
+        }
         if animating {
             window.request_redraw();
         }
@@ -227,6 +281,8 @@ type Frame = (Vec<Shape>, Vec<std::ops::Range<u32>>, Vec<Vec<Label>>, Vec<Option
 
 /// Everything the scene reads, besides text layout and the look.
 struct View<'a> {
+    video: &'a dyn Fn(&str) -> bool,
+    live_state: &'a HashMap<String, String>,
     room: &'a Room,
     status: &'a str,
     glides: &'a HashMap<String, Glide>,
@@ -306,7 +362,20 @@ fn scene(v: &View<'_>, text: &mut Text, theme: &Theme, w: f32, h: f32, now: Inst
                 put(text, kind, 22.0 * scale, 28.0 * scale, 600, Face::Sans, theme.ink_muted, y + ch / 2.0 - 14.0 * scale);
             }
             Kind::Live => {
-                put(text, "Connecting live window…", 22.0 * scale, 28.0 * scale, 600, Face::Sans, theme.ink_muted, y + ch / 2.0 - 14.0 * scale);
+                let state = v.live_state.get(&s.id).map(String::as_str).unwrap_or("Connecting");
+                if (v.video)(&s.id) {
+                    picture = Some((format!("video:{}", s.id), [x, y, sw, ch], radius, 1.0));
+                }
+                if state != "Live" {
+                    // Paused, reconnecting or waiting: say so over the last frame.
+                    let (mut l, lw, _) = text.label(state, 22.0 * scale, 28.0 * scale, 600, inner, Face::Sans, theme.ink);
+                    let pill = [x + (sw - lw) / 2.0 - 16.0 * scale, y + ch / 2.0 - 22.0 * scale, lw + 32.0 * scale, 44.0 * scale];
+                    shapes.push(Shape { rect: pill, fill: glass, ring: glass_edge, params: [22.0 * scale, 1.0, 0.0, 0.0] });
+                    l.left = pill[0] + 16.0 * scale;
+                    l.top = pill[1] + 8.0 * scale;
+                    l.bounds = clip;
+                    labels.push(l);
+                }
             }
         }
         // Ornament: glass capsule under the window with title and owner.
@@ -438,6 +507,7 @@ impl ApplicationHandler<RoomEvent> for App {
                 } else {
                     self.apply(room);
                 }
+                self.sync_media();
             }
             RoomEvent::Status(s) => self.status = s,
             RoomEvent::Picture(p) => {
@@ -447,6 +517,11 @@ impl ApplicationHandler<RoomEvent> for App {
                 }
             }
             RoomEvent::Live(message) => self.arrivals.event(&message, Instant::now()),
+            RoomEvent::Session(session) => {
+                self.session = Some(session);
+                self.sync_media();
+            }
+            RoomEvent::Frame => {}
         }
         if let Some(w) = &self.window {
             w.request_redraw();
@@ -524,6 +599,11 @@ fn main() {
         loaded: false,
         pairing: None,
         command_key: false,
+        media: media::Media::new(),
+        session: None,
+        videos: HashMap::new(),
+        live_state: HashMap::new(),
+        shown: (0, Instant::now()),
     };
     event_loop.run_app(&mut app).expect("Wall event loop");
 }

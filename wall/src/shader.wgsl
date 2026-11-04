@@ -126,3 +126,21 @@ struct ImageOut { @builtin(position) pos: vec4<f32>, @location(0) uv: vec2<f32>,
   let c = textureSample(picture, picture_sampler, in.uv);
   return vec4<f32>(c.rgb * c.a * a, c.a * a);
 }
+
+// Live windows: I420 planes from the decoder, converted to colour here
+// (BT.709, limited range), letterboxed and clipped like room images.
+@group(1) @binding(1) var plane_y: texture_2d<f32>;
+@group(1) @binding(2) var plane_u: texture_2d<f32>;
+@group(1) @binding(3) var plane_v: texture_2d<f32>;
+@group(1) @binding(4) var plane_sampler: sampler;
+
+@fragment fn video_fs(in: ImageOut) -> @location(0) vec4<f32> {
+  let extent = place.clip.zw * 0.5;
+  let d = rounded(in.px - (place.clip.xy + extent), extent, min(place.params.x, min(extent.x, extent.y)));
+  let a = (1.0 - smoothstep(-0.75, 0.75, d)) * place.params.y;
+  let y = (textureSample(plane_y, plane_sampler, in.uv).r - 16.0 / 255.0) * (255.0 / 219.0);
+  let u = (textureSample(plane_u, plane_sampler, in.uv).r - 128.0 / 255.0) * (255.0 / 224.0);
+  let v = (textureSample(plane_v, plane_sampler, in.uv).r - 128.0 / 255.0) * (255.0 / 224.0);
+  let rgb = clamp(vec3<f32>(y + 1.5748 * v, y - 0.1873 * u - 0.4681 * v, y + 1.8556 * u), vec3<f32>(0.0), vec3<f32>(1.0));
+  return vec4<f32>(rgb * a, a);
+}

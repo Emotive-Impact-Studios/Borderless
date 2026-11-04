@@ -47,6 +47,17 @@ pub struct Renderer {
     captured: u32,
     image_layout: wgpu::BindGroupLayout,
     sampler: wgpu::Sampler,
+    video: wgpu::RenderPipeline,
+    video_layout: wgpu::BindGroupLayout,
+}
+
+/// A live window's latest frame on the GPU as Y, U and V planes.
+pub struct Video {
+    planes: [wgpu::Texture; 3],
+    bind: wgpu::BindGroup,
+    placement: wgpu::Buffer,
+    pub width: u32,
+    pub height: u32,
 }
 
 /// A room image on the GPU, with its own placement uniform.
@@ -140,9 +151,32 @@ impl Renderer {
             multiview: None,
             cache: None,
         });
+        let plane = |binding| wgpu::BindGroupLayoutEntry { binding, visibility: wgpu::ShaderStages::FRAGMENT, ty: wgpu::BindingType::Texture { sample_type: wgpu::TextureSampleType::Float { filterable: true }, view_dimension: wgpu::TextureViewDimension::D2, multisampled: false }, count: None };
+        let video_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("video"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry { binding: 0, visibility: wgpu::ShaderStages::VERTEX_FRAGMENT, ty: wgpu::BindingType::Buffer { ty: wgpu::BufferBindingType::Uniform, has_dynamic_offset: false, min_binding_size: None }, count: None },
+                plane(1),
+                plane(2),
+                plane(3),
+                wgpu::BindGroupLayoutEntry { binding: 4, visibility: wgpu::ShaderStages::FRAGMENT, ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering), count: None },
+            ],
+        });
+        let video_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor { label: None, bind_group_layouts: &[&layout, &video_layout], push_constant_ranges: &[] });
+        let video = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("video"),
+            layout: Some(&video_pipeline_layout),
+            vertex: wgpu::VertexState { module: &module, entry_point: Some("image_vs"), buffers: &[], compilation_options: Default::default() },
+            fragment: Some(wgpu::FragmentState { module: &module, entry_point: Some("video_fs"), targets: &target, compilation_options: Default::default() }),
+            primitive: wgpu::PrimitiveState { topology: wgpu::PrimitiveTopology::TriangleStrip, ..Default::default() },
+            depth_stencil: None,
+            multisample: Default::default(),
+            multiview: None,
+            cache: None,
+        });
         let capacity = 1024;
         let instances = device.create_buffer(&wgpu::BufferDescriptor { label: Some("shapes"), size: (capacity * std::mem::size_of::<Shape>()) as u64, usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
-        Ok(Self { device, queue, surface, config, globals, bind, background, shapes, instances, capacity, images, last_capture: std::time::Instant::now(), captured: 0, image_layout, sampler })
+        Ok(Self { device, queue, surface, config, globals, bind, background, shapes, instances, capacity, images, last_capture: std::time::Instant::now(), captured: 0, image_layout, sampler, video, video_layout })
     }
 
     /// Uploads a decoded sRGB image. Sampled as stored, matching the
@@ -165,6 +199,43 @@ impl Renderer {
         Picture { bind, placement, width, height }
     }
 
+    /// Creates or refreshes a live window's planes from a decoded I420 frame.
+    pub fn video_frame(&self, slot: &mut Option<Video>, frame: &crate::media::Frame) {
+        let (cw, ch) = (frame.width.div_ceil(2), frame.height.div_ceil(2));
+        if slot.as_ref().is_none_or(|v| v.width != frame.width || v.height != frame.height) {
+            let make = |w: u32, h: u32| {
+                self.device.create_texture(&wgpu::TextureDescriptor { label: Some("plane"), size: wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 }, mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2, format: wgpu::TextureFormat::R8Unorm, usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST, view_formats: &[] })
+            };
+            let planes = [make(frame.width, frame.height), make(cw, ch), make(cw, ch)];
+            let placement = self.device.create_buffer(&wgpu::BufferDescriptor { label: Some("placement"), size: 48, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
+            let views: Vec<wgpu::TextureView> = planes.iter().map(|t| t.create_view(&Default::default())).collect();
+            let bind = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("video"),
+                layout: &self.video_layout,
+                entries: &[
+                    wgpu::BindGroupEntry { binding: 0, resource: placement.as_entire_binding() },
+                    wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::TextureView(&views[0]) },
+                    wgpu::BindGroupEntry { binding: 2, resource: wgpu::BindingResource::TextureView(&views[1]) },
+                    wgpu::BindGroupEntry { binding: 3, resource: wgpu::BindingResource::TextureView(&views[2]) },
+                    wgpu::BindGroupEntry { binding: 4, resource: wgpu::BindingResource::Sampler(&self.sampler) },
+                ],
+            });
+            *slot = Some(Video { planes, bind, placement, width: frame.width, height: frame.height });
+        }
+        let video = slot.as_ref().unwrap();
+        for (texture, (data, w, h)) in video.planes.iter().zip([(&frame.y, frame.width, frame.height), (&frame.u, cw, ch), (&frame.v, cw, ch)]) {
+            self.queue.write_texture(texture.as_image_copy(), data, wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(w), rows_per_image: Some(h) }, wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 });
+        }
+    }
+
+    pub fn place_video(&self, video: &Video, clip: [f32; 4], radius: f32, opacity: f32) {
+        let scale = (clip[2] / video.width as f32).min(clip[3] / video.height as f32);
+        let (w, h) = (video.width as f32 * scale, video.height as f32 * scale);
+        let dest = [clip[0] + (clip[2] - w) / 2.0, clip[1] + (clip[3] - h) / 2.0, w, h];
+        let data: [f32; 12] = [dest[0], dest[1], dest[2], dest[3], clip[0], clip[1], clip[2], clip[3], radius, opacity, 0.0, 0.0];
+        self.queue.write_buffer(&video.placement, 0, bytes(&data));
+    }
+
     /// Fits the picture inside `clip` (letterboxed) and records where it goes this frame.
     pub fn place(&self, picture: &Picture, clip: [f32; 4], radius: f32, opacity: f32) {
         let scale = (clip[2] / picture.width as f32).min(clip[3] / picture.height as f32);
@@ -184,7 +255,8 @@ impl Renderer {
     /// shapes; `between` is called after each shape layer so text and
     /// textures can be drawn in the same pass in z order.
     /// `layers` are ranges of `shapes`; after each layer `overlay(i)` draws that layer's text.
-    pub fn frame(&mut self, globals: Globals, shapes: &[Shape], layers: &[std::ops::Range<u32>], pictures: &[Option<&Picture>], capture: bool, overlay: &mut dyn FnMut(usize, &mut wgpu::RenderPass<'_>)) -> Result<(), wgpu::SurfaceError> {
+    #[allow(clippy::too_many_arguments)]
+    pub fn frame(&mut self, globals: Globals, shapes: &[Shape], layers: &[std::ops::Range<u32>], pictures: &[Option<&Picture>], videos: &[Option<&Video>], capture: bool, overlay: &mut dyn FnMut(usize, &mut wgpu::RenderPass<'_>)) -> Result<(), wgpu::SurfaceError> {
         let output = match self.surface.get_current_texture() {
             Ok(t) => t,
             Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
@@ -220,6 +292,12 @@ impl Renderer {
                     pass.set_bind_group(0, &self.bind, &[]);
                     pass.set_vertex_buffer(0, self.instances.slice(..));
                     pass.draw(0..4, range.clone());
+                }
+                if let Some(Some(video)) = videos.get(i) {
+                    pass.set_pipeline(&self.video);
+                    pass.set_bind_group(0, &self.bind, &[]);
+                    pass.set_bind_group(1, &video.bind, &[]);
+                    pass.draw(0..4, 0..1);
                 }
                 if let Some(Some(picture)) = pictures.get(i) {
                     pass.set_pipeline(&self.images);
