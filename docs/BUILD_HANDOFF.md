@@ -4,6 +4,12 @@
 
 Read VISION.md first, then PRODUCT.md and DESIGN.md, then README, PRD, CAPABILITIES, ARCHITECTURE and DELIVERY. The original conversation is preserved in `docs/source/` and checked against SHA-256. The repository began with only a README at main commit `7b773ca855f0438bdd6e5f08d4e71b556037fd50`.
 
+## Milestone 1 · second-monitor flow accepted · 4 November 2026
+
+The user selected “I saw it and accept that flow” when asked about live updates, continued playback through move or resize, and prompt disappearance on Stop. This records acceptance of the live Mac-to-Wall interaction on the attached second monitor. Cross-machine playback, sustained 60 fps and physical glass-to-glass timing remain separate open checks. The user is working. Keep testing in the background or on monitor two.
+
+The next integration for milestone 2 is to render a phone's uploaded photo in the shared TypeScript Wall. The existing Portal has a file-send gesture and the hub stores the asset, but the Tauri Wall currently renders only live streams. Follow the same authoritative asset through send-back to one phone.
+
 ## Milestone 1 · Ethernet ICE and DTLS · 4 November 2026
 
 An independent headless WebRTC subscriber joined a disposable room through the trusted LAN signalling configuration. The SFU offered its Ethernet IPv4 address on UDP 17882 and TCP 17881. The subscriber negotiated ICE and DTLS and opened the LiveKit reliable and lossy SCTP data channels. Hub Stop closed the signalling session. Both endpoints ran on this Mac. This check used no screen capture and opened no windows. CODEX_BRIEF permits the Wall on another screen or machine. The verified second-display run can therefore be used for user review on this Mac. A separate computer is needed specifically to verify physical network traversal. User review and physical glass-to-glass measurement remain open. The commissioning ports were closed after the check.

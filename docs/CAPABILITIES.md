@@ -1,5 +1,7 @@
 # Capability and verification matrix
 
+On 4 November 2026 the user accepted the live Mac window flow on the second monitor, including updates, movement or resizing, and Stop. Cross-machine playback and physical latency remain open.
+
 Updated 3 November 2026. “Implemented” means the source exists and is connected to the application. “Integration tested” means automated HTTP/WebSocket/storage tests exercised the behaviour. Neither implies a successful physical-device or native-installer test.
 
 | Capability | Implementation | Evidence / remaining gate |

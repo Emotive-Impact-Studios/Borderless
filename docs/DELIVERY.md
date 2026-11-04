@@ -1,5 +1,7 @@
 # Complete delivery plan
 
+On 4 November 2026 the user accepted the live Mac window flow on the second monitor, including updates, movement or resizing, and Stop. Cross-machine playback and physical latency remain open.
+
 The product scope remains the full Borderless platform. This register distinguishes executable alpha work from the native and enterprise work still needed. It is the queue for the next builder, not a claim that platform-specific features have shipped.
 
 ## Current milestone gate
