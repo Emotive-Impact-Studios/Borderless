@@ -37,9 +37,22 @@ The user accepted all four recommendations: "yes whatever just make sure it work
 | Phone apps | React Native (Expo), after the core moments; the web Portal stays |
 | Mac window over the edge | `CGVirtualDisplay` (as DeskPad), isolated behind one interface, with a physical adapter documented for locked-down rooms |
 
+## Decided by the user on 4 November 2026: a native Rust Wall
+
+The user's words: "also move from taui ... if the best is rust which is waht ive been askinf for all along... more work isnt a problem... we want the best out here so lets get building".
+
+| Decision | Choice |
+| --- | --- |
+| Wall | A native renderer in Rust with `wgpu` (Metal on Mac, Direct3D 12 on Windows, Vulkan on Linux) replaces the Tauri shell. Live video is decoded in hardware straight to GPU textures (VideoToolbox on Mac, Media Foundation with D3D11 on Windows, VA-API on Linux). The arrival vortex, dissolve and edge glow are GPU effects in the renderer. Runs on Mac, Windows and Linux. |
+| Console and Portal | Stay as the shared TypeScript front end in a browser. |
+| Agents | Unchanged: Swift on Mac, Rust on Windows with the C++ display driver (the coordinator relayed "C#" for Windows; the approved 3 November stack is Rust and stays unless the user says otherwise). |
+| Hub | Unchanged: Node now, Rust at milestone 7. Same room protocol for every client. |
+
+The Tauri shell (`wall-shell/`) and the browser Wall (`web/` at `/app/wall/`) keep working until the native Wall reaches parity on the accepted milestones, then retire.
+
 The user also asked that the **mission control room** be a full intention, not an afterthought. It is now in VISION.md and is milestone 6b in CODEX_BRIEF.md.
 
 ## Practical state
 
-- Local commits on `feat/borderless-platform` could not be pushed from Claude's session because of a permission rule; the user needs to run `git push` in the Borderless folder.
-- The real capture test (share a blank TextEdit window in the Borderless Native app and report the Diagnostics line) is still outstanding.
+- Local commits on `feat/borderless-platform` cannot be pushed from Claude's session until the user allows `git push` in Claude Code's permissions, or pushes themselves.
+- Real capture (milestone 0) and the live Mac window on the Wall (milestone 1) are accepted. Milestone 2 awaits the physical phone review.

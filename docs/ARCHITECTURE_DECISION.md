@@ -2,6 +2,8 @@
 
 **Approved by the user on 3 November 2026** ("yes whatever just make sure it works as intended"), with option 1, React Native for the phone apps and `CGVirtualDisplay` for the Mac. This is now the agreed stack; CODEX_BRIEF.md section 3 is the build reference.
 
+> **Amended by the user on 4 November 2026:** the Wall is a native Rust renderer (`wgpu`, hardware video decoding straight to GPU textures, native effects) instead of the TypeScript front end in a Tauri shell. The Console and Portal stay in the shared TypeScript front end. Reason: the Wall is the showpiece (4K live video, arrival effects, multi-panel walls running for weeks) and a web page adds a layer between the video and the screen. See DECISIONS.md. Where this page still says Tauri for the Wall, the amendment wins.
+
 ## The answer
 
 Build Borderless as **native agents on each computer, one Rust engine and hub, a proven real-time media layer, and one shared front end for the Wall, Console and Portal.**
@@ -13,7 +15,8 @@ Build Borderless as **native agents on each computer, one Rust engine and hub, a
 | **Engine** | Geometry, edge handoff, input leases, room protocol, shared by both agents | Rust (already started) |
 | **Live media** | Moves live video and audio between devices with low latency, to one viewer or thirty | LiveKit, self-hosted in the room (built on Google's WebRTC engine) |
 | **Hub** | The single authority: rooms, people, permissions, files, audit; issues media permissions | Rust |
-| **Wall, Console, Portal** | Everything people see: the big screen, the leader's controls, the phone | One TypeScript front end. Effects in WebGL/WebGPU, PDFs with pdf.js, hardware video decoding. The Wall runs full-screen in a small native shell (Tauri, written in Rust) |
+| **Wall** | The big screen: live windows, files, effects, multi-panel output | Native Rust renderer on `wgpu`, hardware video decode to GPU textures, GPU effects (amended 4 November 2026) |
+| **Console, Portal** | The leader's controls, the phone | One TypeScript front end in the browser |
 
 In short: **native where the operating system demands it, Rust for the engine and hub, a proven media layer instead of building our own, and one codebase for every screen people look at.**
 

@@ -83,6 +83,19 @@ The live, scrollable web page view for links (PRD B42) is not built; it waits fo
 | R1 | `output/native/Borderless Native.app`: choose a changing window | Preview updates, frame count climbs, Stop clears it |
 | R2 | Share that window to the Tauri Wall on monitor two | Live, keeps playing while moved or resized, disappears within a second of Stop |
 
-## 4. Later milestones
+## 4. Milestone 2N: the native Wall
+
+Checks are added here as each slice lands. Run them on the second monitor with the native Wall built by `cargo build --release` in `wall/`.
+
+| # | Check | Expected |
+| --- | --- | --- |
+| N1 | `cd wall && cargo test && cargo clippy -- -D warnings` | Pass, no warnings |
+| N2 | Launch with a fresh display pairing link (`--pair <link>`) | Pairs once; the same link fails the second time; the Wall shows the room name and empty state |
+| N3 | Add, move and remove files, notes and links from the Console | The native Wall matches the browser Wall's positions within one frame of the state update |
+| N4 | Flick a photo from the Portal | Spark with progress, vortex and ripple render natively; reduced motion cross-fades |
+| N5 | Share a live Mac window | Plays in hardware-decoded video at the source rate; Stop clears it within a second |
+| N6 | Kill the hub, restart it | Wall shows "Reconnecting" and recovers without restarting the app |
+
+## 5. Later milestones
 
 Milestone 3 (private live window on a second Mac) and milestone 4 (window over the laptop edge) are not built yet. Their checks will be added here when they are.
