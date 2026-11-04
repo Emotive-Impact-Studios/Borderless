@@ -69,13 +69,32 @@ pub fn target(link: &str) -> Result<Target, String> {
     Ok(Target { base, room, pair })
 }
 
-fn session_file(t: &Target) -> PathBuf {
-    let root = std::env::var_os("BORDERLESS_WALL_HOME").map(PathBuf::from).unwrap_or_else(|| {
+/// Where this Wall keeps its session and last room (owner-only files).
+pub fn home() -> PathBuf {
+    std::env::var_os("BORDERLESS_WALL_HOME").map(PathBuf::from).unwrap_or_else(|| {
         let home = std::env::var_os("HOME").or_else(|| std::env::var_os("APPDATA")).map(PathBuf::from).unwrap_or_default();
         if cfg!(target_os = "macos") { home.join("Library/Application Support/Borderless Wall") } else { home.join(".config/borderless-wall") }
-    });
+    })
+}
+
+fn session_file(t: &Target) -> PathBuf {
     let key: String = format!("{}_{}", t.base, t.room).chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '_' }).collect();
-    root.join("sessions").join(format!("{key}.cookie"))
+    home().join("sessions").join(format!("{key}.cookie"))
+}
+
+/// Remembers the room (never the one-use token) and display for the next start.
+pub fn remember(t: &Target, display: Option<usize>) {
+    let value = serde_json::json!({ "base": t.base, "room": t.room, "display": display });
+    if let Err(e) = save_cookie(&home().join("last.json"), &value.to_string()) {
+        log::warn!("Last room not saved: {e}");
+    }
+}
+
+/// The room and display this Wall last showed, if it has a saved session for it.
+pub fn last() -> Option<(Target, Option<usize>)> {
+    let v: Value = serde_json::from_str(&fs::read_to_string(home().join("last.json")).ok()?).ok()?;
+    let t = target(&format!("{}/app/wall/{}", v["base"].as_str()?, v["room"].as_str()?)).ok()?;
+    session_file(&t).exists().then(|| (t, v["display"].as_u64().map(|d| d as usize)))
 }
 
 fn save_cookie(path: &PathBuf, cookie: &str) -> std::io::Result<()> {

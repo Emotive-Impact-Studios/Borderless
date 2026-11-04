@@ -47,7 +47,7 @@ fn glide(t: f32) -> f32 {
 }
 
 struct Options {
-    target: room::Target,
+    target: Option<room::Target>,
     display: Option<usize>,
     windowed: bool,
 }
@@ -68,6 +68,9 @@ struct App {
     ask: Option<std::sync::mpsc::Sender<String>>,
     arrivals: Arrivals,
     loaded: bool,
+    /// On-screen pairing: the pasted invitation and any message.
+    pairing: Option<(String, String)>,
+    command_key: bool,
 }
 
 fn mix(a: Rgba, b: Rgba, t: f32) -> Rgba {
@@ -86,6 +89,53 @@ fn current_rect(glides: &HashMap<String, Glide>, s: &Surface, now: Instant) -> (
 }
 
 impl App {
+    fn connect(&mut self, t: room::Target) {
+        room::remember(&t, self.options.display);
+        let proxy = self.proxy.clone();
+        self.ask = Some(room::run(t, move |e| {
+            let _ = proxy.send_event(e);
+        }));
+    }
+
+    /// Keys on the pairing screen: paste, clear and confirm. Nothing else.
+    fn pairing_key(&mut self, key: &Key) {
+        let Some((input, message)) = &mut self.pairing else { return };
+        match key {
+            Key::Character(c) if self.command_key && c.eq_ignore_ascii_case("v") => {
+                match arboard::Clipboard::new().and_then(|mut c| c.get_text()) {
+                    Ok(text) => *input = text.trim().chars().take(2048).collect(),
+                    Err(_) => *message = "Nothing to paste. Copy the Wall invitation first.".into(),
+                }
+            }
+            Key::Named(NamedKey::Backspace) | Key::Named(NamedKey::Delete) => input.clear(),
+            // Choose the screen: 1 is the main display, 2 the next, and so on.
+            Key::Character(c) if !self.command_key && c.len() == 1 && ("1"..="9").contains(&c.as_str()) => {
+                let index = c.parse::<usize>().unwrap_or(1) - 1;
+                if let Some(window) = &self.window {
+                    let monitors: Vec<_> = window.available_monitors().collect();
+                    match monitors.get(index) {
+                        Some(m) => {
+                            if !self.options.windowed {
+                                window.set_fullscreen(Some(Fullscreen::Borderless(Some(m.clone()))));
+                            }
+                            self.options.display = Some(index);
+                            *message = format!("This Wall will open on screen {}. Paste the invitation, then press Return.", index + 1);
+                        }
+                        None => *message = format!("There are {} screens. Press a number from 1 to {}.", monitors.len(), monitors.len()),
+                    }
+                }
+            }
+            Key::Named(NamedKey::Enter) => match room::target(input) {
+                Ok(t) => {
+                    self.pairing = None;
+                    self.connect(t);
+                }
+                Err(e) => *message = e,
+            },
+            _ => {}
+        }
+    }
+
     fn apply(&mut self, next: Room) {
         let now = Instant::now();
         let reduced = std::env::var_os("BORDERLESS_REDUCED_MOTION").is_some();
@@ -142,7 +192,10 @@ impl App {
         let text = self.text.as_mut().unwrap();
         let pictures = &self.pictures;
         let view = View { room: &self.room, status: &self.status, glides: &self.glides, arrivals: &self.arrivals, reduced, loaded: &|id| pictures.contains_key(id), radius_token: self.tokens.radius_window, epoch: self.started };
-        let (shapes, layers, labels, placed, moving) = scene(&view, text, &theme, w, h, now);
+        let (shapes, layers, labels, placed, moving) = match &self.pairing {
+            Some((input, message)) => pairing_scene(input, message, text, &theme, w, h),
+            None => scene(&view, text, &theme, w, h, now),
+        };
         let animating = moving || effects;
         let renderer = self.renderer.as_mut().unwrap();
         text.prepare(&renderer.queue, w as u32, h as u32, &labels);
@@ -369,10 +422,10 @@ impl ApplicationHandler<RoomEvent> for App {
         self.text = Some(Text::new(&renderer.device, &renderer.queue, renderer.config.format));
         self.renderer = Some(renderer);
         self.window = Some(window.clone());
-        let proxy = self.proxy.clone();
-        self.ask = Some(room::run(self.options.target.clone(), move |e| {
-            let _ = proxy.send_event(e);
-        }));
+        match self.options.target.clone() {
+            Some(t) => self.connect(t),
+            None => self.pairing = Some((String::new(), "Paste the Wall invitation from the leader's Console (⌘V or Ctrl+V), then press Return. Press 1, 2 or 3 to choose the screen.".into())),
+        }
         window.request_redraw();
     }
 
@@ -403,7 +456,17 @@ impl ApplicationHandler<RoomEvent> for App {
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
-            WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed && event.logical_key == Key::Named(NamedKey::Escape) && self.options.windowed => event_loop.exit(),
+            WindowEvent::ModifiersChanged(m) => self.command_key = m.state().super_key() || m.state().control_key(),
+            WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
+                if event.logical_key == Key::Named(NamedKey::Escape) && self.options.windowed {
+                    event_loop.exit();
+                } else if self.pairing.is_some() {
+                    self.pairing_key(&event.logical_key);
+                    if let Some(w) = &self.window {
+                        w.request_redraw();
+                    }
+                }
+            }
             WindowEvent::Resized(size) => {
                 if let Some(r) = &mut self.renderer {
                     r.resize(size.width, size.height);
@@ -422,18 +485,25 @@ fn main() {
     env_logger::init();
     let args: Vec<String> = std::env::args().skip(1).collect();
     let value = |flag: &str| args.iter().position(|a| a == flag).and_then(|i| args.get(i + 1)).cloned();
-    let link = value("--pair").or_else(|| value("--room")).unwrap_or_else(|| {
-        eprintln!("Usage: borderless-wall --pair <Wall invitation link> [--display N] [--windowed]\n       borderless-wall --room <Wall link> [--display N] (reuses this Wall's saved session)");
-        std::process::exit(2);
-    });
-    let mut target = room::target(&link).unwrap_or_else(|e| {
-        eprintln!("{e}");
-        std::process::exit(2);
-    });
-    if value("--room").is_some() {
-        target.pair = None;
-    }
-    let options = Options { target, display: value("--display").and_then(|v| v.parse().ok()), windowed: args.iter().any(|a| a == "--windowed") };
+    // With no link, the Wall resumes its last room, or shows on-screen pairing.
+    let (target, last_display) = match value("--pair").or_else(|| value("--room")) {
+        Some(link) => {
+            let mut t = room::target(&link).unwrap_or_else(|e| {
+                eprintln!("{e}");
+                std::process::exit(2);
+            });
+            if value("--room").is_some() {
+                t.pair = None;
+            }
+            (Some(t), None)
+        }
+        None => match room::last() {
+            Some((t, d)) => (Some(t), d),
+            None => (None, None),
+        },
+    };
+    let display = value("--display").and_then(|v| v.parse().ok()).or(last_display);
+    let options = Options { target, display, windowed: args.iter().any(|a| a == "--windowed") };
     let event_loop = EventLoop::<RoomEvent>::with_user_event().build().expect("event loop");
     event_loop.set_control_flow(ControlFlow::Wait);
     let mut app = App {
@@ -452,6 +522,8 @@ fn main() {
         ask: None,
         arrivals: Arrivals::default(),
         loaded: false,
+        pairing: None,
+        command_key: false,
     };
     event_loop.run_app(&mut app).expect("Wall event loop");
 }
@@ -521,6 +593,36 @@ fn effects(v: &View<'_>, text: &mut Text, theme: &Theme, w: f32, h: f32, now: In
             }
         }
     }
+}
+
+/// The Wall's own pairing screen: a glass panel on the canvas.
+fn pairing_scene(input: &str, message: &str, text: &mut Text, theme: &Theme, w: f32, h: f32) -> Frame {
+    let scale = h / 1080.0;
+    let (pw, ph) = (880.0 * scale, 360.0 * scale);
+    let (px, py) = ((w - pw) / 2.0, (h - ph) / 2.0);
+    let mut glass = theme.glass;
+    glass[3] = glass[3].max(0.86);
+    let mut shapes = vec![Shape { rect: [px, py, pw, ph], fill: glass, ring: [1.0, 1.0, 1.0, 0.5], params: [28.0 * scale, 1.0, 0.12, 32.0 * scale] }];
+    let field = [px + 48.0 * scale, py + 150.0 * scale, pw - 96.0 * scale, 64.0 * scale];
+    shapes.push(Shape { rect: field, fill: theme.surface, ring: theme.accent, params: [14.0 * scale, if input.is_empty() { 0.0 } else { 2.0 * scale }, 0.0, 0.0] });
+    let mut labels = Vec::new();
+    let mut put = |text: &mut Text, value: &str, size: f32, weight: u16, colour: Rgba, left: f32, top: f32, width: f32| {
+        let (mut l, _, _) = text.label(value, size, size * 1.3, weight, width, Face::Sans, colour);
+        l.left = left;
+        l.top = top;
+        labels.push(l);
+    };
+    put(text, "Open your Wall", 44.0 * scale, 700, theme.ink, px + 48.0 * scale, py + 48.0 * scale, pw - 96.0 * scale);
+    // Show where the invitation leads, never the one-use token itself.
+    let shown = match room::target(input) {
+        Ok(t) => format!("{}  ·  room {}{}", t.base, t.room, if t.pair.is_some() { "  ·  invitation ready" } else { "" }),
+        Err(_) if input.is_empty() => "Wall invitation link".into(),
+        Err(_) => "This is not a Wall invitation".into(),
+    };
+    put(text, &shown, 22.0 * scale, 500, if input.is_empty() { theme.ink_muted } else { theme.ink }, field[0] + 20.0 * scale, field[1] + 18.0 * scale, field[2] - 40.0 * scale);
+    put(text, message, 20.0 * scale, 400, theme.ink_muted, px + 48.0 * scale, py + 250.0 * scale, pw - 96.0 * scale);
+    let layers: Vec<std::ops::Range<u32>> = std::iter::once(0..shapes.len() as u32).collect();
+    (shapes, layers, vec![labels], vec![None], false)
 }
 
 #[cfg(test)]

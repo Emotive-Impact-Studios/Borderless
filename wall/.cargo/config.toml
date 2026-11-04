@@ -1,0 +1,3 @@
+[resolver]
+# Pick dependency versions that build with the pinned toolchain.
+incompatible-rust-versions = "fallback"
