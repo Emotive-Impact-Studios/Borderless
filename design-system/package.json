@@ -1,0 +1,12 @@
+{
+  "name": "@borderless/design-system",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Borderless design language: tokens for CSS, React Native and Swift, plus the component library.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "node scripts/build.mjs && node scripts/contrast.mjs"
+  },
+  "files": ["dist", "components"]
+}
