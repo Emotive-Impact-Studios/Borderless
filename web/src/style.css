@@ -23,3 +23,11 @@ body { overflow: hidden; }
 #pair-form h1 { margin: 0; font-size: var(--bl-wall-heading-size); }
 #pair-form input { font: inherit; padding: var(--bl-space-5); color: var(--bl-ink); background: var(--bl-surface); border: 0; border-radius: var(--bl-radius-sm); }
 #pair-form p { color: var(--bl-ink-muted); }
+
+.file-content { display: grid; place-items: center; }
+.file-content img { width: 100%; height: 100%; object-fit: contain; }
+#return-file { padding: var(--bl-space-7); border-radius: var(--bl-radius-window); }
+#return-file form { display: inline; }
+
+.file-content canvas { width: 100%; height: 100%; object-fit: contain; }
+.pdf-controls { position: absolute; bottom: var(--bl-space-3); display: flex; align-items: center; gap: var(--bl-space-3); }

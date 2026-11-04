@@ -19,7 +19,7 @@ import {
   passwordMatches,
 } from "./store.mjs";
 import { assetStorage, safeName, mimeFor } from "./assets.mjs";
-import { minimumSurfaceSize, raiseSurface, focusSurface, arrangeScene } from "./spatial.mjs";
+import { minimumSurfaceSize, raiseSurface, focusSurface, arrangeScene, filePlacement } from "./spatial.mjs";
 import { audiences, currentInvitation, invitationLifetime, mayKnowStream, mayReceiveStream, removeStreamRecipient } from "./stream-policy.mjs";
 import {
   fail,
@@ -1129,8 +1129,12 @@ export async function createApp(options = {}) {
             .get(roomId).n;
           if (latestUsed + info.size > 512 * 1024 * 1024)
             fail(413, "This room has reached its file limit.");
-          const position =
-            s.seat === "left" ? 0.04 : s.seat === "right" ? 0.68 : 0.35;
+          const aimHeader = req.headers["x-wall-aim"];
+          const centre = aimHeader === undefined
+            ? (s.seat === "left" ? .18 : s.seat === "right" ? .82 : .49)
+            : number(Number(aimHeader), 0, 1);
+          const placement = filePlacement(current.state, centre, .1);
+          if (!placement) fail(409, "There is no free space on the Wall. Arrange the windows and try again.");
           store.transaction(() => {
             const created = now();
             store.db
@@ -1156,10 +1160,7 @@ export async function createApp(options = {}) {
               ownerId: s.device_id,
               ownerName: s.name,
               colour: s.colour,
-              x: position,
-              y: 0.1 + (current.state.items.length % 3) * 0.16,
-              w: 0.28,
-              h: 0.36,
+              ...placement,
               createdAt: created,
               version: 1,
             });

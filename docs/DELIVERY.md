@@ -1,5 +1,7 @@
 # Complete delivery plan
 
+Milestone 2 now has a tested Portal-to-Tauri image flick and leader Console return to one selected Portal. Emulated touch, actual second-display Tauri image rendering and PDF page turns, and returned file byte equality passed. The hub places a flick near its horizontal aim within available space. Physical handset review remains open.
+
 On 4 November 2026 the user accepted the live Mac window flow on the second monitor, including updates, movement or resizing, and Stop. Cross-machine playback and physical latency remain open.
 
 The product scope remains the full Borderless platform. This register distinguishes executable alpha work from the native and enterprise work still needed. It is the queue for the next builder, not a claim that platform-specific features have shipped.

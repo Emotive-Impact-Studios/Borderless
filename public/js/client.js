@@ -205,13 +205,14 @@ export class RoomClient extends EventTarget {
       this.pending--;
     }
   }
-  upload(file, onProgress) {
+  upload(file, onProgress, aim) {
     if (!this.ready || this.closed || this.socket?.readyState !== WebSocket.OPEN)
       return Promise.reject(new Error("You are offline. Reconnect before sending a file."));
     return new Promise((resolve, reject) => {
       const request = new XMLHttpRequest();
       request.open("POST", `/api/rooms/${this.roomId}/upload`);
       request.setRequestHeader("X-Borderless-CSRF", this.state.me.csrf);
+      if (Number.isFinite(aim)) request.setRequestHeader("X-Wall-Aim", String(aim));
       request.setRequestHeader("X-Filename", encodeURIComponent(file.name));
       request.setRequestHeader("Content-Type", "application/octet-stream");
       request.timeout = 120000;

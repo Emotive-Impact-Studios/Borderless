@@ -390,7 +390,8 @@ function bindPortalGestures() {
   const card = document.querySelector("#throw-card");
   card.addEventListener("pointerdown", (event) => {
     if (event.target.closest("button") || !selectedFile) return;
-    start = { y: event.clientY, at: performance.now() };
+    if (start || !event.isPrimary) return;
+    start = { x: event.clientX, y: event.clientY, id: event.pointerId, at: performance.now() };
     card.setPointerCapture(event.pointerId);
   });
   card.addEventListener("pointermove", (event) => {
@@ -398,12 +399,16 @@ function bindPortalGestures() {
       card.style.transform = `translateY(${Math.min(0, event.clientY - start.y) * 0.35}px)`;
   });
   card.addEventListener("pointerup", (event) => {
-    if (!start) return;
+    if (!start || event.pointerId !== start.id) return;
+    const sideways = Math.abs(event.clientX - start.x);
     const distance = start.y - event.clientY,
       velocity = distance / (performance.now() - start.at);
     start = null;
     card.style.transform = "";
-    if (distance > 55 && velocity > 0.25) sendSelectedFile();
+    if (distance > 55 && distance > sideways && velocity > 0.25) {
+      const bounds = card.getBoundingClientRect();
+      sendSelectedFile(Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width)));
+    }
   });
   card.addEventListener("pointercancel", () => {
     start = null;
@@ -595,7 +600,7 @@ function quizResults() {
     `<h3>${esc(q.question)}</h3><div class="result-bars">${q.options.map((option, i) => `<div><div><span>${esc(option)}</span><strong>${q.counts?.[i] || 0}</strong></div><div class="result-track"><i style="width:${q.total ? ((q.counts?.[i] || 0) / q.total) * 100 : 0}%"></i></div></div>`).join("")}</div><p class="form-hint">${q.total} answers · Correct answer: ${String.fromCharCode(65 + q.correct)}</p><div class="modal-actions">${q.open ? button("quiz.close", "Close & reveal answers", "check", "primary") : button("quiz.dismiss", "Dismiss question", "close", "outline")}</div>`,
   );
 }
-async function sendFiles(files) {
+async function sendFiles(files, aim) {
   if (!files.length) return;
   if (transferBusy) {
     toast("Let this transfer finish before starting another.");
@@ -610,6 +615,7 @@ async function sendFiles(files) {
     return;
   }
   transferBusy = true;
+  let completed = false;
   try {
     for (const file of files) {
       if (file.size > 25 * 1024 * 1024)
@@ -621,18 +627,24 @@ async function sendFiles(files) {
       await client.upload(file, (progress) => {
         if (label)
           label.textContent = `Sending ${file.name} · ${Math.round(progress * 100)}%`;
-      });
+      }, aim);
       toast(`${file.name} is on the canvas.`);
     }
+    completed = true;
   } catch (error) {
     toast(error.message, true);
   } finally {
     transferBusy = false;
-    selectedFile = null;
-    fileInput.value = "";
+    if (completed || !selectedFile) {
+      selectedFile = null;
+      fileInput.value = "";
+      resetThrowCard();
+    } else {
+      const description = document.querySelector("#throw-description");
+      if (description) description.textContent = "Ready to try again.";
+    }
     const el = document.querySelector("#local-status");
     if (el) el.textContent = "Stored on this hub";
-    resetThrowCard();
   }
 }
 function resetThrowCard() {
@@ -644,8 +656,8 @@ function resetThrowCard() {
   const send = document.querySelector('[data-action="portal.send"]');
   send?.remove();
 }
-async function sendSelectedFile() {
-  if (selectedFile) await sendFiles([selectedFile]);
+async function sendSelectedFile(aim) {
+  if (selectedFile) await sendFiles([selectedFile], aim);
 }
 async function run(type, data = {}) {
   try {

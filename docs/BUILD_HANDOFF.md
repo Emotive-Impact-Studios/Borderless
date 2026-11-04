@@ -4,6 +4,18 @@
 
 Read VISION.md first, then PRODUCT.md and DESIGN.md, then README, PRD, CAPABILITIES, ARCHITECTURE and DELIVERY. The original conversation is preserved in `docs/source/` and checked against SHA-256. The repository began with only a README at main commit `7b773ca855f0438bdd6e5f08d4e71b556037fd50`.
 
+## Milestone 2 · file flick and targeted return · 4 November 2026
+
+The Portal's touch gesture now checks upward direction, distance, velocity and pointer identity. The shared TypeScript Wall reconciles file windows from the authoritative room snapshot alongside live windows. Image previews load the existing room-scoped asset endpoint. A leader or file owner in the shared Console can open a dismissible recipient picker and send an invitation to one selected device using the hub's delivery command.
+
+A 390 px touch-emulated Portal selected the 1.8 MB Studio concept PNG. A short upward motion and a sideways gesture made no upload. A qualifying upward flick uploaded the actual file. The paired Tauri WebView on the 32FPDEU-DA20 second monitor displayed the named image and owner. The leader selected the sending phone in the shared Console. That Portal opened its inbox and downloaded bytes identical to the original. A separate participant had no delivery invitation for it. The source file is intentionally visible on the shared Wall. Evidence: ignored `output/native/m2/tauri-file.png`, `journey.log` and `result.json`. Physical phone gestures and saving through the handset OS remain open.
+
+A second run flicked a genuine two-page PDF through the Portal. The actual Tauri renderer showed page one and advanced to page two using the bundled pdf.js worker. A fresh run after restarting the review hub used aimed, server-side free placement, moved the file through the Console using a versioned room command, and verified the targeted handset-sized Portal downloaded the original 698 bytes. Its bystander had zero invitations. Short and sideways gestures left the room unchanged. Files and live windows share the move/resize gesture code. The new placement regression also exercises two concurrent uploads aimed at the same edge and rejection of invalid aim. The sender can retry a failed upload without reselecting the file. Source and licence for pdf.js are pinned through the web workspace and distributed licence file.
+
+Local evidence includes `output/native/m2/tauri-pdf.png`, `pdf-final-journey.log` and `pdf-result.json`. Required checks passed (69 Node tests and native verification). This slice covers photos, paged PDFs, authorised Console return and the recipient download. Handset touch, phone OS saving and visual acceptance on physical iPhone/Android remain open. The broader milestone's link viewer, full arrival effects and additional smart layout modes remain outstanding.
+
+The current Codex goal already names all three core moments. The goal service rejected replacement of the existing unfinished goal and reports it blocked. The user's updated autonomous working instructions are recorded in CODEX_BRIEF's milestone 2 section. Continue authorised work directly without requesting repeated permissions.
+
 ## Milestone 1 · second-monitor flow accepted · 4 November 2026
 
 The user selected “I saw it and accept that flow” when asked about live updates, continued playback through move or resize, and prompt disappearance on Stop. This records acceptance of the live Mac-to-Wall interaction on the attached second monitor. Cross-machine playback, sustained 60 fps and physical glass-to-glass timing remain separate open checks. The user is working. Keep testing in the background or on monitor two.

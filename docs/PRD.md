@@ -225,9 +225,9 @@ Code, rendered flows, OS/device checks and user review are separate gates. Signe
 Build from the conversation's app, core moments first. Each step ends with the user watching it work on real devices.
 
 1. **Real capture.** Fix the zero-frame ScreenCaptureKit result (see CLAUDE_REVIEW_RESULTS.md H1) and make capture state truthful: first-frame checks, failed state, Stop that always stops.
-2. **C3 first slice: live window on the Wall.** Native Mac capture, then hardware encode, then authenticated transport, then native Godot Wall decode, in the same room, with room and private audiences (B37), stop, revoke and reconnect.
+2. **C3 first slice: live window on the Wall.** Native Mac capture, then hardware encode, then authenticated transport, then playback in the shared TypeScript Wall inside the Tauri shell, in the same room, with room and private audiences (B37), stop, revoke and reconnect.
 3. **C2: phone flick onto the native Wall** with real previews, sender-coloured arrival (B39) and send-back to one phone. Physical iPhone and Android.
-4. **C1: window over the edge.** Windows IddCx virtual display and the user's decision on the Mac display route, then edge arming, glow, crossing effect, live render at the seat position and safe return (B25, B30).
+4. **C1: window over the edge.** Windows IddCx virtual display and the approved Mac CGVirtualDisplay route, then edge arming, glow, crossing effect, live render at the seat position and safe return (B25, B30).
 5. **User review of C1-C3** on real devices. Adjust until the user says it is the app.
 6. **Everything else, built onto the working core:** pointers and drawing, room audio, classroom tools including B38, themes, multihead and frame lock, installers and updates, audit and operations, B40 and HA.
 

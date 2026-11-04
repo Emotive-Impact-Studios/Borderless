@@ -32,3 +32,27 @@ export function arrangeScene(state) {
     delete surface.restoreBounds;
   });
 }
+
+// Find the closest free rectangle to the intended centre. A separating edge
+// of an existing surface or the Wall bounds defines each candidate position.
+export function filePlacement(state, centre, fallbackY) {
+  const occupied = surfaces(state).filter(s => s.audience !== 'private');
+  for (const scale of [1, .8, .6, .4]) {
+    const w = .28 * scale, h = .36 * scale;
+    const clamp = (n, max) => Math.max(0, Math.min(max, n));
+    const x = clamp(centre - w / 2, 1 - w), y = clamp(fallbackY, 1 - h);
+    const xs = new Set([x, 0, 1-w]), ys = new Set([y, 0, 1-h]);
+    for (const s of occupied) {
+      xs.add(clamp(s.x+s.w+.016, 1-w)); xs.add(clamp(s.x-w-.016, 1-w));
+      ys.add(clamp(s.y+s.h+.024, 1-h)); ys.add(clamp(s.y-h-.024, 1-h));
+    }
+    let best, distance = Infinity;
+    for (const left of xs) for (const top of ys) {
+      const d = (left-x)**2 + (top-y)**2;
+      if (d >= distance || occupied.some(s => left < s.x+s.w && left+w > s.x && top < s.y+s.h && top+h > s.y)) continue;
+      best = {x:left,y:top,w,h}; distance = d;
+    }
+    if (best) return best;
+  }
+  return null;
+}

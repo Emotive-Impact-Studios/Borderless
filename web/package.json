@@ -2,7 +2,16 @@
   "name": "borderless-web",
   "private": true,
   "type": "module",
-  "scripts": { "build": "tsc --noEmit && vite build", "dev": "vite --host 127.0.0.1" },
-  "dependencies": { "livekit-client": "2.23.0" },
-  "devDependencies": { "typescript": "7.0.2", "vite": "8.3.5" }
+  "scripts": {
+    "build": "tsc --noEmit && vite build",
+    "dev": "vite --host 127.0.0.1"
+  },
+  "dependencies": {
+    "livekit-client": "2.23.0",
+    "pdfjs-dist": "5.4.624"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2",
+    "vite": "8.3.5"
+  }
 }

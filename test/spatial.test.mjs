@@ -98,3 +98,20 @@ test("arranging the full scene includes all sixty contributions and six live win
   assert.equal((await snapshot(app, admin)).streams.some(value => value.restoreBounds), false);
   assert.equal(app.store.verifyAudit().valid, true);
 });
+
+test("concurrent files aimed at the same edge land separately within the Wall", async t => {
+  const app = await fixture(t);
+  const { admin } = await room(app);
+  const { request } = await import('./helpers.mjs');
+  const send = (name, aim) => request(app, `/api/rooms/${admin.roomId}/upload`, {
+    actor:admin, method:'POST', raw:Buffer.from(name),
+    headers:{'Content-Type':'application/octet-stream','X-Filename':name,'X-Wall-Aim':aim}
+  });
+  const replies = await Promise.all([send('first.txt','1'),send('second.txt','1')]);
+  assert.ok(replies.every(r => r.status === 201));
+  const [a,b] = (await snapshot(app,admin)).items;
+  assert.ok(a.x > .5 && a.x+a.w <= 1 && b.x+b.w <= 1);
+  assert.ok(a.x+a.w <= b.x || b.x+b.w <= a.x || a.y+a.h <= b.y || b.y+b.h <= a.y);
+  assert.equal((await send('invalid.txt','NaN')).status,400);
+  assert.equal((await snapshot(app,admin)).items.length,2);
+});

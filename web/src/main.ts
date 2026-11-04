@@ -1,14 +1,16 @@
 /// <reference types="vite/client" />
 import { Room, RoomEvent, Track, ConnectionState, DisconnectReason } from 'livekit-client';
 import './style.css';
+import { FileWindow, isFile, type Recipient, type WallFile } from './files';
 
 type Stream = { id: string; ownerId: string; ownerName: string; title: string; colour: string; x: number; y: number; w: number; h: number; version: number; z?: number; canReceive: boolean };
-type State = { id: string; name: string; ended: boolean; streams: Stream[]; me: { id: string; role: string; csrf: string }; theme?: string };
+type State = { id: string; name: string; ended: boolean; items: unknown[]; devices: Recipient[]; streams: Stream[]; me: { id: string; role: string; csrf: string }; theme?: string };
 type Grant = { url: string; room: string; token: string; publisher: boolean };
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const wall = element('wall'), windows = element('windows'), empty = element('empty'), status = element('status'), connection = element('connection');
 const route = location.pathname.match(/^\/app\/(wall|console)\/([a-zA-Z0-9_-]{8,48})\/?$/);
 const roomID = route?.[2];
+const files = new Map<string, FileWindow>();
 const nodes = new Map<string, LiveWindow>();
 let state: State | undefined;
 let connected = false;
@@ -30,7 +32,7 @@ function readState(input: unknown): State {
   const value = input as State;
   if (!value || value.id !== roomID || typeof value.name !== 'string' || typeof value.ended !== 'boolean' ||
       !value.me || typeof value.me.csrf !== 'string' || typeof value.me.id !== 'string' || typeof value.me.role !== 'string' ||
-      !Array.isArray(value.streams) || value.streams.length > 6 || value.streams.some(s =>
+      !Array.isArray(value.items) || !Array.isArray(value.devices) || !Array.isArray(value.streams) || value.streams.length > 6 || value.streams.some(s =>
         !s || !/^[a-f0-9-]{36}$/.test(s.id) || typeof s.title !== 'string' || typeof s.ownerName !== 'string' ||
         typeof s.ownerId !== 'string' || !Number.isInteger(s.version) ||
         [s.x, s.y, s.w, s.h].some(n => !Number.isFinite(n) || n < 0 || n > 1))) throw new Error('Invalid room state.');
@@ -52,12 +54,62 @@ function render(input: unknown) {
     if (!node) { node = new LiveWindow(stream); nodes.set(stream.id, node); }
     node.update(stream);
   }
-  empty.hidden = nodes.size > 0;
-  status.textContent = 'Send a window from your Mac. It will appear here, live.';
-  element('identity').toggleAttribute('data-busy', nodes.size >= 3);
+  const assets = state.items.filter(isFile);
+  const ids = new Set(assets.map(item => item.id));
+  for (const [id, node] of files) if (!ids.has(id)) { node.close(); files.delete(id); }
+  for (const item of assets) {
+    let node = files.get(item.id);
+    if (!node) {
+      node = new FileWindow(windows, roomID!, item, () => chooseRecipient(item));
+      files.set(item.id, node);
+      const tile = node;
+      for (const [handle, operation] of [[tile.moveHandle,'move'],[tile.resizeHandle,'resize']] as const) {
+        bindGesture(handle, operation, 'item', () => tile.model, () => connected && !tile.button.hidden,
+          value => tile.bounds(value), active => { tile.dragging = active; });
+      }
+      if (connected) tile.root.classList.add('bl-arrive');
+    }
+    node.update(item, route?.[1] === 'console' && (state.me.role === 'admin' || state.me.id === item.ownerId));
+  }
+  const count = nodes.size + files.size;
+  empty.hidden = count > 0;
+  status.textContent = 'Send a file or live window to the Wall.';
+  element('identity').toggleAttribute('data-busy', count >= 3);
+}
+
+function chooseRecipient(item: WallFile) {
+  const dialog = element<HTMLDialogElement>('return-file');
+  const select = element<HTMLSelectElement>('return-device');
+  const send = element<HTMLButtonElement>('return-send');
+  const message = element('return-status');
+  select.replaceChildren(new Option('Choose a device', ''));
+  for (const person of state?.devices ?? []) {
+    if (person.role !== 'wall') select.add(new Option(person.name, person.id));
+  }
+  element('return-title').textContent = 'Send back ' + item.title;
+  message.textContent = '';
+  send.disabled = true;
+  select.onchange = () => { send.disabled = !select.value; };
+  const commandId = crypto.randomUUID();
+  send.onclick = async () => {
+    send.disabled = true;
+    select.disabled = true;
+    try {
+      await api('command', { type:'delivery.send', assetId:item.assetId, deviceId:select.value, commandId });
+      dialog.close();
+      connection.textContent = 'Sent to ' + select.selectedOptions[0].text;
+    } catch (error) {
+      message.textContent = error instanceof Error ? error.message : 'Could not send the file.';
+      send.disabled = false;
+    } finally { select.disabled = false; }
+  };
+  dialog.showModal();
 }
 
 function disconnect(message: string) {
+  element<HTMLDialogElement>('return-file').close();
+  for (const file of files.values()) file.close();
+  files.clear();
   connected = false;
   connection.textContent = message;
   status.textContent = message;
@@ -100,6 +152,45 @@ async function join() {
 function text(className: string, value: string) {
   const node = document.createElement('span'); node.className = className; node.textContent = value; return node;
 }
+
+type Surface = Pick<Stream,'id'|'version'|'x'|'y'|'w'|'h'>;
+function bindGesture(handle: HTMLElement, operation: 'move' | 'resize', kind: 'stream' | 'item',
+  model: () => Surface, editable: () => boolean, bounds: (s: Surface) => void, dragging: (active: boolean) => void) {
+  const idKey = kind === 'stream' ? 'streamId' : 'itemId';
+    handle.setAttribute('aria-label', operation === 'move' ? 'Move window with arrow keys' : 'Resize window with arrow keys');
+    handle.addEventListener('keydown', event => {
+      if (!editable() || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+      event.preventDefault();
+      const s = model(), step = event.shiftKey ? .05 : .01;
+      const dx = event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0;
+      const dy = event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0;
+      const geometry = operation === 'move' ? { x: Math.max(0, Math.min(1 - s.w, s.x + dx)), y: Math.max(0, Math.min(1 - s.h, s.y + dy)) }
+        : { w: Math.max(.08, Math.min(1 - s.x, s.w + dx)), h: Math.max(.08, Math.min(1 - s.y, s.h + dy)) };
+      void api('command', { type: `${kind}.${operation}`, [idKey]: s.id, version: s.version, commandId: crypto.randomUUID(), ...geometry })
+        .catch(error => { connection.textContent = error.message; });
+    });
+    handle.addEventListener('pointerdown', event => {
+      if (!editable() || event.button !== 0 || (operation === 'move' && (event.target as HTMLElement).closest('button, select, a'))) return;
+      event.preventDefault(); handle.setPointerCapture(event.pointerId);
+      const original = { ...model() }, start = { x: event.clientX, y: event.clientY };
+      let next = { ...original }; dragging(true);
+      const move = (e: PointerEvent) => {
+        const dx = (e.clientX - start.x) / wall.clientWidth, dy = (e.clientY - start.y) / wall.clientHeight;
+        next = operation === 'move' ? { ...original, x: Math.max(0, Math.min(1 - original.w, original.x + dx)), y: Math.max(0, Math.min(1 - original.h, original.y + dy)) }
+          : { ...original, w: Math.max(.08, Math.min(1 - original.x, original.w + dx)), h: Math.max(.08, Math.min(1 - original.y, original.h + dy)) };
+        bounds(next);
+      };
+      const finish = (e: PointerEvent) => {
+        handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', finish); handle.removeEventListener('pointercancel', finish);
+        dragging(false); bounds(model());
+        if (e.type === 'pointercancel' || !editable()) return;
+        const geometry = operation === 'move' ? { x: next.x, y: next.y } : { w: next.w, h: next.h };
+        void api('command', { type: `${kind}.${operation}`, [idKey]: original.id, version: original.version, commandId: crypto.randomUUID(), ...geometry })
+          .catch(error => { connection.textContent = error.message; });
+      };
+      handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', finish); handle.addEventListener('pointercancel', finish);
+    });
+  }
 
 class LiveWindow {
   readonly root = document.createElement('section');
@@ -220,40 +311,10 @@ class LiveWindow {
     } finally { this.connecting = false; }
   }
   private gesture(handle: HTMLElement, operation: 'move' | 'resize') {
-    handle.setAttribute('aria-label', operation === 'move' ? 'Move window with arrow keys' : 'Resize window with arrow keys');
-    handle.addEventListener('keydown', event => {
-      if (!this.editable() || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
-      event.preventDefault();
-      const s = this.model, step = event.shiftKey ? .05 : .01;
-      const dx = event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0;
-      const dy = event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0;
-      const geometry = operation === 'move' ? { x: Math.max(0, Math.min(1 - s.w, s.x + dx)), y: Math.max(0, Math.min(1 - s.h, s.y + dy)) }
-        : { w: Math.max(.08, Math.min(1 - s.x, s.w + dx)), h: Math.max(.08, Math.min(1 - s.y, s.h + dy)) };
-      void api('command', { type: `stream.${operation}`, streamId: s.id, version: s.version, commandId: crypto.randomUUID(), ...geometry })
-        .catch(error => { connection.textContent = error.message; });
-    });
-    handle.addEventListener('pointerdown', event => {
-      if (!this.editable() || event.button !== 0) return;
-      event.preventDefault(); handle.setPointerCapture(event.pointerId);
-      const original = { ...this.model }, start = { x: event.clientX, y: event.clientY };
-      let next = { ...original }; this.dragging = true;
-      const move = (e: PointerEvent) => {
-        const dx = (e.clientX - start.x) / wall.clientWidth, dy = (e.clientY - start.y) / wall.clientHeight;
-        next = operation === 'move' ? { ...original, x: Math.max(0, Math.min(1 - original.w, original.x + dx)), y: Math.max(0, Math.min(1 - original.h, original.y + dy)) }
-          : { ...original, w: Math.max(.08, Math.min(1 - original.x, original.w + dx)), h: Math.max(.08, Math.min(1 - original.y, original.h + dy)) };
-        this.bounds(next);
-      };
-      const finish = (e: PointerEvent) => {
-        handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', finish); handle.removeEventListener('pointercancel', finish);
-        this.dragging = false; this.bounds(this.model);
-        if (e.type === 'pointercancel' || !this.editable()) return;
-        const geometry = operation === 'move' ? { x: next.x, y: next.y } : { w: next.w, h: next.h };
-        void api('command', { type: `stream.${operation}`, streamId: original.id, version: original.version, commandId: crypto.randomUUID(), ...geometry })
-          .catch(error => { connection.textContent = error.message; });
-      };
-      handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', finish); handle.addEventListener('pointercancel', finish);
-    });
+    bindGesture(handle, operation, 'stream', () => this.model, () => this.editable(),
+      value => this.bounds(value), active => { this.dragging = active; });
   }
+
   close() {
     this.closed = true; clearTimeout(this.retry);
     if (this.frame !== undefined) this.video.cancelVideoFrameCallback(this.frame);
