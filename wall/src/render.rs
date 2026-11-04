@@ -62,6 +62,7 @@ pub struct Video {
 
 /// A room image on the GPU, with its own placement uniform.
 pub struct Picture {
+    texture: wgpu::Texture,
     bind: wgpu::BindGroup,
     placement: wgpu::Buffer,
     pub width: u32,
@@ -182,8 +183,18 @@ impl Renderer {
     /// Uploads a decoded sRGB image. Sampled as stored, matching the
     /// sRGB-space blending of the rest of the Wall.
     pub fn upload(&self, width: u32, height: u32, rgba: &[u8]) -> Picture {
+        self.upload_as(width, height, rgba, wgpu::TextureFormat::Rgba8Unorm)
+    }
+
+    /// Replaces a picture's pixels in place (same size and format), for video files.
+    pub fn refresh(&self, picture: &Picture, data: &[u8]) {
+        let size = wgpu::Extent3d { width: picture.width, height: picture.height, depth_or_array_layers: 1 };
+        self.queue.write_texture(picture.texture.as_image_copy(), data, wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(picture.width * 4), rows_per_image: Some(picture.height) }, size);
+    }
+
+    pub fn upload_as(&self, width: u32, height: u32, rgba: &[u8], format: wgpu::TextureFormat) -> Picture {
         let size = wgpu::Extent3d { width, height, depth_or_array_layers: 1 };
-        let texture = self.device.create_texture(&wgpu::TextureDescriptor { label: Some("picture"), size, mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2, format: wgpu::TextureFormat::Rgba8Unorm, usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST, view_formats: &[] });
+        let texture = self.device.create_texture(&wgpu::TextureDescriptor { label: Some("picture"), size, mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2, format, usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST, view_formats: &[] });
         self.queue.write_texture(texture.as_image_copy(), rgba, wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(width * 4), rows_per_image: Some(height) }, size);
         let placement = self.device.create_buffer(&wgpu::BufferDescriptor { label: Some("placement"), size: 48, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
         let view = texture.create_view(&Default::default());
@@ -196,7 +207,7 @@ impl Renderer {
                 wgpu::BindGroupEntry { binding: 2, resource: wgpu::BindingResource::Sampler(&self.sampler) },
             ],
         });
-        Picture { bind, placement, width, height }
+        Picture { texture, bind, placement, width, height }
     }
 
     /// Creates or refreshes a live window's planes from a decoded I420 frame.

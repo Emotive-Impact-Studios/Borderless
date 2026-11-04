@@ -69,6 +69,11 @@ function render(input: unknown) {
             if (!file || !connected) return;
             void api('command', { type: 'item.page', itemId: item.id, version: file.model.version, page, commandId: crypto.randomUUID() })
               .catch(error => { connection.textContent = error.message; });
+          }, (playing, position) => {
+            const file = files.get(item.id);
+            if (!file || !connected) return;
+            void api('command', { type: 'item.play', itemId: item.id, version: file.model.version, playing, position, commandId: crypto.randomUUID() })
+              .catch(error => { connection.textContent = error.message; });
           });
       files.set(item.id, node);
       const tile = node;

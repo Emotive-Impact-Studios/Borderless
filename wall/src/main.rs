@@ -2,6 +2,7 @@
 //! follows the hub's room state. It has no authority of its own.
 mod arrival;
 mod media;
+mod movie;
 mod model;
 mod render;
 mod room;
@@ -80,6 +81,9 @@ struct App {
     /// Live frames shown since the last rate report (logged at info level).
     shown: (u32, Instant),
     pdf_pages: HashMap<String, u32>,
+    movies: HashMap<String, movie::Movie>,
+    /// Keep drawing briefly after a seek or pause so the right frame shows.
+    movie_settle: Instant,
 }
 
 /// True for two different page renders of the same PDF.
@@ -193,7 +197,11 @@ impl App {
             .filter_map(|s| match &s.kind {
                 Kind::File { asset_id, mime, .. } if mime.starts_with("image/") => Some(asset_id.clone()),
                 // A PDF shows the hub's current page; each page is its own render.
-                Kind::File { asset_id, mime, page } if mime == "application/pdf" => Some(format!("pdf:{asset_id}:{page}")),
+                Kind::File { asset_id, mime, page, .. } if mime == "application/pdf" => Some(format!("pdf:{asset_id}:{page}")),
+                Kind::File { asset_id, mime, .. } if mime.starts_with("video/") || mime.starts_with("audio/") => {
+                    let ext = match mime.as_str() { "video/mp4" => "mp4", "video/quicktime" => "mov", "video/x-m4v" => "m4v", "audio/mpeg" => "mp3", "audio/mp4" | "audio/x-m4a" => "m4a", "audio/wav" | "audio/x-wav" => "wav", "audio/aac" => "aac", _ => "unsupported" };
+                    Some(format!("movie:{asset_id}:{ext}"))
+                }
                 _ => None,
             })
             .collect();
@@ -206,7 +214,11 @@ impl App {
         }
         // Keep a PDF's previous page on screen until the new one is ready.
         let showing: std::collections::HashSet<String> = self.pictures.keys().filter(|k| k.starts_with("pdf:")).cloned().collect();
-        self.pictures.retain(|id, _| wanted.contains(id) || (showing.contains(id) && wanted.iter().any(|w| same_pdf(w, id))));
+        self.pictures.retain(|id, _| wanted.contains(id) || id.starts_with("movie:") || (showing.contains(id) && wanted.iter().any(|w| same_pdf(w, id))));
+        // Players and their frames leave with their windows.
+        self.movies.retain(|asset, _| wanted.iter().any(|w| w.starts_with(&format!("movie:{asset}:"))));
+        let movies = &self.movies;
+        self.pictures.retain(|id, _| !id.starts_with("movie:") || movies.contains_key(id.trim_start_matches("movie:")));
         self.requested.retain(|id| wanted.contains(id));
         self.room = next;
     }
@@ -234,6 +246,28 @@ impl App {
                 self.shown.0 += 1;
             }
         }
+        // Video files follow the room's playback; their newest frame replaces the last.
+        let epoch_ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as f64).unwrap_or(0.0);
+        let mut playing_any = false;
+        for s in &self.room.surfaces {
+            let Kind::File { asset_id, playback, .. } = &s.kind else { continue };
+            let Some(m) = self.movies.get(asset_id) else { continue };
+            let (playing, position, at) = playback.unwrap_or((false, 0.0, epoch_ms));
+            if m.follow(playing, position + if playing { ((epoch_ms - at) / 1000.0).max(0.0) } else { 0.0 }) {
+                self.movie_settle = Instant::now() + std::time::Duration::from_millis(1500);
+            }
+            playing_any |= playing;
+            if let (Some((w, h, bgra)), Some(renderer)) = (m.frame(), &self.renderer) {
+                let key = format!("movie:{asset_id}");
+                match self.pictures.get(&key) {
+                    Some(p) if p.width == w && p.height == h => renderer.refresh(p, &bgra),
+                    _ => {
+                        let picture = renderer.upload_as(w, h, &bgra, wgpu::TextureFormat::Bgra8Unorm);
+                        self.pictures.insert(key, picture);
+                    }
+                }
+            }
+        }
         let videos = &self.videos;
         let live_state = &self.live_state;
         let text = self.text.as_mut().unwrap();
@@ -244,7 +278,7 @@ impl App {
             Some((input, message)) => pairing_scene(input, message, text, &theme, w, h),
             None => scene(&view, text, &theme, w, h, now),
         };
-        let animating = moving || effects;
+        let animating = moving || effects || playing_any || Instant::now() < self.movie_settle;
         let renderer = self.renderer.as_mut().unwrap();
         text.prepare(&renderer.queue, w as u32, h as u32, &labels);
         // Live windows are marked "video:<id>" in the scene's per-layer media.
@@ -372,7 +406,7 @@ fn scene(v: &View<'_>, text: &mut Text, theme: &Theme, w: f32, h: f32, now: Inst
             Kind::File { mime, asset_id, .. } if mime.starts_with("image/") && loaded(asset_id) => {
                 picture = Some((asset_id.clone(), [x, y, sw, ch], radius, 1.0));
             }
-            Kind::File { mime, asset_id, page } if mime == "application/pdf" => {
+            Kind::File { mime, asset_id, page, .. } if mime == "application/pdf" => {
                 // The current page if rendered, otherwise the previous one while it renders.
                 let key = format!("pdf:{asset_id}:{page}");
                 let shown = if loaded(&key) { Some(key) } else { (v.pdf_shown)(asset_id) };
@@ -382,6 +416,9 @@ fn scene(v: &View<'_>, text: &mut Text, theme: &Theme, w: f32, h: f32, now: Inst
                         put(text, "Opening PDF…", 22.0 * scale, 28.0 * scale, 600, Face::Sans, theme.ink_muted, y + ch / 2.0 - 14.0 * scale);
                     }
                 }
+            }
+            Kind::File { mime, asset_id, .. } if (mime.starts_with("video/") || mime.starts_with("audio/")) && loaded(&format!("movie:{asset_id}")) => {
+                picture = Some((format!("movie:{asset_id}"), [x, y, sw, ch], radius, 1.0));
             }
             Kind::File { mime, .. } => {
                 let kind = if mime.starts_with("image/") { "Image" } else if mime == "application/pdf" { "PDF" } else if mime.starts_with("video/") { "Video" } else { "File" };
@@ -562,6 +599,11 @@ impl ApplicationHandler<RoomEvent> for App {
                 self.sync_media();
             }
             RoomEvent::Frame => {}
+            RoomEvent::MovieFile { asset, path } => {
+                if let Some(m) = movie::Movie::open(&path) {
+                    self.movies.insert(asset, m);
+                }
+            }
         }
         if let Some(w) = &self.window {
             w.request_redraw();
@@ -645,6 +687,8 @@ fn main() {
         live_state: HashMap::new(),
         shown: (0, Instant::now()),
         pdf_pages: HashMap::new(),
+        movies: HashMap::new(),
+        movie_settle: Instant::now(),
     };
     event_loop.run_app(&mut app).expect("Wall event loop");
 }

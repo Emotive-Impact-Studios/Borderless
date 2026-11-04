@@ -400,6 +400,7 @@ export async function createApp(options = {}) {
       case "item.focus":
       case "item.raise":
       case "item.page":
+      case "item.play":
       case "item.edit": {
         requireContributor(s, room);
         const item = state.items.find((i) => i.id === input.itemId);
@@ -429,6 +430,14 @@ export async function createApp(options = {}) {
         }
         if (command === "item.focus") focusSurface(state, item);
         if (command === "item.raise") { raiseSurface(state, item); item.version++; }
+        if (command === "item.play") {
+          // One playback for the room: every Wall follows the owner or leader.
+          if (item.kind !== "file" || !/^(video|audio)\//.test(item.mime)) fail(400, "Only video and audio files play.");
+          if (typeof input.playing !== "boolean" || typeof input.position !== "number" || !Number.isFinite(input.position) || input.position < 0 || input.position > 86400)
+            fail(400, "Invalid playback.");
+          item.playback = { playing: input.playing, position: input.position, at: Date.now() };
+          item.version++;
+        }
         if (command === "item.page") {
           // One page for everyone: the Wall and every Console follow the owner or leader.
           if (item.kind !== "file" || item.mime !== "application/pdf") fail(400, "Only PDFs have pages.");

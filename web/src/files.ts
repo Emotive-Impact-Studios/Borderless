@@ -1,6 +1,6 @@
 export type WallFile = {
   id: string; version: number; assetId: string; kind: 'file'; title: string; mime: string;
-  ownerId: string; ownerName: string; colour?: string; page?: number; x: number; y: number; w: number; h: number; z: number;
+  ownerId: string; ownerName: string; colour?: string; page?: number; playback?: { playing: boolean; position: number; at: number }; x: number; y: number; w: number; h: number; z: number;
 };
 import { ownerColour } from './arrival';
 export type Recipient = { id: string; name: string; role: string };
@@ -24,7 +24,9 @@ export class FileWindow {
   private readonly owner = document.createElement('span');
   private pdf?: import('./pdf').PdfView;
   private editable = false;
-  constructor(parent: HTMLElement, room: string, file: WallFile, sendBack: () => void, turn: (page: number) => void = () => {}) {
+  private media?: HTMLMediaElement;
+  private applying = false;
+  constructor(parent: HTMLElement, room: string, file: WallFile, sendBack: () => void, turn: (page: number) => void = () => {}, play: (playing: boolean, position: number) => void = () => {}) {
     this.model = file;
     this.root.className = 'bl-window';
     const content = document.createElement('div');
@@ -42,9 +44,14 @@ export class FileWindow {
         this.pdf.setEditable(this.editable); this.pdf.show(this.model.page ?? 1);
       });
     } else if (file.mime.startsWith('video/') || file.mime.startsWith('audio/')) {
+      // One playback for the room: people who can edit drive it, everyone follows.
       const media = document.createElement(file.mime.startsWith('video/') ? 'video' : 'audio');
-      media.controls = true;
+      media.setAttribute('playsinline', '');
       media.src = url;
+      for (const type of ['play', 'pause', 'seeked']) media.addEventListener(type, () => {
+        if (!this.applying && this.editable) play(!media.paused, media.currentTime);
+      });
+      this.media = media;
       content.append(media);
     } else {
       const download = document.createElement('a');
@@ -73,6 +80,18 @@ export class FileWindow {
     this.model = file;
     this.editable = canReturn;
     this.pdf?.setEditable(canReturn); this.pdf?.show(file.page ?? 1);
+    if (this.media) {
+      this.media.controls = canReturn;
+      const p = file.playback;
+      if (p) {
+        const target = p.position + (p.playing ? Math.max(0, Date.now() - p.at) / 1000 : 0);
+        this.applying = true;
+        if (Math.abs(this.media.currentTime - target) > 0.5) this.media.currentTime = target;
+        if (p.playing && this.media.paused) void this.media.play().catch(() => { this.media!.muted = true; void this.media!.play().catch(() => {}); });
+        if (!p.playing && !this.media.paused) this.media.pause();
+        setTimeout(() => { this.applying = false; }, 300);
+      }
+    }
     this.resizeHandle.hidden = !canReturn;
     this.moveHandle.tabIndex = canReturn ? 0 : -1;
     this.root.toggleAttribute('data-editable', canReturn);

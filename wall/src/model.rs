@@ -5,7 +5,8 @@ use serde_json::Value;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Kind {
     Live,
-    File { asset_id: String, mime: String, page: u32 },
+    /// `playback`: playing, position in seconds, and when the hub set it (ms since the epoch).
+    File { asset_id: String, mime: String, page: u32, playback: Option<(bool, f64, f64)> },
     Link { url: String, host: String, site: String, description: String, pending: bool },
     Note { text: String },
 }
@@ -93,7 +94,12 @@ pub fn parse(room_id: &str, value: &Value) -> Result<Room, &'static str> {
         }
         let kind = match it.get("kind").and_then(Value::as_str) {
             Some("file") => match (s(it, "assetId"), s(it, "mime")) {
-                (Some(a), Some(m)) if uuid(&a) => Kind::File { asset_id: a, mime: m, page: it.get("page").and_then(Value::as_u64).unwrap_or(1).clamp(1, 10_000) as u32 },
+                (Some(a), Some(m)) if uuid(&a) => Kind::File {
+                    asset_id: a,
+                    mime: m,
+                    page: it.get("page").and_then(Value::as_u64).unwrap_or(1).clamp(1, 10_000) as u32,
+                    playback: it.get("playback").and_then(|p| Some((p.get("playing")?.as_bool()?, p.get("position")?.as_f64()?.clamp(0.0, 86_400.0), p.get("at")?.as_f64()?))),
+                },
                 _ => continue,
             },
             Some("link") => {

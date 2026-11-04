@@ -73,6 +73,8 @@ pub enum RoomEvent {
     Session(Arc<Session>),
     /// A live window has a new frame waiting.
     Frame,
+    /// A room video or audio file is saved locally (owner-only) and ready to open.
+    MovieFile { asset: String, path: PathBuf },
     /// A decoded room image, at most 2048 px on its longest side.
     Picture(Picture),
     State(Room),
@@ -235,6 +237,18 @@ fn pictures(agent: ureq::Agent, t: Target, cookie: String, requests: mpsc::Recei
         let mut pdf_engine = None;
         let mut documents: Vec<(String, Vec<u8>)> = Vec::new();
         for key in requests {
+            if let Some(rest) = key.strip_prefix("movie:") {
+                let Some((asset, ext)) = rest.split_once(':') else { continue };
+                if !matches!(ext, "mp4" | "mov" | "m4v" | "mp3" | "m4a" | "wav" | "aac") {
+                    continue;
+                }
+                let Some(bytes) = download(&agent, &t, &cookie, asset) else { continue };
+                let path = home().join("media").join(format!("{asset}.{ext}"));
+                if save_cookie(&path, "").and_then(|_| fs::write(&path, &bytes)).is_ok() {
+                    send(RoomEvent::MovieFile { asset: asset.to_owned(), path });
+                }
+                continue;
+            }
             if let Some(rest) = key.strip_prefix("pdf:") {
                 let Some((asset, page)) = rest.split_once(':') else { continue };
                 let Ok(page) = page.parse::<i32>() else { continue };

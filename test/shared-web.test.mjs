@@ -48,3 +48,30 @@ test('a PDF page turn is shared by the hub so the Console and Wall stay in step'
   assert.equal((await command(app, admin, 'item.page', { itemId: file.id, version: file.version, page: 1 })).status, 200);
   assert.equal((await snapshot(app, owner)).items.find(i => i.id === file.id).page, 1);
 });
+
+test('a video file plays and pauses for the whole room from its owner or the leader', async t => {
+  const { participant, wall, command, snapshot, upload } = await import('./helpers.mjs');
+  const app = await fixture(t);
+  const { admin } = await room(app);
+  const owner = await participant(app, admin, 'Owner');
+  const other = await participant(app, admin, 'Other');
+  const { actor: display } = await wall(app, admin);
+  // Smallest valid MP4 signature: an ftyp box.
+  const mp4 = Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from('ftypisom'), Buffer.alloc(12)]);
+  assert.equal((await upload(app, owner, 'clip.mp4', mp4)).status, 201);
+  let file = (await snapshot(app, admin)).items.find(i => i.title === 'clip.mp4');
+  assert.equal((await command(app, other, 'item.play', { itemId: file.id, version: file.version, playing: true, position: 0 })).status, 403);
+  assert.equal((await command(app, owner, 'item.play', { itemId: file.id, version: file.version, playing: true, position: -1 })).status, 400);
+  assert.equal((await command(app, owner, 'item.play', { itemId: file.id, version: file.version, playing: true, position: 3.5 })).status, 200);
+  const seen = (await snapshot(app, display)).items.find(i => i.id === file.id).playback;
+  assert.equal(seen.playing, true);
+  assert.equal(seen.position, 3.5);
+  assert.ok(Math.abs(seen.at - Date.now()) < 5000);
+  file = (await snapshot(app, admin)).items.find(i => i.id === file.id);
+  assert.equal((await command(app, admin, 'item.play', { itemId: file.id, version: file.version, playing: false, position: 7 })).status, 200);
+  assert.equal((await snapshot(app, owner)).items.find(i => i.id === file.id).playback.playing, false);
+  const pdf = Buffer.from('%PDF-1.4\n%%EOF\n');
+  await upload(app, owner, 'doc.pdf', pdf);
+  const doc = (await snapshot(app, admin)).items.find(i => i.title === 'doc.pdf');
+  assert.equal((await command(app, owner, 'item.play', { itemId: doc.id, version: doc.version, playing: true, position: 0 })).status, 400);
+});
