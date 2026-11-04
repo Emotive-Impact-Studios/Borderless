@@ -85,16 +85,24 @@ The live, scrollable web page view for links (PRD B42) is not built; it waits fo
 
 ## 4. Milestone 2N: the native Wall
 
-Checks are added here as each slice lands. Run them on the second monitor with the native Wall built by `cargo build --release` in `wall/`.
+Build with `node scripts/fetch-pdfium.mjs` (once), then `npm run wall:native:mac:package`, and open `output/native/Borderless Wall Native.app`, or run `wall/target/release/borderless-wall --pair <link> --display 1`. Use `BORDERLESS_WALL_HOME=<dir>` for a disposable Wall identity and `BORDERLESS_WALL_CAPTURE=<file.png>` to save settled frames from the GPU (a path with `{n}` records a numbered sequence every 100 ms). Disposable hubs: `output/native/m2N/media-hub.mjs` (8457, with LiveKit on 17890-17892) and the plain hub on 8455.
 
 | # | Check | Expected |
 | --- | --- | --- |
-| N1 | `cd wall && cargo test && cargo clippy -- -D warnings` | Pass, no warnings |
-| N2 | Launch with a fresh display pairing link (`--pair <link>`) | Pairs once; the same link fails the second time; the Wall shows the room name and empty state |
-| N3 | Add, move and remove files, notes and links from the Console | The native Wall matches the browser Wall's positions within one frame of the state update |
-| N4 | Flick a photo from the Portal | Spark with progress, vortex and ripple render natively; reduced motion cross-fades |
-| N5 | Share a live Mac window | Plays in hardware-decoded video at the source rate; Stop clears it within a second |
-| N6 | Kill the hub, restart it | Wall shows "Reconnecting" and recovers without restarting the app |
+| N1 | `cd wall && cargo test --release && cargo clippy --release --all-targets -- -D warnings` | 9 or more tests pass, no warnings |
+| N2 | Open the app with no saved room | "Open your Wall" screen; ⌘V shows the room address and "invitation ready", never the token; 1, 2, 3 move it between screens; Return pairs |
+| N3 | Reuse the same invitation from another Wall identity | Refused: "already been used or has expired" |
+| N4 | Quit and reopen the app | Resumes the same room on the same screen without pairing |
+| N5 | Console: Auto, then add a thought, link, photo and PDF from two people | Native Wall matches the browser Wall's arrangement; windows glide; text never shows through a window above |
+| N6 | Stream a photo slowly (`output/native/m2/native-wall-throw.mjs`) | Spark at the aimed point with the ring filling, vortex into the window, ripple; a rejected file reads "did not arrive" |
+| N7 | Turn a PDF's page in the Console | Native Wall shows the same page within a second; ornament reads "· 2 of N" |
+| N8 | Upload an MP4, then play, pause and seek from the Console | Native Wall plays with sound, pauses on the same frame (within half a second), and follows seeks |
+| N9 | Live window: `output/native/m2N/live-room.mjs`, then `wall/target/release/examples/test_source <url> <token>` | Test pattern plays inside the window with the owner ring (development check, **not real capture**); `RUST_LOG=borderless_wall=info` logs frames per second |
+| N10 | Real Mac window from `Borderless Native.app` | Plays live; Stop clears it within a second (needs the user) |
+| N11 | Stop the hub, restart it | Room card reads reconnecting, then recovers without restarting the Wall |
+| N12 | `BORDERLESS_REDUCED_MOTION=1` | No glide or vortex; windows fade in |
+
+Not built yet (mark **not built**): Windows and Linux video players and PDFium pins, backdrop blur on glass, zero-copy video, kiosk and sleep recovery, sandboxed live web pages for links.
 
 ## 5. Later milestones
 
