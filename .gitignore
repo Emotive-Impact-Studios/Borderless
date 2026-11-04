@@ -20,3 +20,4 @@ native/**/bin/
 native/**/obj/
 native/**/.godot/
 output/native/
+wall/target/

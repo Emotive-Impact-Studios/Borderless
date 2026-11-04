@@ -1,0 +1,21 @@
+[package]
+name = "borderless-wall"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+publish = false
+license = "UNLICENSED"
+
+[dependencies]
+env_logger = "0.11"
+glyphon = "0.9"
+log = "0.4"
+png = "0.17"
+pollster = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tungstenite = { version = "0.26", features = ["rustls-tls-native-roots"] }
+ureq = { version = "3", features = ["rustls", "platform-verifier"] }
+url = "2"
+wgpu = "25"
+winit = "0.30"
