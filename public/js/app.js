@@ -30,6 +30,7 @@ let client,
   status = "connecting",
   transferBusy = false,
   selectedFile = null,
+  selectedLink = null,
   pointerActive = false,
   lastPointerAt = 0;
 let inviteData,
@@ -295,7 +296,7 @@ function inboxHTML() {
 
 function portalShell() {
   app.innerHTML = `<div class="portal"><header class="portal-header">${brand}<button class="avatar my-avatar" data-action="my.device" style="--avatar:${state.me.colour}" aria-label="Your device">${esc(state.me.name[0].toUpperCase())}</button></header><main><div class="portal-room"><div class="eyebrow">You’re part of the room</div><h1>${esc(state.name)}</h1><p><span class="live-pulse"></span><span id="portal-connection">Connecting to the canvas</span></p></div><div id="portal-quiz"></div><div class="portal-tabs" role="tablist" aria-label="Contribution tools"><button class="selected" data-action="portal.tab" data-tab="send" role="tab" aria-selected="true">${icon("upload", 17)} Send</button><button data-action="portal.tab" data-tab="point" role="tab" aria-selected="false">${icon("pointer", 17)} Point</button><button data-action="portal.tab" data-tab="draw" role="tab" aria-selected="false">${icon("pen", 17)} Draw</button></div>
-    <section id="portal-send" class="portal-tab"><div class="throw-card" id="throw-card"><div class="throw-spark">${icon("up", 32)}</div><h2 id="throw-title">Something worth sharing?</h2><p id="throw-description">Pick a file, then flick it up to the room.</p><button class="btn primary" data-action="portal.pick">${icon("plus", 18)} Choose a file</button><div class="throw-cue">SWIPE UP TO SEND ${icon("up", 13)}</div></div>${button("note.add", "Or send a thought", "note", "full outline")}${button("screen.toggle", "Share your live screen", "screen", "full subtle")}<p class="form-hint">Files up to 25 MB · Images, PDFs, text, Office, audio & video<br>Screen sharing requires a supported desktop browser.</p></section>
+    <section id="portal-send" class="portal-tab"><div class="throw-card" id="throw-card"><div class="throw-spark">${icon("up", 32)}</div><h2 id="throw-title">Something worth sharing?</h2><p id="throw-description">Pick a file, then flick it up to the room.</p><button class="btn primary" data-action="portal.pick">${icon("plus", 18)} Choose a file</button><div class="throw-cue">SWIPE UP TO SEND ${icon("up", 13)}</div></div>${button("note.add", "Or send a thought", "note", "full outline")}${button("portal.link", "Or send a link", "link", "full outline")}${button("screen.toggle", "Share your live screen", "screen", "full subtle")}<p class="form-hint">Files up to 25 MB · Images, PDFs, text, Office, audio & video<br>Screen sharing requires a supported desktop browser.</p></section>
     <section id="portal-point" class="portal-tab" hidden><h2>A little direction.</h2><p>Touch and move across the pad. Your pointer appears in the same place on the wall.</p><div class="touch-pad" id="pointer-pad"><div>${icon("pointer", 36)}<span>Touch to point</span></div></div>${button("gyro.enable", "Try motion pointer", "spark", "full outline")}<p class="form-hint" id="gyro-status">Motion control uses relative tilt. Touch control always works.</p></section>
     <section id="portal-draw" class="portal-tab" hidden><div class="portal-draw-heading"><div><h2>Leave your mark.</h2><p id="draw-permission">Checking drawing permission…</p></div>${button("ink.undo", "Undo", "undo", "small")}</div><div class="touch-pad drawing-pad" id="drawing-pad"><svg viewBox="0 0 1000 562.5" preserveAspectRatio="none"></svg><div class="draw-pad-hint">Draw here. See it there.</div></div><div id="raise-hand-action"></div>${button("ink.export", "Save whiteboard", "download", "full subtle")}</section>
     <div id="portal-inbox"></div><div class="portal-contributions"><div class="eyebrow">Your contributions</div><div id="portal-files"></div></div></main><footer>${icon("lock", 13)} In this room. On this hub.<a href="/room/${state.id}">Open canvas ${icon("arrow", 14)}</a></footer><div class="connection-banner" id="connection-banner" hidden role="alert"></div></div>`;
@@ -389,7 +390,7 @@ function bindPortalGestures() {
   let start;
   const card = document.querySelector("#throw-card");
   card.addEventListener("pointerdown", (event) => {
-    if (event.target.closest("button") || !selectedFile) return;
+    if (event.target.closest("button") || (!selectedFile && !selectedLink)) return;
     if (start || !event.isPrimary) return;
     start = { x: event.clientX, y: event.clientY, id: event.pointerId, at: performance.now() };
     card.setPointerCapture(event.pointerId);
@@ -657,7 +658,41 @@ function resetThrowCard() {
   send?.remove();
 }
 async function sendSelectedFile(aim) {
-  if (selectedFile) await sendFiles([selectedFile], aim);
+  if (selectedLink) await sendLink(aim);
+  else if (selectedFile) await sendFiles([selectedFile], aim);
+}
+// PRD B42: a link travels like a file. The hub validates it again.
+function chooseLink(value) {
+  let url;
+  try {
+    url = new URL(String(value).trim());
+  } catch {
+    throw new Error("That does not look like a web link.");
+  }
+  if (!["http:", "https:"].includes(url.protocol)) throw new Error("Only web links (http or https) can go on the Wall.");
+  selectedLink = url.href;
+  selectedFile = null;
+  fileInput.value = "";
+  document.querySelector("#throw-title").textContent = url.host;
+  document.querySelector("#throw-description").textContent = "Web link · Flick up or tap Send";
+  document.querySelector('[data-action="portal.send"]')?.remove();
+  document
+    .querySelector("#throw-card")
+    .insertAdjacentHTML("beforeend", button("portal.send", "Send to the canvas", "up", "primary full"));
+}
+async function sendLink(aim) {
+  if (transferBusy) return;
+  transferBusy = true;
+  try {
+    await client.command("link.add", { url: selectedLink, ...(Number.isFinite(aim) ? { aim } : {}) });
+    toast("Your link is on the canvas.");
+    selectedLink = null;
+    resetThrowCard();
+  } catch (error) {
+    toast(error.message, true);
+  } finally {
+    transferBusy = false;
+  }
 }
 async function run(type, data = {}) {
   try {
@@ -763,6 +798,13 @@ document.addEventListener("click", async (event) => {
       return;
     }
     if (action === "portal.send") return await sendSelectedFile();
+    if (action === "portal.link") {
+      modal(
+        "Send a link to the room.",
+        `<form id="link-form"><label>Web link<input name="url" type="url" inputmode="url" maxlength="2048" placeholder="https://" autocomplete="off" required></label><button class="btn primary full" type="submit">Ready to flick ${icon("up", 17)}</button></form>`,
+      );
+      return;
+    }
     if (action === "note.add") {
       noteModal();
       return;
@@ -1078,6 +1120,10 @@ document.addEventListener("submit", async (event) => {
       await c.api(route, { method: "POST", body: input });
       location.replace(`/${route === "join" && !window.borderless ? "portal" : "room"}/${roomId}`);
     }
+    if (form.id === "link-form") {
+      chooseLink(input.url);
+      closeModal();
+    }
     if (form.id === "note-form") {
       await client.command("note.add", input);
       closeModal();
@@ -1133,6 +1179,7 @@ fileInput.addEventListener("change", () => {
   if (!files.length) return;
   if (fileInput.dataset.intent === "pick" && view === "portal") {
     selectedFile = files[0];
+    selectedLink = null;
     document.querySelector("#throw-title").textContent = selectedFile.name;
     document.querySelector("#throw-description").textContent =
       `${bytes(selectedFile.size)} · Flick up or tap Send`;
@@ -1340,3 +1387,16 @@ async function boot() {
   }
 }
 boot();
+
+// Pasting a link anywhere on the Portal (outside a text field) readies it to flick.
+document.addEventListener("paste", (event) => {
+  if (view !== "portal" || event.target.closest?.("input, textarea, [contenteditable]")) return;
+  const text = event.clipboardData?.getData("text/plain")?.trim();
+  if (!text || !/^https?:\/\//i.test(text)) return;
+  event.preventDefault();
+  try {
+    chooseLink(text);
+  } catch (error) {
+    toast(error.message, true);
+  }
+});

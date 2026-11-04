@@ -81,3 +81,70 @@ export class FileWindow {
     Object.assign(this.root.style,{left:`${file.x*100}%`,top:`${file.y*100}%`,width:`${file.w*100}%`,height:`${file.h*100}%`,zIndex:String(this.model.z ?? 0)});
   }
 }
+
+export type WallLink = {
+  id: string; version: number; kind: 'link'; url: string; host: string; title: string; site: string; description: string;
+  preview: 'pending' | 'ready' | 'unavailable'; ownerId: string; ownerName: string; colour?: string;
+  x: number; y: number; w: number; h: number; z: number;
+};
+export function isLink(value: unknown): value is WallLink {
+  const l = value as WallLink | null;
+  if (!l || l.kind !== 'link' || !Number.isInteger(l.version) || !uuid.test(l.id)) return false;
+  if (![l.url, l.host, l.title, l.site, l.description, l.ownerId, l.ownerName].every(s => typeof s === 'string')) return false;
+  if (!['pending', 'ready', 'unavailable'].includes(l.preview) || ![l.x, l.y, l.w, l.h].every(n => Number.isFinite(n) && n >= 0 && n <= 1)) return false;
+  try { const u = new URL(l.url); return u.protocol === 'https:' || u.protocol === 'http:'; } catch { return false; }
+}
+
+/** PRD B42 preview card. The live sandboxed page view needs the Tauri shell and is not built yet. */
+export class LinkWindow {
+  dragging = false;
+  model: WallLink;
+  readonly moveHandle = document.createElement('div');
+  readonly resizeHandle = document.createElement('button');
+  readonly root = document.createElement('section');
+  readonly button = document.createElement('button');
+  private readonly heading = document.createElement('h2');
+  private readonly site = document.createElement('p');
+  private readonly description = document.createElement('p');
+  private readonly address = document.createElement('p');
+  private readonly title = document.createElement('span');
+  private readonly owner = document.createElement('span');
+  constructor(parent: HTMLElement, link: WallLink) {
+    this.model = link;
+    this.root.className = 'bl-window';
+    const content = document.createElement('div');
+    content.className = 'bl-window__content link-content';
+    this.site.className = 'link-site'; this.heading.className = 'link-title';
+    this.description.className = 'link-description'; this.address.className = 'link-address';
+    content.append(this.site, this.heading, this.description, this.address);
+    this.moveHandle.className = 'bl-ornament bl-glass';
+    this.title.className = 'bl-ornament__title'; this.owner.className = 'bl-ornament__who';
+    this.button.hidden = true;
+    this.moveHandle.append(this.title, this.owner);
+    this.resizeHandle.className = 'bl-icon-button resize'; this.resizeHandle.textContent = '↘';
+    content.append(this.resizeHandle);
+    this.root.append(content, this.moveHandle);
+    parent.append(this.root);
+  }
+  close() { this.root.remove(); }
+  update(link: WallLink, editable: boolean) {
+    this.model = link;
+    this.resizeHandle.hidden = !editable;
+    this.moveHandle.tabIndex = editable ? 0 : -1;
+    this.root.toggleAttribute('data-editable', editable);
+    this.root.dataset.preview = link.preview;
+    this.root.setAttribute('aria-label', link.title);
+    this.root.style.setProperty('--o', ownerColour(link.ownerId, link.colour));
+    this.site.textContent = link.site ? `${link.site} · ${link.host}` : link.host;
+    this.heading.textContent = link.preview === 'pending' ? 'Opening preview…' : link.title;
+    this.description.textContent = link.description;
+    this.description.hidden = !link.description;
+    this.address.textContent = link.url;
+    this.title.textContent = link.host;
+    this.owner.textContent = link.ownerName;
+    if (!this.dragging) this.bounds(link);
+  }
+  bounds(link: Pick<WallLink,'x'|'y'|'w'|'h'>) {
+    Object.assign(this.root.style,{left:`${link.x*100}%`,top:`${link.y*100}%`,width:`${link.w*100}%`,height:`${link.h*100}%`,zIndex:String(this.model.z ?? 0)});
+  }
+}

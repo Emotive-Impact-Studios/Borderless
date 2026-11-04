@@ -4,6 +4,14 @@
 
 Read VISION.md first, then PRODUCT.md and DESIGN.md, then README, PRD, CAPABILITIES, ARCHITECTURE and DELIVERY. The original conversation is preserved in `docs/source/` and checked against SHA-256. The repository began with only a README at main commit `7b773ca855f0438bdd6e5f08d4e71b556037fd50`.
 
+## Milestone 2 · links as preview cards · 4 November 2026
+
+PRD B42, first half. The Portal gains "Or send a link" and accepts a pasted http(s) link anywhere outside a text field; the throw card then shows the site and flicks like a file. The hub's new `link.add` command validates the link again (http or https only, no sign-in details, 2,048 characters), places it where the phone aimed using the same free-space placement as files, audits it and broadcasts at once. A preview is fetched afterwards by `server/link-preview.mjs`: public addresses only (loopback, private, link-local, carrier-grade NAT, multicast, ULA and IPv4-mapped forms are refused), the checked address is pinned for the request, no cookies, at most three redirects each re-checked, 5 s, 256 KB, text fields only and no images fetched or proxied. The Wall renders a readable card (site, title, description, address) in the owner's colour, movable and resizable like files; if the page cannot be previewed (offline room, refused page) the card keeps the host as its title.
+
+Verified by `test/links.test.mjs` (4 tests) and a disposable headless run: a 390 px touch Portal readied a Wikipedia link, flicked it, and the 1080p Wall showed "Mission control center - Wikipedia" fetched by the hub. Evidence: ignored `output/native/m2-arrival/link-{phone,wall}.png`; script `output/native/m2/link-journey.mjs`. Node 24 `npm run verify` passed 75 tests.
+
+Not built yet: the live, scrollable sandboxed page view (it needs a Tauri child web view, and the desktop shell is on hold while the Tauri evaluation reports); the leader's switch to turn links off or limit them to chosen sites; send-back of a link to a phone; the phone share sheet (React Native app, milestone 6).
+
 ## Milestone 2 · arrival effect driven by real transfer · 4 November 2026
 
 The hub now announces each Portal upload to the room as it happens: `transfer.start` (sender, colour, file name, aim), throttled `transfer.progress` from bytes actually received, and `transfer.end` only after the stored file is already in the broadcast room state (or `ok: false` when the hub rejects it). The shared TypeScript Wall shows an incoming spark at the aimed point with a progress ring that follows the real bytes, then a particle vortex in the sender's colour that spirals into the landed window, which resolves with the design-system arrival and a ripple. Failures show "did not arrive" and nothing lands. Reduced motion falls back to the cross-fade. File windows now carry their owner's colour like live windows.

@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { Room, RoomEvent, Track, ConnectionState, DisconnectReason } from 'livekit-client';
 import './style.css';
-import { FileWindow, isFile, type Recipient, type WallFile } from './files';
+import { FileWindow, LinkWindow, isFile, isLink, type Recipient, type WallFile } from './files';
 import { Arrivals, ownerColour, type TransferStart } from './arrival';
 
 type Stream = { id: string; ownerId: string; ownerName: string; title: string; colour: string; x: number; y: number; w: number; h: number; version: number; z?: number; canReceive: boolean };
@@ -11,7 +11,7 @@ const element = <T extends HTMLElement>(id: string) => document.getElementById(i
 const wall = element('wall'), windows = element('windows'), empty = element('empty'), status = element('status'), connection = element('connection');
 const route = location.pathname.match(/^\/app\/(wall|console)\/([a-zA-Z0-9_-]{8,48})\/?$/);
 const roomID = route?.[2];
-const files = new Map<string, FileWindow>();
+const files = new Map<string, FileWindow | LinkWindow>();
 const arrivals = new Arrivals(wall);
 const nodes = new Map<string, LiveWindow>();
 let state: State | undefined;
@@ -56,22 +56,24 @@ function render(input: unknown) {
     if (!node) { node = new LiveWindow(stream); nodes.set(stream.id, node); }
     node.update(stream);
   }
-  const assets = state.items.filter(isFile);
+  const assets = state.items.filter(item => isFile(item) || isLink(item)) as (WallFile | import('./files').WallLink)[];
   const ids = new Set(assets.map(item => item.id));
   for (const [id, node] of files) if (!ids.has(id)) { node.close(); files.delete(id); }
   for (const item of assets) {
     let node = files.get(item.id);
     const fresh = !node;
     if (!node) {
-      node = new FileWindow(windows, roomID!, item, () => chooseRecipient(item));
+      node = item.kind === 'link' ? new LinkWindow(windows, item) : new FileWindow(windows, roomID!, item, () => chooseRecipient(item));
       files.set(item.id, node);
       const tile = node;
       for (const [handle, operation] of [[tile.moveHandle,'move'],[tile.resizeHandle,'resize']] as const) {
-        bindGesture(handle, operation, 'item', () => tile.model, () => connected && !tile.button.hidden,
+        bindGesture(handle, operation, 'item', () => tile.model, () => connected && tile.root.hasAttribute('data-editable'),
           value => tile.bounds(value), active => { tile.dragging = active; });
       }
     }
-    node.update(item, route?.[1] === 'console' && (state.me.role === 'admin' || state.me.id === item.ownerId));
+    const editable = route?.[1] === 'console' && (state.me.role === 'admin' || state.me.id === item.ownerId);
+    if (node instanceof LinkWindow && item.kind === 'link') node.update(item, editable);
+    else if (node instanceof FileWindow && item.kind === 'file') node.update(item, editable);
     if (fresh && connected) arrivals.land(item.ownerId, item.title, node.root);
   }
   const count = nodes.size + files.size;

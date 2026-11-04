@@ -1,3 +1,4 @@
+import { cleanLink, previewLink } from "./link-preview.mjs";
 import http from "node:http";
 import https from "node:https";
 import { readFileSync, mkdirSync, writeFileSync, unlinkSync } from "node:fs";
@@ -77,6 +78,7 @@ export async function createApp(options = {}) {
   const key = options.key || process.env.BORDERLESS_TLS_KEY;
   const tls = Boolean(cert && key);
   const publicURL = options.publicURL || process.env.BORDERLESS_PUBLIC_URL;
+  const linkPreview = options.previewLink || previewLink;
   if (Boolean(cert) !== Boolean(key))
     throw new Error(
       "Configure both BORDERLESS_TLS_CERT and BORDERLESS_TLS_KEY.",
@@ -353,6 +355,40 @@ export async function createApp(options = {}) {
           version: 1,
         });
         raiseSurface(state, state.items.at(-1));
+        break;
+      }
+      case "link.add": {
+        // PRD B42: a link travels like a file and lands where the phone aimed.
+        requireContributor(s, room);
+        if (state.items.length >= maxItems)
+          fail(409, "The wall is full. Remove an item before adding another.");
+        let url;
+        try { url = cleanLink(input.url); } catch (error) { fail(400, error.message); }
+        const centre = input.aim === undefined || input.aim === null
+          ? (s.seat === "left" ? .18 : s.seat === "right" ? .82 : .49)
+          : number(Number(input.aim), 0, 1);
+        const placement = filePlacement(state, centre, .1);
+        if (!placement) fail(409, "There is no free space on the Wall. Arrange the windows and try again.");
+        const link = {
+          id: id(), kind: "link", url: url.href, host: url.host, title: url.host, site: "", description: "",
+          preview: "pending", ownerId: s.device_id, ownerName: s.name, colour: s.colour,
+          ...placement, createdAt: now(), version: 1,
+        };
+        state.items.push(link);
+        raiseSurface(state, link);
+        const roomId = room.id;
+        after.push(() => {
+          void Promise.resolve().then(() => linkPreview(link.url)).then(
+            (meta) => ({ preview: "ready", title: meta.title || link.host, site: meta.site || "", description: meta.description || "" }),
+            () => ({ preview: "unavailable" }),
+          ).then((update) => {
+            const current = store.room(roomId);
+            const item = current?.state.items.find((i) => i.id === link.id);
+            if (!item || item.preview !== "pending") return;
+            store.transaction(() => { Object.assign(item, update); item.version++; store.saveRoom(current); });
+            broadcast(roomId);
+          }).catch(() => {});
+        });
         break;
       }
       case "item.move":
