@@ -6,7 +6,7 @@ Read VISION.md first, then PRODUCT.md and DESIGN.md, then README, PRD, CAPABILIT
 
 ## Milestone 1 · Ethernet ICE and DTLS · 4 November 2026
 
-An independent headless WebRTC subscriber joined a disposable room through the trusted LAN signalling configuration. The SFU offered its Ethernet IPv4 address on UDP 17882 and TCP 17881. The subscriber negotiated ICE and DTLS and opened the LiveKit reliable and lossy SCTP data channels. Hub Stop closed the signalling session. Both endpoints ran on this Mac. This check used no screen capture and opened no windows. The remaining physical gate is live video on a separately paired computer over the room network. The commissioning ports were closed after the check.
+An independent headless WebRTC subscriber joined a disposable room through the trusted LAN signalling configuration. The SFU offered its Ethernet IPv4 address on UDP 17882 and TCP 17881. The subscriber negotiated ICE and DTLS and opened the LiveKit reliable and lossy SCTP data channels. Hub Stop closed the signalling session. Both endpoints ran on this Mac. This check used no screen capture and opened no windows. CODEX_BRIEF permits the Wall on another screen or machine. The verified second-display run can therefore be used for user review on this Mac. A separate computer is needed specifically to verify physical network traversal. User review and physical glass-to-glass measurement remain open. The commissioning ports were closed after the check.
 
 ## Milestone 1 · actual Tauri stall investigation · 4 November 2026
 
