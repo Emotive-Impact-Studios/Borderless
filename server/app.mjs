@@ -1110,8 +1110,25 @@ export async function createApp(options = {}) {
         }
         const assetId = id();
         uploading++;
+        // Real transfer progress drives the Wall's incoming spark. The spark
+        // resolves only after the stored file is in the room state.
+        const transfer = id();
+        const expected = Number(req.headers["content-length"]) || 0;
+        const aimValue = Number(req.headers["x-wall-aim"]);
+        ephemeral(roomId, {
+          type: "transfer.start", id: transfer, name,
+          aim: Number.isFinite(aimValue) ? number(aimValue, 0, 1) : null,
+          ownerId: s.device_id, ownerName: s.name, colour: s.colour,
+        });
+        let reported = 0, landedAsset;
+        const onBytes = (received) => {
+          const at = Date.now();
+          if (!expected || at - reported < 100) return;
+          reported = at;
+          ephemeral(roomId, { type: "transfer.progress", id: transfer, progress: Math.min(1, received / expected) });
+        };
         try {
-          const info = await storage.write(req, assetId, name);
+          const info = await storage.write(req, assetId, name, onBytes);
           const current = store.room(roomId),
             currentSession = store.session(
               cookie(req, cookieName(roomId)),
@@ -1173,6 +1190,7 @@ export async function createApp(options = {}) {
             store.saveRoom(current);
           });
           broadcast(roomId);
+          landedAsset = assetId;
           return json(res, 201, { assetId, ...info });
         } catch (error) {
           try {
@@ -1187,6 +1205,9 @@ export async function createApp(options = {}) {
           throw error;
         } finally {
           uploading--;
+          ephemeral(roomId, landedAsset
+            ? { type: "transfer.end", id: transfer, ok: true, assetId: landedAsset }
+            : { type: "transfer.end", id: transfer, ok: false });
         }
       }
       const assetMatch = route.match(/^assets\/([a-f0-9-]{36})$/);

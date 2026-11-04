@@ -1,7 +1,8 @@
 export type WallFile = {
   id: string; version: number; assetId: string; kind: 'file'; title: string; mime: string;
-  ownerId: string; ownerName: string; x: number; y: number; w: number; h: number; z: number;
+  ownerId: string; ownerName: string; colour?: string; x: number; y: number; w: number; h: number; z: number;
 };
+import { ownerColour } from './arrival';
 export type Recipient = { id: string; name: string; role: string };
 const uuid = /^[a-f0-9-]{36}$/i;
 export function isFile(value: unknown): value is WallFile {
@@ -70,6 +71,7 @@ export class FileWindow {
     this.moveHandle.tabIndex = canReturn ? 0 : -1;
     this.root.toggleAttribute('data-editable', canReturn);
     this.root.setAttribute('aria-label', file.title);
+    this.root.style.setProperty('--o', ownerColour(file.ownerId, file.colour));
     this.title.textContent = file.title;
     this.owner.textContent = file.ownerName;
     this.button.hidden = !canReturn;

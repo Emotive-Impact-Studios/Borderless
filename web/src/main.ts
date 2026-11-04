@@ -2,6 +2,7 @@
 import { Room, RoomEvent, Track, ConnectionState, DisconnectReason } from 'livekit-client';
 import './style.css';
 import { FileWindow, isFile, type Recipient, type WallFile } from './files';
+import { Arrivals, ownerColour, type TransferStart } from './arrival';
 
 type Stream = { id: string; ownerId: string; ownerName: string; title: string; colour: string; x: number; y: number; w: number; h: number; version: number; z?: number; canReceive: boolean };
 type State = { id: string; name: string; ended: boolean; items: unknown[]; devices: Recipient[]; streams: Stream[]; me: { id: string; role: string; csrf: string }; theme?: string };
@@ -11,6 +12,7 @@ const wall = element('wall'), windows = element('windows'), empty = element('emp
 const route = location.pathname.match(/^\/app\/(wall|console)\/([a-zA-Z0-9_-]{8,48})\/?$/);
 const roomID = route?.[2];
 const files = new Map<string, FileWindow>();
+const arrivals = new Arrivals(wall);
 const nodes = new Map<string, LiveWindow>();
 let state: State | undefined;
 let connected = false;
@@ -59,6 +61,7 @@ function render(input: unknown) {
   for (const [id, node] of files) if (!ids.has(id)) { node.close(); files.delete(id); }
   for (const item of assets) {
     let node = files.get(item.id);
+    const fresh = !node;
     if (!node) {
       node = new FileWindow(windows, roomID!, item, () => chooseRecipient(item));
       files.set(item.id, node);
@@ -67,14 +70,25 @@ function render(input: unknown) {
         bindGesture(handle, operation, 'item', () => tile.model, () => connected && !tile.button.hidden,
           value => tile.bounds(value), active => { tile.dragging = active; });
       }
-      if (connected) tile.root.classList.add('bl-arrive');
     }
     node.update(item, route?.[1] === 'console' && (state.me.role === 'admin' || state.me.id === item.ownerId));
+    if (fresh && connected) arrivals.land(item.ownerId, item.title, node.root);
   }
   const count = nodes.size + files.size;
   empty.hidden = count > 0;
   status.textContent = 'Send a file or live window to the Wall.';
   element('identity').toggleAttribute('data-busy', count >= 3);
+}
+
+const transferID = /^[a-f0-9-]{36}$/;
+function transfer(message: Record<string, unknown>) {
+  if (!connected || typeof message.id !== 'string' || !transferID.test(message.id)) return;
+  if (message.type === 'transfer.start') {
+    const m = message as unknown as TransferStart;
+    if ([m.name, m.ownerId, m.ownerName, m.colour].every(v => typeof v === 'string' && v.length <= 300) &&
+        (m.aim === null || (typeof m.aim === 'number' && m.aim >= 0 && m.aim <= 1))) arrivals.start(m);
+  } else if (message.type === 'transfer.progress' && typeof message.progress === 'number') arrivals.progress(message.id, message.progress);
+  else if (message.type === 'transfer.end') arrivals.end(message.id, message.ok === true);
 }
 
 function chooseRecipient(item: WallFile) {
@@ -109,7 +123,7 @@ function chooseRecipient(item: WallFile) {
 function disconnect(message: string) {
   element<HTMLDialogElement>('return-file').close();
   for (const file of files.values()) file.close();
-  files.clear();
+  files.clear(); arrivals.clear();
   connected = false;
   connection.textContent = message;
   status.textContent = message;
@@ -138,6 +152,7 @@ async function join() {
         const message = JSON.parse(event.data);
         if (message.type === 'hello') { connected = true; connection.textContent = route?.[1] === 'console' ? 'Console connected' : 'Wall connected'; }
         if (message.type === 'state') render(message.state);
+        else if (typeof message.type === 'string' && message.type.startsWith('transfer.')) transfer(message);
       } catch { ws.close(); disconnect('Room connection could not be verified.'); }
     };
     ws.onclose = () => {
@@ -233,10 +248,7 @@ class LiveWindow {
     this.root.setAttribute('aria-label', `${stream.title} shared by ${stream.ownerName}`);
     // Stable owner mapping uses only design-system colours; legacy hex values
     // never become arbitrary CSS. The same owner keeps the same colour.
-    const colours = ['blue', 'orange', 'green', 'pink', 'purple', 'teal', 'gold', 'indigo'];
-    const legacy: Record<string, string> = { '#c76a39': 'orange', '#327c76': 'teal', '#7570b3': 'purple', '#c14b74': 'pink', '#397cba': 'blue', '#ae8428': 'gold' };
-    const index = Array.from(stream.ownerId).reduce((sum, c) => sum + c.charCodeAt(0), 0) % colours.length;
-    this.root.style.setProperty('--o', `var(--bl-owner-${legacy[stream.colour] ?? colours[index]})`);
+    this.root.style.setProperty('--o', ownerColour(stream.ownerId, stream.colour));
     this.resize.hidden = !this.editable(); this.root.toggleAttribute('data-editable', this.editable());
     const ornament = this.root.querySelector<HTMLElement>('.bl-ornament')!;
     ornament.tabIndex = this.editable() ? 0 : -1;

@@ -31,3 +31,15 @@ body { overflow: hidden; }
 
 .file-content canvas { width: 100%; height: 100%; object-fit: contain; }
 .pdf-controls { position: absolute; bottom: var(--bl-space-3); display: flex; align-items: center; gap: var(--bl-space-3); }
+
+/* Phone throw arrival: real-progress spark, particle vortex, landing ripple. */
+.bl-arrival-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9000; }
+.bl-arrival-hidden { opacity: 0; }
+.bl-incoming { position: absolute; width: 0; height: 0; z-index: 9001; pointer-events: none; transition: opacity var(--bl-dur-fast) var(--bl-ease-standard); }
+.bl-incoming .bl-spark { left: 0; top: 0; }
+.bl-incoming__ring { position: absolute; left: -24px; top: -24px; width: 48px; height: 48px; transform: rotate(-90deg); overflow: visible; }
+.bl-incoming__ring circle { fill: none; stroke: var(--o); stroke-width: 3; stroke-linecap: round; opacity: .8; transition: stroke-dasharray 120ms linear; }
+.bl-incoming__label { position: absolute; top: 36px; left: 0; transform: translateX(-50%); white-space: nowrap; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; padding: var(--bl-space-2) var(--bl-space-4); border-radius: var(--bl-radius-sm); font-size: var(--bl-wall-label-size); }
+.bl-incoming--leaving { opacity: 0; }
+.bl-incoming--failed .bl-spark { animation: none; opacity: .4; }
+.bl-incoming--failed .bl-incoming__ring { display: none; }

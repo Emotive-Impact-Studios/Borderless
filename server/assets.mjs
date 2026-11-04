@@ -90,7 +90,7 @@ export function assetStorage(dataDir, key, maxBytes = 25 * 1024 * 1024) {
   const dir = join(dataDir, "assets");
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   const pathFor = (assetId) => join(dir, `${assetId}.blf`);
-  async function write(source, assetId, name) {
+  async function write(source, assetId, name, onBytes) {
     const temp = join(dir, `${assetId}.part`);
     const nonce = randomBytes(12),
       digest = createHash("sha256");
@@ -116,6 +116,7 @@ export function assetStorage(dataDir, key, maxBytes = 25 * 1024 * 1024) {
             chunk.subarray(0, 4096 - prefix.length),
           ]);
         digest.update(chunk);
+        onBytes?.(size);
         callback(null, chunk);
       },
     });

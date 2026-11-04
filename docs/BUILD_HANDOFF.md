@@ -4,6 +4,12 @@
 
 Read VISION.md first, then PRODUCT.md and DESIGN.md, then README, PRD, CAPABILITIES, ARCHITECTURE and DELIVERY. The original conversation is preserved in `docs/source/` and checked against SHA-256. The repository began with only a README at main commit `7b773ca855f0438bdd6e5f08d4e71b556037fd50`.
 
+## Milestone 2 · arrival effect driven by real transfer · 4 November 2026
+
+The hub now announces each Portal upload to the room as it happens: `transfer.start` (sender, colour, file name, aim), throttled `transfer.progress` from bytes actually received, and `transfer.end` only after the stored file is already in the broadcast room state (or `ok: false` when the hub rejects it). The shared TypeScript Wall shows an incoming spark at the aimed point with a progress ring that follows the real bytes, then a particle vortex in the sender's colour that spirals into the landed window, which resolves with the design-system arrival and a ripple. Failures show "did not arrive" and nothing lands. Reduced motion falls back to the cross-fade. File windows now carry their owner's colour like live windows.
+
+Verified with `test/transfer.test.mjs` (start, bounded progress, state before end, rejection path) and a disposable headless run: a 390 px touch-emulated Portal flicked the 2.2 MB Studio concept PNG over a throttled 1.5 MB/s uplink to a 1920×1080 Wall page on a fresh hub at 127.0.0.1:8455. The ring read 53% mid-transfer, the vortex played, the image landed on the aimed side and the spark cleared. Evidence: ignored `output/native/m2-arrival/{1-incoming,2-vortex,3-landed}.png`; script `output/native/m2/arrival-journey.mjs`. Node 24 `npm run verify` passed 71 tests and `npm run native:verify` passed. Not yet seen in the Tauri Wall by the user, on a physical phone, or recorded as video (Playwright's ffmpeg is not installed here).
+
 ## Milestone 2 · file flick and targeted return · 4 November 2026
 
 The Portal's touch gesture now checks upward direction, distance, velocity and pointer identity. The shared TypeScript Wall reconciles file windows from the authoritative room snapshot alongside live windows. Image previews load the existing room-scoped asset endpoint. A leader or file owner in the shared Console can open a dismissible recipient picker and send an invitation to one selected device using the hub's delivery command.
