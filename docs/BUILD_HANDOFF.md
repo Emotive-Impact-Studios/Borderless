@@ -4,6 +4,10 @@
 
 Read VISION.md first, then PRODUCT.md and DESIGN.md, then README, PRD, CAPABILITIES, ARCHITECTURE and DELIVERY. The original conversation is preserved in `docs/source/` and checked against SHA-256. The repository began with only a README at main commit `7b773ca855f0438bdd6e5f08d4e71b556037fd50`.
 
+## Milestone 1 · Ethernet ICE and DTLS · 4 November 2026
+
+An independent headless WebRTC subscriber joined a disposable room through the trusted LAN signalling configuration. The SFU offered its Ethernet IPv4 address on UDP 17882 and TCP 17881. The subscriber negotiated ICE and DTLS and opened the LiveKit reliable and lossy SCTP data channels. Hub Stop closed the signalling session. Both endpoints ran on this Mac. This check used no screen capture and opened no windows. The remaining physical gate is live video on a separately paired computer over the room network. The commissioning ports were closed after the check.
+
 ## Milestone 1 · actual Tauri stall investigation · 4 November 2026
 
 The old 655 ms observation occurred during a source window transition. In eight consecutive saved Tauri images two stationary timestamp bars are visible. The next image shows the restored smaller window and its title bar. The decoder now retains both confirmed timestamps. These images locate the event but cannot assign the historical delay to an individual pipeline stage.
