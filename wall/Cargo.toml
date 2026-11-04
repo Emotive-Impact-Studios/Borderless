@@ -9,6 +9,7 @@ license = "UNLICENSED"
 [dependencies]
 env_logger = "0.11"
 glyphon = "0.9"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
 log = "0.4"
 png = "0.17"
 pollster = "0.4"

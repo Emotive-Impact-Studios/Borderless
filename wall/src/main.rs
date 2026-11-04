@@ -61,6 +61,9 @@ struct App {
     status: String,
     glides: HashMap<String, Glide>,
     started: Instant,
+    pictures: HashMap<String, render::Picture>,
+    requested: std::collections::HashSet<String>,
+    ask: Option<std::sync::mpsc::Sender<String>>,
 }
 
 fn mix(a: Rgba, b: Rgba, t: f32) -> Rgba {
@@ -91,6 +94,24 @@ impl App {
             }
         }
         self.glides.retain(|id, _| next.surfaces.iter().any(|s| &s.id == id));
+        // Ask for each new room image once; drop images no longer on the Wall.
+        let wanted: std::collections::HashSet<String> = next
+            .surfaces
+            .iter()
+            .filter_map(|s| match &s.kind {
+                Kind::File { asset_id, mime, .. } if mime.starts_with("image/") => Some(asset_id.clone()),
+                _ => None,
+            })
+            .collect();
+        for id in &wanted {
+            if self.requested.insert(id.clone()) {
+                if let Some(ask) = &self.ask {
+                    let _ = ask.send(id.clone());
+                }
+            }
+        }
+        self.pictures.retain(|id, _| wanted.contains(id));
+        self.requested.retain(|id| wanted.contains(id));
         self.room = next;
     }
 
@@ -103,12 +124,23 @@ impl App {
             (c.width as f32, c.height as f32)
         };
         let text = self.text.as_mut().unwrap();
-        let (shapes, layers, labels, animating) = scene(&self.room, &self.status, &self.glides, self.tokens.radius_window, text, &theme, w, h, now);
+        let pictures = &self.pictures;
+        let (shapes, layers, labels, placed, animating) = scene(&self.room, &self.status, &self.glides, &|id| pictures.contains_key(id), self.tokens.radius_window, text, &theme, w, h, now);
         let renderer = self.renderer.as_mut().unwrap();
         text.prepare(&renderer.queue, w as u32, h as u32, &labels);
+        let layer_pictures: Vec<Option<&render::Picture>> = placed
+            .iter()
+            .map(|p| {
+                p.as_ref().and_then(|(id, clip, radius)| {
+                    let picture = self.pictures.get(id)?;
+                    renderer.place(picture, *clip, *radius, 1.0);
+                    Some(picture)
+                })
+            })
+            .collect();
         let globals = Globals { size: [w, h], scale: h / 1080.0, time: now.duration_since(self.started).as_secs_f32(), wall: theme.wall, wash_a: theme.wash_a, wash_b: theme.wash_b, grid: theme.grid };
         let text_ref = &*text;
-        if let Err(e) = renderer.frame(globals, &shapes, &layers, !animating, &mut |i, pass| text_ref.render(i, pass)) {
+        if let Err(e) = renderer.frame(globals, &shapes, &layers, &layer_pictures, !animating, &mut |i, pass| text_ref.render(i, pass)) {
             log::warn!("Frame skipped: {e}");
         }
         text.trim();
@@ -120,16 +152,17 @@ impl App {
 
 /// Shapes, their paint layers (one per window, then the Wall's own chrome),
 /// each layer's text, and whether anything is still moving.
-type Frame = (Vec<Shape>, Vec<std::ops::Range<u32>>, Vec<Vec<Label>>, bool);
+type Frame = (Vec<Shape>, Vec<std::ops::Range<u32>>, Vec<Vec<Label>>, Vec<Option<(String, [f32; 4], f32)>>, bool);
 
 /// Builds one frame's shapes and labels in paint order, following the
 /// design-system window anatomy: content, then the glass ornament below it.
 #[allow(clippy::too_many_arguments)]
-fn scene(room: &Room, status: &str, glides: &HashMap<String, Glide>, radius_token: f32, text: &mut Text, theme: &Theme, w: f32, h: f32, now: Instant) -> Frame {
+fn scene(room: &Room, status: &str, glides: &HashMap<String, Glide>, loaded: &dyn Fn(&str) -> bool, radius_token: f32, text: &mut Text, theme: &Theme, w: f32, h: f32, now: Instant) -> Frame {
     let scale = h / 1080.0;
     let mut shapes = Vec::new();
     let mut layers: Vec<std::ops::Range<u32>> = Vec::new();
     let mut texts: Vec<Vec<Label>> = Vec::new();
+    let mut pictures = Vec::new();
     let mut animating = false;
     let radius = radius_token * scale;
     let glass_edge = [1.0, 1.0, 1.0, if theme.dark { 0.12 } else { 0.55 }];
@@ -140,6 +173,7 @@ fn scene(room: &Room, status: &str, glides: &HashMap<String, Glide>, radius_toke
     for s in &room.surfaces {
         let first = shapes.len() as u32;
         let mut labels = Vec::new();
+        let mut picture = None;
         let (r, moving) = current_rect(glides, s, now);
         animating |= moving;
         let owner = theme.owner(&s.owner_id, s.colour.as_deref());
@@ -180,6 +214,9 @@ fn scene(room: &Room, status: &str, glides: &HashMap<String, Glide>, radius_toke
                 }
                 put(text, url, 18.0 * scale, 24.0 * scale, 500, Face::Mono, theme.accent, top);
             }
+            Kind::File { mime, asset_id, .. } if mime.starts_with("image/") && loaded(asset_id) => {
+                picture = Some((asset_id.clone(), [x, y, sw, ch], radius));
+            }
             Kind::File { mime, .. } => {
                 let kind = if mime.starts_with("image/") { "Image" } else if mime == "application/pdf" { "PDF" } else if mime.starts_with("video/") { "Video" } else { "File" };
                 put(text, kind, 22.0 * scale, 28.0 * scale, 600, Face::Sans, theme.ink_muted, y + ch / 2.0 - 14.0 * scale);
@@ -206,6 +243,7 @@ fn scene(room: &Room, status: &str, glides: &HashMap<String, Glide>, radius_toke
         labels.push(ol);
         layers.push(first..shapes.len() as u32);
         texts.push(labels);
+        pictures.push(picture);
     }
     let first = shapes.len() as u32;
     let mut labels = Vec::new();
@@ -240,7 +278,8 @@ fn scene(room: &Room, status: &str, glides: &HashMap<String, Glide>, radius_toke
     }
     layers.push(first..shapes.len() as u32);
     texts.push(labels);
-    (shapes, layers, texts, animating)
+    pictures.push(None);
+    (shapes, layers, texts, pictures, animating)
 }
 
 impl ApplicationHandler<RoomEvent> for App {
@@ -266,9 +305,9 @@ impl ApplicationHandler<RoomEvent> for App {
         self.renderer = Some(renderer);
         self.window = Some(window.clone());
         let proxy = self.proxy.clone();
-        room::run(self.options.target.clone(), move |e| {
+        self.ask = Some(room::run(self.options.target.clone(), move |e| {
             let _ = proxy.send_event(e);
-        });
+        }));
         window.request_redraw();
     }
 
@@ -283,6 +322,12 @@ impl ApplicationHandler<RoomEvent> for App {
                 }
             }
             RoomEvent::Status(s) => self.status = s,
+            RoomEvent::Picture(p) => {
+                if let Some(r) = &self.renderer {
+                    let picture = r.upload(p.width, p.height, &p.rgba);
+                    self.pictures.insert(p.asset, picture);
+                }
+            }
             RoomEvent::Live(_) => {}
         }
         if let Some(w) = &self.window {
@@ -337,6 +382,9 @@ fn main() {
         status: "Connecting to the room…".into(),
         glides: HashMap::new(),
         started: Instant::now(),
+        pictures: HashMap::new(),
+        requested: Default::default(),
+        ask: None,
     };
     event_loop.run_app(&mut app).expect("Wall event loop");
 }

@@ -95,3 +95,34 @@ fn rounded(p: vec2<f32>, extent: vec2<f32>, r: f32) -> f32 {
   }
   return vec4<f32>(out.rgb * out.a, out.a);
 }
+
+// Room images: drawn into the window's content area, letterboxed
+// ("contain") and clipped to the window's rounded corners.
+struct Placement {
+  dest: vec4<f32>,   // image rectangle in pixels
+  clip: vec4<f32>,   // window content rectangle in pixels
+  params: vec4<f32>, // corner radius, opacity
+};
+@group(1) @binding(0) var<uniform> place: Placement;
+@group(1) @binding(1) var picture: texture_2d<f32>;
+@group(1) @binding(2) var picture_sampler: sampler;
+
+struct ImageOut { @builtin(position) pos: vec4<f32>, @location(0) uv: vec2<f32>, @location(1) px: vec2<f32> };
+
+@vertex fn image_vs(@builtin(vertex_index) i: u32) -> ImageOut {
+  let corner = vec2<f32>(f32(i & 1u), f32((i >> 1u) & 1u));
+  let px = place.dest.xy + corner * place.dest.zw;
+  var o: ImageOut;
+  o.pos = vec4<f32>(px.x / g.size.x * 2.0 - 1.0, 1.0 - px.y / g.size.y * 2.0, 0.0, 1.0);
+  o.uv = corner;
+  o.px = px;
+  return o;
+}
+
+@fragment fn image_fs(in: ImageOut) -> @location(0) vec4<f32> {
+  let extent = place.clip.zw * 0.5;
+  let d = rounded(in.px - (place.clip.xy + extent), extent, min(place.params.x, min(extent.x, extent.y)));
+  let a = (1.0 - smoothstep(-0.75, 0.75, d)) * place.params.y;
+  let c = textureSample(picture, picture_sampler, in.uv);
+  return vec4<f32>(c.rgb * c.a * a, c.a * a);
+}

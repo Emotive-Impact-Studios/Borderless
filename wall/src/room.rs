@@ -4,12 +4,27 @@
 //! operating system's trust store decides, with no certificate bypass.
 use crate::model::{self, Room};
 use serde_json::Value;
-use std::{fs, path::PathBuf, thread, time::Duration};
+use std::{fs, path::PathBuf, sync::{mpsc, Arc}, thread, time::Duration};
 use tungstenite::{ClientRequestBuilder, Message};
 use ureq::tls::{RootCerts, TlsConfig};
 
+pub struct Picture {
+    pub asset: String,
+    pub width: u32,
+    pub height: u32,
+    pub rgba: Vec<u8>,
+}
+
+impl std::fmt::Debug for Picture {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Picture({}, {}x{})", self.asset, self.width, self.height)
+    }
+}
+
 #[derive(Debug)]
 pub enum RoomEvent {
+    /// A decoded room image, at most 2048 px on its longest side.
+    Picture(Picture),
     State(Room),
     Status(String),
     /// Short-lived room events (transfer progress) passed through as JSON.
@@ -118,7 +133,31 @@ fn state(agent: &ureq::Agent, t: &Target, cookie: &str) -> Result<Value, u16> {
 }
 
 /// Runs for the life of the Wall on its own thread.
-pub fn run(t: Target, send: impl Fn(RoomEvent) + Send + 'static) {
+/// Downloads room images on request (asset ids) using the Wall's session.
+fn pictures(agent: ureq::Agent, t: Target, cookie: String, requests: mpsc::Receiver<String>, send: Arc<dyn Fn(RoomEvent) + Send + Sync>) {
+    thread::spawn(move || {
+        for asset in requests {
+            let fetched = agent
+                .get(&format!("{}/api/rooms/{}/assets/{}", t.base, t.room, asset))
+                .header("Cookie", &cookie)
+                .call()
+                .ok()
+                .filter(|r| r.status().is_success())
+                .and_then(|mut r| r.body_mut().with_config().limit(25 * 1024 * 1024).read_to_vec().ok());
+            let Some(bytes) = fetched else { continue };
+            // Only the formats the hub accepts for images; never anything executable.
+            let Ok(image) = image::load_from_memory(&bytes) else { continue };
+            let image = if image.width().max(image.height()) > 2048 { image.resize(2048, 2048, image::imageops::FilterType::Lanczos3) } else { image };
+            let rgba = image.to_rgba8();
+            send(RoomEvent::Picture(Picture { asset, width: rgba.width(), height: rgba.height(), rgba: rgba.into_raw() }));
+        }
+    });
+}
+
+/// Starts the room connection; returns where to ask for room images.
+pub fn run(t: Target, send: impl Fn(RoomEvent) + Send + Sync + 'static) -> mpsc::Sender<String> {
+    let (ask, requests) = mpsc::channel::<String>();
+    let send: Arc<dyn Fn(RoomEvent) + Send + Sync> = Arc::new(send);
     thread::spawn(move || {
         let agent = agent();
         let file = session_file(&t);
@@ -137,6 +176,7 @@ pub fn run(t: Target, send: impl Fn(RoomEvent) + Send + 'static) {
                 Err(_) => return send(RoomEvent::Status("Pair this Wall using a fresh invitation from the room leader.".into())),
             },
         };
+        pictures(agent.clone(), t.clone(), cookie.clone(), requests, send.clone());
         loop {
             match state(&agent, &t, &cookie) {
                 Ok(v) => match model::parse(&t.room, &v) {
@@ -189,6 +229,7 @@ pub fn run(t: Target, send: impl Fn(RoomEvent) + Send + 'static) {
             thread::sleep(Duration::from_secs(3));
         }
     });
+    ask
 }
 
 #[cfg(test)]
