@@ -1,0 +1,781 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Borderless</title>
+<meta name="description" content="Borderless joins your laptop, your phone and the room's big screen into one surface. Drag a window over the edge and it lands on the wall.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&family=Playfair+Display:wght@600&display=swap">
+<style>
+/* Layout: one calm column of glass; the hero is a live room (wall, laptop, phone) that plays the three moves on loop. Tokens follow the Borderless design system: Whiteboard in light, Studio in dark. */
+:root {
+  --wall: #F4F5F8;
+  --wash-a: #E3ECFF;
+  --wash-b: #FFE9E0;
+  --grid: rgba(29,29,31,0.07);
+  --surface: #FFFFFF;
+  --sunken: #ECEEF3;
+  --ink: #1D1D1F;
+  --muted: #6E6E73;
+  --faint: #AEAEB2;
+  --line: rgba(0,0,0,0.08);
+  --accent: #0071E3;
+  --accent-ink: #FFFFFF;
+  --live: #FF3B30;
+  --o-blue: #0A6FE0;
+  --o-orange: #C45F00;
+  --o-green: #1A8050;
+  --o-pink: #D81B60;
+  --o-purple: #7646D8;
+  --glass: rgba(255,255,255,0.55);
+  --glass-stroke: rgba(255,255,255,0.7);
+  --glass-hi: rgba(255,255,255,0.95);
+  --shadow-rgb: 30,40,80;
+  --device: #1D1D1F;
+  --device-edge: #3A3A3C;
+
+  --font-sans: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --font-display: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI Variable Display", system-ui, sans-serif;
+  --font-mono: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --r-window: 24px;
+  --elev-rest: 0 2px 6px rgba(var(--shadow-rgb),0.08), 0 24px 48px rgba(var(--shadow-rgb),0.12);
+  --elev-float: 0 10px 30px rgba(var(--shadow-rgb),0.14);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --wall: #0C0D12; --wash-a: #1D2B55; --wash-b: #3A1D33; --grid: rgba(255,255,255,0.06);
+    --surface: #1C1D22; --sunken: #111216; --ink: #F2F3F5; --muted: #9A9FAD; --faint: #5D616C;
+    --line: rgba(255,255,255,0.10); --accent: #4DA3FF; --accent-ink: #06101E; --live: #FF453A;
+    --o-blue: #4DA3FF; --o-orange: #FF9F40; --o-green: #3DD68C; --o-pink: #FF6B9A; --o-purple: #B48CFF;
+    --glass: rgba(40,42,52,0.55); --glass-stroke: rgba(255,255,255,0.12); --glass-hi: rgba(255,255,255,0.18);
+    --shadow-rgb: 0,0,0; --device: #2C2C2E; --device-edge: #48484A;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --wall: #0C0D12; --wash-a: #1D2B55; --wash-b: #3A1D33; --grid: rgba(255,255,255,0.06);
+  --surface: #1C1D22; --sunken: #111216; --ink: #F2F3F5; --muted: #9A9FAD; --faint: #5D616C;
+  --line: rgba(255,255,255,0.10); --accent: #4DA3FF; --accent-ink: #06101E; --live: #FF453A;
+  --o-blue: #4DA3FF; --o-orange: #FF9F40; --o-green: #3DD68C; --o-pink: #FF6B9A; --o-purple: #B48CFF;
+  --glass: rgba(40,42,52,0.55); --glass-stroke: rgba(255,255,255,0.12); --glass-hi: rgba(255,255,255,0.18);
+  --shadow-rgb: 0,0,0; --device: #2C2C2E; --device-edge: #48484A;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--wall);
+  color: var(--ink);
+  font: 400 17px/1.5 var(--font-sans);
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--wall); }
+.wrap { max-width: 1160px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 8px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+p { margin: 0; }
+
+/* Ambient wash behind everything */
+.wash { position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(60% 50% at 15% 0%, var(--wash-a), transparent 70%),
+    radial-gradient(50% 45% at 95% 10%, var(--wash-b), transparent 70%),
+    var(--wall); }
+
+/* Glass */
+.glass { background: var(--glass); border: 1px solid var(--glass-stroke);
+  -webkit-backdrop-filter: blur(24px) saturate(1.8); backdrop-filter: blur(24px) saturate(1.8);
+  box-shadow: inset 0 1px 0 var(--glass-hi), var(--elev-float); }
+
+/* Nav */
+.nav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; padding-block: 14px; }
+.nav__bar { display: flex; align-items: center; gap: 16px; height: 52px; padding: 0 8px 0 18px; border-radius: 999px; }
+.brand { display: inline-flex; align-items: center; gap: 10px; font: 600 18px/1 var(--font-display); letter-spacing: -0.02em; text-decoration: none; }
+.brand__mark { width: 22px; height: 22px; flex: none; }
+.nav__links { display: flex; gap: 4px; margin-left: auto; }
+.nav__links a { text-decoration: none; color: var(--muted); font-size: 15px; padding: 8px 12px; border-radius: 999px; transition: color .18s var(--ease), background .18s var(--ease); }
+.nav__links a:hover { color: var(--ink); background: var(--line); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 0 20px; border-radius: 999px; border: 0;
+  font: 600 15px/1 var(--font-sans); letter-spacing: -0.01em; text-decoration: none; cursor: pointer; white-space: nowrap;
+  transition: transform .18s var(--ease), background .18s var(--ease), box-shadow .18s var(--ease); }
+.btn:active { transform: scale(.97); }
+.btn--primary { background: var(--accent); color: var(--accent-ink); box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 35%, transparent); }
+.btn--primary:hover { box-shadow: 0 8px 26px color-mix(in srgb, var(--accent) 50%, transparent); }
+.btn--sm { height: 36px; padding: 0 16px; font-size: 14px; }
+@media (max-width: 760px) { .nav__links { display: none; } .nav__bar .btn { margin-left: auto; } }
+
+/* Hero */
+.hero { padding-block: 56px 24px; display: grid; gap: 40px; }
+.hero__copy { max-width: 760px; display: grid; gap: 22px; }
+.eyebrow { font: 500 13px/1.2 var(--font-mono); letter-spacing: .04em; color: var(--muted); text-transform: uppercase; }
+.hero h1 { font-size: clamp(40px, 6.4vw, 76px); line-height: 1.02; letter-spacing: -0.035em; font-weight: 700; }
+.hero h1 .cross { background: linear-gradient(100deg, var(--o-orange), var(--o-pink) 45%, var(--o-blue)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lede { font-size: clamp(18px, 2vw, 21px); line-height: 1.5; color: var(--muted); max-width: 640px; }
+.signup { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; max-width: 520px; padding: 6px; border-radius: 999px; }
+.signup input { flex: 1 1 200px; min-width: 0; height: 44px; border: 0; background: transparent; color: var(--ink); font: 400 16px var(--font-sans); padding: 0 14px; }
+.signup input::placeholder { color: var(--muted); }
+.signup input:focus { outline: none; }
+.signup:focus-within { box-shadow: inset 0 1px 0 var(--glass-hi), 0 0 0 3px color-mix(in srgb, var(--accent) 40%, transparent), var(--elev-float); }
+.signup__note { font-size: 14px; color: var(--muted); min-height: 1.5em; }
+.signup__note[data-state="ok"] { color: var(--o-green); }
+@media (max-width: 480px) { .signup { border-radius: 24px; } .signup .btn { flex: 1 1 100%; } }
+
+/* The room stage */
+.stage { position: relative; width: 100%; aspect-ratio: 16 / 10.5; container-type: inline-size; max-width: 100%; }
+.stage__wall { position: absolute; left: 4%; top: 0; width: 92%; height: 58%; border-radius: 1.6cqw; padding: .55cqw; background: var(--device); box-shadow: 0 3cqw 6cqw rgba(var(--shadow-rgb), .18); }
+.wallscreen { position: relative; width: 100%; height: 100%; border-radius: 1.1cqw; overflow: hidden;
+  background:
+    radial-gradient(55% 60% at 10% 0%, var(--wash-a), transparent 70%),
+    radial-gradient(45% 50% at 100% 100%, var(--wash-b), transparent 70%),
+    linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 3cqw 3cqw,
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 3cqw 3cqw,
+    var(--wall); }
+.win { position: absolute; display: flex; flex-direction: column; align-items: center; gap: .6cqw; }
+.win__content { width: 100%; flex: 1; border-radius: 1.2cqw; background: var(--surface); box-shadow: var(--elev-rest); overflow: hidden; position: relative; transition: box-shadow .4s var(--ease); }
+.win.is-live .win__content { box-shadow: 0 0 0 .22cqw var(--o), 0 0 2.4cqw color-mix(in srgb, var(--o) 45%, transparent), var(--elev-rest); }
+.orn { display: inline-flex; align-items: center; gap: .55cqw; height: 2.3cqw; padding: 0 .9cqw 0 .3cqw; border-radius: 999px; font: 600 clamp(6px, 1cqw, 13px)/1 var(--font-sans); white-space: nowrap; color: var(--ink); }
+.orn .who { color: var(--muted); font-weight: 500; }
+.av { width: 1.7cqw; height: 1.7cqw; border-radius: 50%; background: var(--o); color: #fff; display: grid; place-items: center; font: 700 clamp(5px, .8cqw, 10px)/1 var(--font-sans); flex: none; }
+.livepill { display: inline-flex; align-items: center; gap: .3cqw; color: var(--live); font-weight: 600; }
+.livepill::before { content: ""; width: .6cqw; height: .6cqw; border-radius: 50%; background: var(--live); }
+
+/* window artwork */
+.art-slide { padding: 1.6cqw; display: grid; gap: .8cqw; align-content: start; height: 100%; }
+.art-slide b { display: block; font: 700 clamp(8px, 1.7cqw, 22px)/1.1 var(--font-display); letter-spacing: -0.02em; }
+.art-slide i { display: block; height: .8cqw; border-radius: 1cqw; background: var(--sunken); }
+.art-slide i:nth-child(3) { width: 70%; }
+.bars { display: flex; align-items: flex-end; gap: .7cqw; height: 9cqw; margin-top: .6cqw; }
+.bars span { flex: 1; border-radius: .4cqw .4cqw 0 0; background: color-mix(in srgb, var(--o) 75%, transparent); }
+.art-sheet { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); height: 100%; font: 500 clamp(5px, .85cqw, 11px)/1 var(--font-mono); color: var(--muted); }
+.art-sheet span { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: .55cqw; white-space: nowrap; overflow: hidden; }
+.art-sheet span.h { background: var(--sunken); color: var(--ink); }
+.art-sheet span.up { color: var(--o-green); }
+.art-design { height: 100%; display: grid; grid-template-columns: 22% 1fr; }
+.art-design .rail { background: var(--sunken); padding: 1cqw .8cqw; display: grid; gap: .6cqw; align-content: start; }
+.art-design .rail i { height: .7cqw; border-radius: 1cqw; background: var(--line); }
+.art-design .canvas { position: relative; padding: 1.2cqw; }
+.art-design .blob { position: absolute; border-radius: 50%; filter: blur(.2cqw); }
+.art-design .blob.a { inset: 18% 30% 22% 14%; background: radial-gradient(circle at 35% 35%, #FFB36B, var(--o-orange)); }
+.art-design .blob.b { width: 32%; aspect-ratio: 1; right: 10%; top: 12%; background: radial-gradient(circle at 40% 35%, #FF9CC0, var(--o-pink)); }
+.art-design .type { position: absolute; left: 1.4cqw; bottom: 1.2cqw; font: 700 clamp(7px, 1.5cqw, 20px)/1 var(--font-display); letter-spacing: -0.03em; color: var(--ink); }
+.art-photo { height: 100%; background:
+  radial-gradient(40% 30% at 70% 30%, #FFE3A3, transparent 70%),
+  linear-gradient(180deg, #7FB2F0 0%, #B8D4F5 45%, #F4C9A8 62%, #4E6E5A 63%, #2F4A3A 100%); }
+.art-photo::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 37%; background: linear-gradient(170deg, transparent 40%, rgba(0,0,0,.18)); }
+.join { position: absolute; right: 1.6cqw; bottom: 1.6cqw; display: flex; align-items: center; gap: .9cqw; padding: .7cqw 1.1cqw .7cqw .7cqw; border-radius: 1.2cqw; }
+.join .qr { width: 4.2cqw; height: 4.2cqw; border-radius: .5cqw; background:
+  conic-gradient(from 90deg at 30% 30%, var(--ink) 25%, transparent 0) 0 0 / 1.05cqw 1.05cqw,
+  var(--surface); opacity: .9; }
+.join small { display: block; font: 500 clamp(5px, .8cqw, 10px)/1.2 var(--font-sans); color: var(--muted); }
+.join b { display: block; font: 500 clamp(6px, 1.15cqw, 14px)/1.2 var(--font-mono); letter-spacing: .06em; }
+
+.stage__laptop { position: absolute; left: 9%; top: 66%; width: 40%; }
+.lap-screen { position: relative; aspect-ratio: 16 / 10; border-radius: 1.2cqw 1.2cqw 0 0; padding: .55cqw; background: var(--device); }
+.lap-display { position: relative; width: 100%; height: 100%; border-radius: .6cqw; overflow: hidden;
+  background: radial-gradient(70% 70% at 20% 0%, var(--wash-a), transparent 70%), radial-gradient(60% 60% at 100% 100%, var(--wash-b), transparent 70%), var(--wall); }
+.menubar { position: absolute; inset: 0 0 auto; height: 1.4cqw; background: var(--glass); display: flex; align-items: center; gap: .9cqw; padding: 0 .9cqw; }
+.menubar i { width: 2.2cqw; height: .45cqw; border-radius: 1cqw; background: var(--line); }
+.menubar i:first-child { width: .8cqw; height: .8cqw; border-radius: 50%; background: var(--ink); opacity: .7; }
+.lap-base { height: 1.3cqw; margin: 0 -6%; border-radius: 0 0 1.6cqw 1.6cqw; background: linear-gradient(var(--device-edge), var(--device)); position: relative; }
+.lap-base::before { content: ""; position: absolute; left: 50%; top: 0; width: 16%; height: 45%; transform: translateX(-50%); border-radius: 0 0 .6cqw .6cqw; background: rgba(0,0,0,.35); }
+.edge { position: absolute; left: 4%; right: 4%; top: 0; height: .5cqw; border-radius: 0 0 1cqw 1cqw; background: var(--o-orange); box-shadow: 0 0 1.5cqw .3cqw var(--o-orange), 0 0 4cqw .6cqw color-mix(in srgb, var(--o-orange) 50%, transparent); opacity: 0; }
+#lapWin { left: 18%; top: 22%; width: 62%; height: 66%; --o: var(--o-orange); }
+#lapWin .win__content { border-radius: .8cqw; }
+
+.stage__phone { position: absolute; left: 74%; top: 63%; width: 14%; aspect-ratio: 9 / 19; border-radius: 2.4cqw; padding: .5cqw; background: var(--device); box-shadow: 0 2cqw 4cqw rgba(var(--shadow-rgb), .2); }
+.ph-display { position: relative; width: 100%; height: 100%; border-radius: 1.9cqw; overflow: hidden; background: var(--wall); }
+.ph-display::before { content: ""; position: absolute; top: .6cqw; left: 50%; width: 32%; height: 1.2cqw; transform: translateX(-50%); border-radius: 1cqw; background: var(--device); z-index: 3; }
+.ph-head { position: absolute; top: 3.2cqw; left: 1cqw; right: 1cqw; font: 700 clamp(6px, 1.2cqw, 15px)/1.1 var(--font-display); letter-spacing: -0.02em; }
+.ph-head small { display: block; font: 500 clamp(5px, .75cqw, 10px)/1.3 var(--font-sans); color: var(--muted); letter-spacing: 0; }
+#phonePhoto { position: absolute; left: 1cqw; right: 1cqw; top: 8cqw; height: 9cqw; border-radius: 1cqw; overflow: hidden; box-shadow: var(--elev-float); }
+.ph-hint { position: absolute; left: 0; right: 0; top: 18.4cqw; text-align: center; font: 500 clamp(5px, .75cqw, 10px)/1.2 var(--font-sans); color: var(--muted); }
+.ph-hint::before { content: "↑"; display: block; font-size: 1.4em; color: var(--o-pink); }
+#phoneFile { position: absolute; left: .8cqw; right: .8cqw; top: 2.8cqw; padding: .7cqw; border-radius: 1cqw; display: flex; gap: .6cqw; align-items: center; opacity: 0; z-index: 2; }
+#phoneFile .ic { width: 2.2cqw; height: 2.6cqw; border-radius: .4cqw; background: var(--o-green); flex: none; position: relative; }
+#phoneFile .ic::after { content: ""; position: absolute; inset: 30% 22%; background: linear-gradient(var(--surface) 0 0) 0 0 / 100% 18% repeat-y; opacity: .85; background-size: 100% 34%; }
+#phoneFile b { display: block; font: 600 clamp(5px, .8cqw, 10px)/1.2 var(--font-sans); }
+#phoneFile small { display: block; font: 500 clamp(4px, .65cqw, 9px)/1.2 var(--font-sans); color: var(--o-green); }
+
+#wallA { left: 3%; top: 6%; width: 30%; height: 58%; --o: var(--o-blue); }
+#wallB { left: 35%; top: 9%; width: 24%; height: 40%; --o: var(--o-green); }
+#wallLap { left: 61%; top: 5%; width: 35%; height: 62%; --o: var(--o-orange); }
+#wallPhoto { left: 37%; top: 58%; width: 18%; height: 34%; --o: var(--o-pink); }
+.landing { opacity: 0; }
+.ripple { position: absolute; border-radius: 1.4cqw; border: .25cqw solid var(--o-pink); pointer-events: none; opacity: 0; }
+
+.fx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
+.stage__caption { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); display: flex; gap: 4px; padding: 4px; border-radius: 999px; z-index: 6; }
+.stage__caption span { font: 600 clamp(11px, 1.15cqw, 14px)/1 var(--font-sans); padding: .75em 1.1em; border-radius: 999px; color: var(--muted); white-space: nowrap; transition: background .3s var(--ease), color .3s var(--ease); }
+.stage__caption span.on { background: var(--ink); color: var(--wall); }
+@media (max-width: 560px) { .stage { aspect-ratio: 16 / 12.5; } .stage__caption { bottom: -4px; } .stage__caption span { padding: .7em .8em; } }
+
+/* Sections */
+section { padding-block: 72px; }
+.sec-head { display: grid; gap: 14px; max-width: 720px; margin-bottom: 40px; }
+.sec-head h2 { font-size: clamp(32px, 4.4vw, 52px); line-height: 1.05; letter-spacing: -0.03em; }
+.sec-head p { color: var(--muted); font-size: 19px; max-width: 620px; }
+
+.moves { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.move { border-radius: 28px; padding: 28px; display: grid; gap: 12px; align-content: start; background: var(--surface); box-shadow: var(--elev-rest); }
+.move h3 { font-size: 24px; letter-spacing: -0.02em; display: flex; align-items: center; gap: 10px; }
+.move h3 .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--o); box-shadow: 0 0 12px var(--o); }
+.move p { color: var(--muted); }
+.move .tag { font: 500 12px/1 var(--font-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+@media (max-width: 860px) { .moves { grid-template-columns: 1fr; } }
+
+.table-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 48px; align-items: center; }
+.table-split .sec-head { margin-bottom: 0; }
+.people { list-style: none; padding: 0; margin: 28px 0 0; display: grid; gap: 12px; }
+.people li { display: flex; align-items: center; gap: 12px; font-size: 16px; }
+.people .av { width: 28px; height: 28px; font-size: 12px; }
+.people span { color: var(--muted); }
+.minwall { container-type: inline-size; position: relative; aspect-ratio: 16 / 10; border-radius: 22px; padding: 8px; background: var(--device); box-shadow: var(--elev-rest); }
+.minwall .wallscreen { border-radius: 15px; }
+#tA { left: 4%; top: 7%; width: 44%; height: 70%; --o: var(--o-blue); }
+#tB { left: 51%; top: 7%; width: 45%; height: 36%; --o: var(--o-green); }
+#tC { left: 51%; top: 52%; width: 21%; height: 36%; --o: var(--o-pink); }
+#tD { left: 75%; top: 52%; width: 21%; height: 36%; --o: var(--o-purple); }
+.minwall .orn { height: 3.6cqw; font-size: clamp(7px, 1.6cqw, 13px); padding: 0 1.4cqw 0 .5cqw; gap: .9cqw; }
+.minwall .av { width: 2.7cqw; height: 2.7cqw; font-size: clamp(6px, 1.2cqw, 10px); }
+.minwall .win { gap: 1cqw; }
+.minwall .art-slide { padding: 2.4cqw; gap: 1.2cqw; }
+.minwall .art-slide b { font-size: clamp(9px, 2.6cqw, 22px); }
+.minwall .art-slide i { height: 1.2cqw; }
+.minwall .bars { height: 14cqw; gap: 1cqw; }
+.minwall .art-sheet { font-size: clamp(6px, 1.3cqw, 11px); }
+.minwall .art-sheet span { padding: .9cqw; }
+.note { padding: 1.6cqw; height: 100%; background: color-mix(in srgb, var(--o) 13%, var(--surface)); font: 600 clamp(7px, 1.7cqw, 14px)/1.3 var(--font-sans); }
+@media (max-width: 860px) { .table-split { grid-template-columns: 1fr; gap: 32px; } }
+
+/* Rooms and looks */
+.tabs { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: 999px; margin-bottom: 28px; max-width: 100%; }
+.tabs button { height: 40px; padding: 0 18px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: 600 15px/1 var(--font-sans); cursor: pointer; transition: background .2s var(--ease), color .2s var(--ease); }
+.tabs button[aria-selected="true"] { background: var(--ink); color: var(--wall); }
+.room { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 48px; align-items: center; }
+.room__copy { display: grid; gap: 16px; }
+.room__copy h3 { font-size: clamp(26px, 3vw, 34px); letter-spacing: -0.025em; line-height: 1.1; }
+.room__copy p { color: var(--muted); }
+.room__copy ul { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.room__copy li { display: flex; gap: 10px; align-items: baseline; }
+.room__copy li::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); transform: translateY(-2px); }
+.room__look { font: 500 12px/1 var(--font-mono); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+@media (max-width: 860px) { .room { grid-template-columns: 1fr; gap: 28px; } }
+
+/* Fixed looks for the room preview: each is its own world, independent of page theme */
+.look { transition: background .4s var(--ease); }
+.look[data-look="whiteboard"] { --wall: #F4F5F8; --wash-a: #E3ECFF; --wash-b: #FFE9E0; --grid: rgba(29,29,31,.07); --surface: #FFFFFF; --sunken: #ECEEF3; --ink: #1D1D1F; --muted: #6E6E73; --line: rgba(0,0,0,.08); --glass: rgba(255,255,255,.6); --glass-stroke: rgba(255,255,255,.7); --glass-hi: rgba(255,255,255,.95); --o-blue: #0A6FE0; --o-orange: #C45F00; --o-green: #1A8050; --o-pink: #D81B60; --o-purple: #7646D8; --head: var(--font-display); --rad: 1; }
+.look[data-look="studio"] { --wall: #0C0D12; --wash-a: #1D2B55; --wash-b: #3A1D33; --grid: rgba(255,255,255,.06); --surface: #1C1D22; --sunken: #111216; --ink: #F2F3F5; --muted: #9A9FAD; --line: rgba(255,255,255,.1); --glass: rgba(40,42,52,.6); --glass-stroke: rgba(255,255,255,.12); --glass-hi: rgba(255,255,255,.18); --o-blue: #4DA3FF; --o-orange: #FF9F40; --o-green: #3DD68C; --o-pink: #FF6B9A; --o-purple: #B48CFF; --head: var(--font-display); --rad: 1; }
+.look[data-look="executive"] { --wall: #F6F1E9; --wash-a: #FFF4E2; --wash-b: #EFE4D6; --grid: rgba(80,60,30,.06); --surface: #FFFFFF; --sunken: #F2ECE2; --ink: #1C1712; --muted: #6B6459; --line: rgba(60,40,10,.1); --glass: rgba(255,252,246,.65); --glass-stroke: rgba(255,255,255,.7); --glass-hi: rgba(255,255,255,.95); --o-blue: #0A6FE0; --o-orange: #C45F00; --o-green: #1A8050; --o-pink: #D81B60; --o-purple: #7646D8; --head: "Playfair Display", "New York", Georgia, serif; --rad: 1; }
+.look[data-look="tactical"] { --wall: #070A0C; --wash-a: #0B1A17; --wash-b: #070A0C; --grid: rgba(46,230,166,.07); --surface: #0D1416; --sunken: #0A1012; --ink: #D7F5EC; --muted: #7FA79C; --line: rgba(46,230,166,.15); --glass: rgba(13,24,26,.75); --glass-stroke: rgba(46,230,166,.25); --glass-hi: rgba(46,230,166,.12); --o-blue: #4DA3FF; --o-orange: #FF9F40; --o-green: #3DD68C; --o-pink: #FF6B9A; --o-purple: #B48CFF; --head: "IBM Plex Mono", var(--font-mono); --rad: .4; }
+.look .wallscreen, .look .win__content, .look .orn, .look .note { color: var(--ink); }
+.look .art-slide b { font-family: var(--head); }
+.look .win__content { border-radius: calc(1.8cqw * var(--rad)); }
+.look .orn .num { display: none; font-family: var(--font-mono); color: var(--muted); }
+.look[data-look="tactical"] .orn { border-radius: 4px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .06em; font-weight: 500; }
+.look[data-look="tactical"] .orn .num { display: inline; }
+.look[data-look="tactical"] .av { border-radius: 3px; color: #0b0c10; }
+.look[data-look="studio"] .av { color: #0b0c10; }
+.look[data-look="studio"] .win.is-live .win__content, .look[data-look="tactical"] .win.is-live .win__content { box-shadow: 0 0 0 .3cqw var(--o), 0 0 3cqw color-mix(in srgb, var(--o) 55%, transparent); }
+
+/* Compare */
+.compare-scroll { overflow-x: auto; border-radius: 24px; background: var(--surface); box-shadow: var(--elev-rest); }
+table { width: 100%; border-collapse: collapse; min-width: 720px; font-size: 15px; }
+th, td { padding: 16px 18px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: middle; }
+thead th { font: 600 13px/1.3 var(--font-sans); color: var(--muted); }
+thead th small { display: block; font-weight: 400; margin-top: 2px; }
+thead th.us { color: var(--ink); }
+tbody th { font-weight: 500; }
+tbody tr:last-child th, tbody tr:last-child td { border-bottom: 0; }
+td { text-align: center; color: var(--muted); }
+td.us { background: color-mix(in srgb, var(--accent) 7%, transparent); color: var(--ink); }
+.mk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.mk::before { content: ""; width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.mk.y::before { background: var(--o-green); }
+.mk.p::before { background: linear-gradient(90deg, var(--faint) 50%, transparent 50%); border: 1.5px solid var(--faint); }
+.mk.n::before { border: 1.5px solid var(--faint); }
+.fine { margin-top: 14px; font-size: 13px; color: var(--muted); }
+
+/* Facts */
+.facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
+.fact { display: grid; gap: 8px; align-content: start; padding-top: 18px; border-top: 1px solid var(--line); }
+.fact h3 { font-size: 18px; letter-spacing: -0.015em; }
+.fact p { color: var(--muted); font-size: 15px; }
+.platforms { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 36px; }
+.platforms span { font: 500 13px/1 var(--font-mono); padding: 9px 14px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+@media (max-width: 860px) { .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .facts { grid-template-columns: 1fr; } }
+
+/* Closing */
+.closing { text-align: center; display: grid; justify-items: center; gap: 20px; padding-block: 96px; }
+.closing h2 { font-size: clamp(36px, 5.5vw, 64px); letter-spacing: -0.035em; line-height: 1.02; }
+.closing .lede { margin: 0 auto; }
+.closing .signup { width: 100%; }
+footer { padding-block: 28px 40px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; }
+footer .brand { font-size: 15px; color: var(--ink); }
+footer .sp { margin-left: auto; }
+
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wash" aria-hidden="true"></div>
+
+<header class="nav wrap">
+  <div class="nav__bar glass">
+    <a class="brand" href="#top" aria-label="Borderless home">
+      <svg class="brand__mark" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="2" y="9" width="12" height="13" rx="3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 2.2"/>
+        <rect x="9" y="2" width="13" height="13" rx="3.5" fill="var(--accent)"/>
+      </svg>
+      Borderless
+    </a>
+    <nav class="nav__links" aria-label="Sections">
+      <a href="#moves">How it works</a>
+      <a href="#rooms">Rooms</a>
+      <a href="#compare">Compare</a>
+    </nav>
+    <a class="btn btn--primary btn--sm" href="#join">Join the waitlist</a>
+  </div>
+</header>
+
+<main id="top">
+  <div class="wrap hero">
+    <div class="hero__copy">
+      <span class="eyebrow">For meeting rooms, classrooms, studios and control rooms</span>
+      <h1>Drag it off your laptop. Watch it <span class="cross">land on the wall.</span></h1>
+      <p class="lede">Borderless joins your laptop, your phone and the room's big screen into one surface. Push a window past the edge of your screen and it travels onto the wall, live. Flick a photo up from your phone. Send a file straight back down to someone's pocket.</p>
+      <form class="signup glass" data-signup novalidate>
+        <input id="email-top" type="email" aria-label="Work email" placeholder="you@company.com" autocomplete="email" required>
+        <button class="btn btn--primary" type="submit">Join the waitlist</button>
+      </form>
+      <p class="signup__note" aria-live="polite">In development for Mac, Windows, iPhone and Android.</p>
+    </div>
+
+    <div class="stage" id="stage" role="img" aria-label="A room with a wall screen, a laptop and a phone. A window crosses from the laptop onto the wall, a photo flicks up from the phone, and a spreadsheet is sent back down to the phone.">
+      <div class="stage__wall">
+        <div class="wallscreen" id="wallscreen">
+          <div class="win" id="wallA">
+            <div class="win__content"><div class="art-slide"><b>Spring launch</b><i></i><i></i>
+              <div class="bars"><span style="height:40%"></span><span style="height:58%"></span><span style="height:52%"></span><span style="height:76%"></span><span style="height:94%"></span></div></div></div>
+            <div class="orn glass"><span class="av">A</span>Spring launch<span class="who">Amara</span></div>
+          </div>
+          <div class="win" id="wallB">
+            <div class="win__content"><div class="art-sheet">
+              <span class="h">Region</span><span class="h">Q1</span><span class="h">Q2</span><span class="h">Q3</span>
+              <span>London</span><span>412</span><span>468</span><span class="up">531</span>
+              <span>Lagos</span><span>188</span><span>240</span><span class="up">317</span>
+              <span>Leeds</span><span>96</span><span>104</span><span class="up">139</span>
+              <span>Accra</span><span>72</span><span>91</span><span class="up">128</span>
+              <span>Total</span><span>768</span><span>903</span><span class="up">1,115</span>
+            </div></div>
+            <div class="orn glass"><span class="av">J</span>Q3 numbers<span class="who">Jon</span></div>
+          </div>
+          <div class="win landing" id="wallLap">
+            <div class="win__content"><div class="art-design"><div class="rail"><i></i><i></i><i></i><i></i></div><div class="canvas"><div class="blob a"></div><div class="blob b"></div><div class="type">Poster v3</div></div></div></div>
+            <div class="orn glass"><span class="av">M</span>Poster v3<span class="livepill">Live</span><span class="who">Maya</span></div>
+          </div>
+          <div class="win landing" id="wallPhoto">
+            <div class="win__content"><div class="art-photo"></div></div>
+            <div class="orn glass"><span class="av">T</span>Site visit<span class="who">Theo</span></div>
+          </div>
+          <div class="ripple" id="ripple"></div>
+          <div class="join glass"><div class="qr"></div><div><small>Join this room</small><b>KZ7·4Q</b></div></div>
+        </div>
+      </div>
+
+      <div class="stage__laptop">
+        <div class="lap-screen">
+          <div class="lap-display" id="lapDisplay">
+            <div class="menubar"><i></i><i></i><i></i><i></i></div>
+            <div class="win" id="lapWin">
+              <div class="win__content"><div class="art-design"><div class="rail"><i></i><i></i><i></i></div><div class="canvas"><div class="blob a"></div><div class="blob b"></div><div class="type">Poster v3</div></div></div></div>
+            </div>
+            <div class="edge" id="edge"></div>
+          </div>
+        </div>
+        <div class="lap-base"></div>
+      </div>
+
+      <div class="stage__phone">
+        <div class="ph-display" id="phDisplay">
+          <div class="ph-head">Theo's phone<small>Connected to Studio 2</small></div>
+          <div id="phonePhoto"><div class="art-photo" style="position:absolute;inset:0"></div></div>
+          <div class="ph-hint">Flick to share</div>
+          <div class="glass" id="phoneFile"><span class="ic"></span><div><b>Q3 numbers.xlsx</b><small>Saved to your phone</small></div></div>
+        </div>
+      </div>
+
+      <canvas class="fx" id="fx" aria-hidden="true"></canvas>
+      <div class="stage__caption glass" aria-hidden="true">
+        <span data-cap="0">Laptop to wall</span><span data-cap="1">Phone to wall</span><span data-cap="2">Wall to phone</span>
+      </div>
+    </div>
+  </div>
+
+  <section id="moves">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">How it works</span>
+        <h2>Three moves. No cables, no buttons, no taking turns.</h2>
+        <p>Everything in the room speaks the same language. If you can drag a window or flick a photo, you already know how to use it.</p>
+      </div>
+      <div class="moves">
+        <article class="move" style="--o: var(--o-orange)">
+          <span class="tag">Laptop to wall</span>
+          <h3><span class="dot"></span>Over the edge</h3>
+          <p>Move a window to the top of your screen. The edge lights up in your colour, the window dissolves on your laptop and reassembles on the wall. It stays a real, live window you keep working in.</p>
+        </article>
+        <article class="move" style="--o: var(--o-pink)">
+          <span class="tag">Phone to wall</span>
+          <h3><span class="dot"></span>Flick it up</h3>
+          <p>Pick a photo, PDF or file on your phone and flick it towards the screen. It leaves your hand and lands where you aimed, ready for anyone to open.</p>
+        </article>
+        <article class="move" style="--o: var(--o-green)">
+          <span class="tag">Wall to phone</span>
+          <h3><span class="dot"></span>Send it back</h3>
+          <p>Anyone at the wall can send a file down to one person's phone. It arrives saved, so the notes leave the meeting with the people who need them.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap table-split">
+      <div>
+        <div class="sec-head">
+          <span class="eyebrow">Shared, at the same time</span>
+          <h2>The big screen becomes a table everyone can use.</h2>
+          <p>Screen sharing hands the room to one person at a time. With Borderless, a colleague adds the spreadsheet beside the deck without interrupting it, and every window carries its owner's colour and name.</p>
+        </div>
+        <ul class="people">
+          <li><span class="av" style="--o: var(--o-blue)">A</span>Amara <span>presenting the launch plan</span></li>
+          <li><span class="av" style="--o: var(--o-green)">J</span>Jon <span>added the numbers beside it</span></li>
+          <li><span class="av" style="--o: var(--o-pink)">T</span>Theo <span>flicked up photos from site</span></li>
+          <li><span class="av" style="--o: var(--o-purple)">R</span>Ria <span>left a note from her seat</span></li>
+        </ul>
+      </div>
+      <div class="minwall" aria-hidden="true">
+        <div class="wallscreen">
+          <div class="win is-live" id="tA">
+            <div class="win__content"><div class="art-slide"><b>Spring launch</b><i></i><i></i>
+              <div class="bars"><span style="height:40%"></span><span style="height:58%"></span><span style="height:52%"></span><span style="height:76%"></span><span style="height:94%"></span></div></div></div>
+            <div class="orn glass"><span class="av">A</span>Spring launch<span class="livepill">Live</span><span class="who">Amara</span></div>
+          </div>
+          <div class="win" id="tB">
+            <div class="win__content"><div class="art-sheet">
+              <span class="h">Region</span><span class="h">Q1</span><span class="h">Q2</span><span class="h">Q3</span>
+              <span>London</span><span>412</span><span>468</span><span class="up">531</span>
+              <span>Lagos</span><span>188</span><span>240</span><span class="up">317</span>
+              <span>Total</span><span>768</span><span>903</span><span class="up">1,115</span>
+            </div></div>
+            <div class="orn glass"><span class="av">J</span>Q3 numbers<span class="who">Jon</span></div>
+          </div>
+          <div class="win" id="tC">
+            <div class="win__content"><div class="art-photo"></div></div>
+            <div class="orn glass"><span class="av">T</span>Site<span class="who">Theo</span></div>
+          </div>
+          <div class="win" id="tD">
+            <div class="win__content"><div class="note">Can we move launch to 14 May?</div></div>
+            <div class="orn glass"><span class="av">R</span>Note<span class="who">Ria</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="rooms">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">Rooms</span>
+        <h2>One system, dressed for the room it is in.</h2>
+        <p>The same Wall, phone and laptop apps work in a boardroom, a lecture hall, a studio or an operations centre. Each room picks a look; the gestures never change.</p>
+      </div>
+      <div class="tabs glass" role="tablist" aria-label="Rooms">
+        <button role="tab" id="tab-classroom" aria-controls="room-panel" aria-selected="true" data-room="classroom">Classrooms</button>
+        <button role="tab" id="tab-studio" aria-controls="room-panel" aria-selected="false" data-room="studio">Studios</button>
+        <button role="tab" id="tab-boardroom" aria-controls="room-panel" aria-selected="false" data-room="boardroom">Boardrooms</button>
+        <button role="tab" id="tab-command" aria-controls="room-panel" aria-selected="false" data-room="command">Command rooms</button>
+      </div>
+      <div class="room" id="room-panel" role="tabpanel" aria-labelledby="tab-classroom">
+        <div class="room__copy">
+          <span class="room__look" id="roomLook">Whiteboard look</span>
+          <h3 id="roomTitle">Every seat can reach the board.</h3>
+          <p id="roomBody">A student circles the answer on your slide from their seat. Hands go up before anyone draws, quizzes land on every phone at once, and you can compare answers side by side.</p>
+          <ul id="roomList"><li>Raise a hand to draw</li><li>Quizzes cast to every phone</li><li>Remove anyone's work in one tap</li></ul>
+        </div>
+        <div class="minwall look" data-look="whiteboard" id="roomWall" aria-hidden="true">
+          <div class="wallscreen">
+            <div class="win is-live" id="rA" style="left:4%;top:7%;width:56%;height:76%;--o:var(--o-blue)">
+              <div class="win__content"><div class="art-slide"><b id="rTitleA">Photosynthesis</b><i></i><i></i>
+                <div class="bars"><span style="height:30%"></span><span style="height:52%"></span><span style="height:70%"></span><span style="height:88%"></span></div></div></div>
+              <div class="orn glass"><span class="num">01</span><span class="av">A</span><span id="rOrnA">Lesson 4</span><span class="livepill">Live</span></div>
+            </div>
+            <div class="win" id="rB" style="left:63%;top:7%;width:33%;height:34%;--o:var(--o-green)">
+              <div class="win__content"><div class="note" id="rNoteB">Answer: B, chlorophyll</div></div>
+              <div class="orn glass"><span class="num">02</span><span class="av">K</span><span id="rOrnB">Kofi</span></div>
+            </div>
+            <div class="win" id="rC" style="left:63%;top:53%;width:33%;height:30%;--o:var(--o-pink)">
+              <div class="win__content"><div class="art-photo"></div></div>
+              <div class="orn glass"><span class="num">03</span><span class="av">L</span><span id="rOrnC">Lily</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="compare">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">Compare</span>
+        <h2>Everything the room already does, in one gesture.</h2>
+        <p>Room sharing boxes put one person on screen. Continuity features only link your own devices. Browser boards live in a tab. Borderless brings the useful parts together.</p>
+      </div>
+      <div class="compare-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Capability</th>
+              <th scope="col">Room sharing<small>Dongles and buttons</small></th>
+              <th scope="col">Device continuity<small>Your own devices</small></th>
+              <th scope="col">Browser boards<small>In a tab</small></th>
+              <th scope="col" class="us">Borderless</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Drag a window onto the room screen</th><td><span class="mk p">Button</span></td><td><span class="mk p">Own screens only</span></td><td><span class="mk n">No</span></td><td class="us"><span class="mk y">Yes</span></td></tr>
+            <tr><th scope="row">Several people sharing at once</th><td><span class="mk p">Some</span></td><td><span class="mk n">No</span></td><td><span class="mk y">Yes</span></td><td class="us"><span class="mk y">Yes</span></td></tr>
+            <tr><th scope="row">Live windows, not uploaded copies</th><td><span class="mk y">Yes</span></td><td><span class="mk y">Yes</span></td><td><span class="mk n">No</span></td><td class="us"><span class="mk y">Yes</span></td></tr>
+            <tr><th scope="row">Flick from a phone, send back to a phone</th><td><span class="mk p">Some</span></td><td><span class="mk p">Own phone</span></td><td><span class="mk n">No</span></td><td class="us"><span class="mk y">Yes</span></td></tr>
+            <tr><th scope="row">Mac, Windows, iPhone and Android together</th><td><span class="mk y">Yes</span></td><td><span class="mk n">One platform</span></td><td><span class="mk y">Yes</span></td><td class="us"><span class="mk y">Yes</span></td></tr>
+            <tr><th scope="row">Classroom and control-room tools</th><td><span class="mk n">No</span></td><td><span class="mk n">No</span></td><td><span class="mk p">Some</span></td><td class="us"><span class="mk y">Yes</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="fine">Based on what typical products in each category offer today. Borderless is in development; capabilities describe what we are building.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">Built properly</span>
+        <h2>Native on every device in the room.</h2>
+      </div>
+      <div class="facts">
+        <div class="fact"><h3>Real windows</h3><p>The wall is a true extended display, so what lands there keeps running and stays interactive.</p></div>
+        <div class="fact"><h3>Join in seconds</h3><p>Scan the code on the wall or type it in. No accounts needed for guests.</p></div>
+        <div class="fact"><h3>Calm when you need it</h3><p>Arrivals can be playful or quiet. Reduced motion is respected everywhere.</p></div>
+        <div class="fact"><h3>Secure and accountable</h3><p>Encrypted connections, host approval for every share, and an audit trail for rooms that need one.</p></div>
+      </div>
+      <div class="platforms" aria-label="Platforms"><span>macOS</span><span>Windows</span><span>iOS</span><span>Android</span><span>Any browser</span><span>Multi-panel walls</span></div>
+    </div>
+  </section>
+
+  <section id="join">
+    <div class="wrap closing">
+      <span class="eyebrow">Early access</span>
+      <h2>Be first in the room.</h2>
+      <p class="lede">We are opening Borderless to a small group of teams, schools and studios first. Leave your email and we will be in touch when your room can join.</p>
+      <form class="signup glass" data-signup novalidate>
+        <input id="email-bottom" type="email" aria-label="Work email" placeholder="you@company.com" autocomplete="email" required>
+        <button class="btn btn--primary" type="submit">Join the waitlist</button>
+      </form>
+      <p class="signup__note" aria-live="polite"></p>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap">
+  <span class="brand">Borderless</span>
+  <span>goborderless.io</span>
+  <span class="sp">© 2026 Emotive Impact Studios</span>
+</footer>
+
+<script>
+(() => {
+  /* Waitlist forms. Not yet connected to a list, so say so honestly. */
+  document.querySelectorAll('[data-signup]').forEach(form => {
+    const note = form.nextElementSibling;
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const input = form.querySelector('input');
+      const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.value.trim());
+      if (!ok) { note.textContent = 'Enter an email address like you@company.com.'; note.dataset.state = 'err'; input.focus(); return; }
+      note.textContent = 'Thanks. This is a preview, so sign-ups are not saved yet.';
+      note.dataset.state = 'ok';
+      input.value = '';
+    });
+  });
+
+  /* Rooms tabs */
+  const rooms = {
+    classroom: { look: 'whiteboard', label: 'Whiteboard look', title: 'Every seat can reach the board.',
+      body: 'A student circles the answer on your slide from their seat. Hands go up before anyone draws, quizzes land on every phone at once, and you can compare answers side by side.',
+      list: ['Raise a hand to draw', 'Quizzes cast to every phone', "Remove anyone's work in one tap"],
+      a: 'Photosynthesis', oa: 'Lesson 4', b: 'Answer: B, chlorophyll', ob: 'Kofi', oc: 'Lily' },
+    studio: { look: 'studio', label: 'Studio look', title: 'A jam session on one big canvas.',
+      body: 'Designers, coders and musicians on Macs, Windows laptops, iPhones and Androids all put live windows, snippets and files on one board. Everyone can arrange and resize everything.',
+      list: ['Live windows from any laptop', 'Owner colours show who added what', 'Video plays through the room speakers'],
+      a: 'Moodboard', oa: 'Maya · Figma', b: 'Hook idea at 0:42', ob: 'Dev', oc: 'Theo' },
+    boardroom: { look: 'executive', label: 'Executive look', title: 'Add to the meeting without taking it over.',
+      body: 'The board pack stays up while finance drops the latest forecast beside it. Approvals happen on the wall, and everyone leaves with the files on their phone.',
+      list: ['Host approves every share', 'Send the deck to every phone', 'Clear the wall in one tap'],
+      a: 'Board pack', oa: 'Chair', b: 'Forecast revised +4%', ob: 'Finance', oc: 'Site' },
+    command: { look: 'tactical', label: 'Tactical look', title: 'Many panels, run as one wall.',
+      body: 'Numbered sources, saved layouts and a full audit trail of who put what where. Operators patch any feed to any panel from a laptop or a phone.',
+      list: ['Multi-panel and panoramic walls', 'Saved layouts and numbered sources', 'Audit trail for every action'],
+      a: 'Network status', oa: 'Ops feed', b: 'Sector 7 clear', ob: 'Unit 3', oc: 'Cam 12' }
+  };
+  const $ = id => document.getElementById(id);
+  const tabs = [...document.querySelectorAll('[role="tab"]')];
+  function showRoom(btn) {
+    const r = rooms[btn.dataset.room];
+    tabs.forEach(t => { const on = t === btn; t.setAttribute('aria-selected', on); t.tabIndex = on ? 0 : -1; });
+    $('room-panel').setAttribute('aria-labelledby', btn.id);
+    $('roomWall').dataset.look = r.look;
+    $('roomLook').textContent = r.label;
+    $('roomTitle').textContent = r.title;
+    $('roomBody').textContent = r.body;
+    $('roomList').innerHTML = r.list.map(x => '<li>' + x + '</li>').join('');
+    $('rTitleA').textContent = r.a; $('rOrnA').textContent = r.oa;
+    $('rNoteB').textContent = r.b; $('rOrnB').textContent = r.ob; $('rOrnC').textContent = r.oc;
+  }
+  tabs.forEach((t, i) => {
+    t.addEventListener('click', () => showRoom(t));
+    t.addEventListener('keydown', e => {
+      const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+      if (!d) return;
+      const n = tabs[(i + d + tabs.length) % tabs.length]; n.focus(); showRoom(n);
+    });
+  });
+
+  /* Hero stage: the three moves on a loop */
+  const stage = $('stage'), canvas = $('fx'), ctx = canvas.getContext('2d');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const caps = [...stage.querySelectorAll('[data-cap]')];
+  const setCap = i => caps.forEach((c, j) => c.classList.toggle('on', i === j));
+  const cssVar = n => getComputedStyle(stage).getPropertyValue(n).trim();
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const rel = el => { const s = stage.getBoundingClientRect(), r = el.getBoundingClientRect(); return { x: r.left - s.left, y: r.top - s.top, w: r.width, h: r.height }; };
+
+  if (reduce) {
+    ['wallLap', 'wallPhoto'].forEach(id => $(id).style.opacity = 1);
+    $('wallLap').classList.add('is-live');
+    $('lapWin').style.opacity = 0;
+    $('phonePhoto').style.opacity = 0;
+    $('phoneFile').style.opacity = 1;
+    caps.forEach(c => c.classList.add('on'));
+    return;
+  }
+
+  function size() {
+    const r = stage.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2);
+    canvas.width = r.width * d; canvas.height = r.height * d; ctx.setTransform(d, 0, 0, d, 0, 0);
+  }
+  size(); addEventListener('resize', size);
+
+  let parts = [], running = false;
+  function burst(from, to, color, opts = {}) {
+    const n = opts.n || 140, dur = opts.dur || 1000, now = performance.now();
+    for (let i = 0; i < n; i++) {
+      const sx = from.x + Math.random() * from.w, sy = from.y + (opts.fromEdge ? 0 : Math.random() * from.h);
+      const ex = to.x + Math.random() * to.w, ey = to.y + Math.random() * to.h;
+      parts.push({ sx, sy, ex, ey,
+        cx: (sx + ex) / 2 + (Math.random() - .5) * 80, cy: Math.min(sy, ey) - 30 - Math.random() * 60,
+        t0: now + Math.random() * dur * .45, life: dur * (.45 + Math.random() * .3),
+        r: .8 + Math.random() * 1.8, color });
+    }
+    if (!running) { running = true; requestAnimationFrame(tick); }
+  }
+  function tick(now) {
+    const r = stage.getBoundingClientRect();
+    ctx.clearRect(0, 0, r.width, r.height);
+    ctx.globalCompositeOperation = 'lighter';
+    parts = parts.filter(p => now < p.t0 + p.life);
+    for (const p of parts) {
+      if (now < p.t0) continue;
+      let t = (now - p.t0) / p.life; const e = 1 - Math.pow(1 - t, 3);
+      const x = (1 - e) * (1 - e) * p.sx + 2 * (1 - e) * e * p.cx + e * e * p.ex;
+      const y = (1 - e) * (1 - e) * p.sy + 2 * (1 - e) * e * p.cy + e * e * p.ey;
+      const a = Math.sin(Math.PI * t);
+      ctx.globalAlpha = a * .9; ctx.fillStyle = p.color;
+      ctx.beginPath(); ctx.arc(x, y, p.r, 0, 6.283); ctx.fill();
+      ctx.globalAlpha = a * .25; ctx.beginPath(); ctx.arc(x, y, p.r * 3.2, 0, 6.283); ctx.fill();
+    }
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    if (parts.length) requestAnimationFrame(tick); else { running = false; ctx.clearRect(0, 0, r.width, r.height); }
+  }
+  const anim = (el, kf, o) => el.animate(kf, Object.assign({ fill: 'forwards', easing: 'cubic-bezier(0.2,0.8,0.2,1)' }, o)).finished;
+  const land = el => anim(el, [
+    { opacity: 0, transform: 'scale(.9)', filter: 'blur(10px)' },
+    { opacity: 1, transform: 'scale(1)', filter: 'blur(0)' }], { duration: 700, easing: 'cubic-bezier(0.05,0.7,0.1,1)' });
+
+  async function loop() {
+    for (;;) {
+      // reset
+      const lapWin = $('lapWin'), wallLap = $('wallLap'), wallPhoto = $('wallPhoto'), photo = $('phonePhoto'), file = $('phoneFile'), edge = $('edge');
+      wallLap.classList.remove('is-live');
+      await Promise.all([
+        anim(lapWin, [{ opacity: 1, transform: 'translateY(0)' }], { duration: 500 }),
+        anim(photo, [{ opacity: 1, transform: 'none' }], { duration: 500 }),
+        anim(wallLap, [{ opacity: 0 }], { duration: 400 }),
+        anim(wallPhoto, [{ opacity: 0 }], { duration: 400 }),
+        anim(file, [{ opacity: 0, transform: 'translateY(-30%)' }], { duration: 400 })
+      ]);
+      await sleep(700);
+
+      // 1. Laptop to wall
+      setCap(0);
+      const orange = cssVar('--o-orange');
+      await anim(lapWin, [{ transform: 'translateY(0)' }, { transform: 'translateY(-26%)' }], { duration: 700 });
+      await anim(edge, [{ opacity: 0 }, { opacity: 1 }], { duration: 280 });
+      const src = rel(edge);
+      burst({ x: src.x, y: src.y, w: src.w, h: 2 }, rel(wallLap), orange, { n: 200, dur: 1100, fromEdge: true });
+      anim(lapWin, [{ transform: 'translateY(-26%)', opacity: 1, filter: 'blur(0)' }, { transform: 'translateY(-120%)', opacity: 0, filter: 'blur(6px)' }], { duration: 650, easing: 'cubic-bezier(0.3,0,0.8,0.15)' });
+      await sleep(520);
+      await land(wallLap);
+      wallLap.classList.add('is-live');
+      anim(edge, [{ opacity: 0 }], { duration: 500 });
+      await sleep(1500);
+
+      // 2. Phone to wall
+      setCap(1);
+      const pink = cssVar('--o-pink');
+      await anim(photo, [{ transform: 'scale(1)' }, { transform: 'scale(.95)' }], { duration: 160 });
+      const pr = rel(photo);
+      burst(pr, rel(wallPhoto), pink, { n: 150, dur: 950 });
+      anim(photo, [{ transform: 'scale(.95)', opacity: 1 }, { transform: 'translateY(-160%) scale(.8)', opacity: 0 }], { duration: 420, easing: 'cubic-bezier(0.3,0,0.8,0.15)' });
+      await sleep(560);
+      const rp = $('ripple'), wp = wallPhoto.querySelector('.win__content').getBoundingClientRect(), ws = $('wallscreen').getBoundingClientRect();
+      Object.assign(rp.style, { left: (wp.left - ws.left) + 'px', top: (wp.top - ws.top) + 'px', width: wp.width + 'px', height: wp.height + 'px' });
+      rp.animate([{ opacity: .9, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(1.35)' }], { duration: 900, easing: 'cubic-bezier(0.2,0.8,0.2,1)' });
+      await land(wallPhoto);
+      await sleep(1500);
+
+      // 3. Wall to phone
+      setCap(2);
+      const green = cssVar('--o-green');
+      const wb = $('wallB');
+      await anim(wb.querySelector('.win__content'), [{ transform: 'scale(1)' }, { transform: 'scale(1.03)' }], { duration: 200 });
+      burst(rel(wb.querySelector('.win__content')), rel(file), green, { n: 130, dur: 900 });
+      anim(wb.querySelector('.win__content'), [{ transform: 'scale(1)' }], { duration: 300 });
+      await sleep(650);
+      await anim(file, [{ opacity: 0, transform: 'translateY(-30%)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 500, easing: 'cubic-bezier(0.05,0.7,0.1,1)' });
+      await sleep(2600);
+    }
+  }
+  loop();
+})();
+</script>
+</body>
+</html>
