@@ -43,6 +43,8 @@ pub struct Renderer {
     instances: wgpu::Buffer,
     capacity: usize,
     images: wgpu::RenderPipeline,
+    last_capture: std::time::Instant,
+    captured: u32,
     image_layout: wgpu::BindGroupLayout,
     sampler: wgpu::Sampler,
 }
@@ -140,7 +142,7 @@ impl Renderer {
         });
         let capacity = 1024;
         let instances = device.create_buffer(&wgpu::BufferDescriptor { label: Some("shapes"), size: (capacity * std::mem::size_of::<Shape>()) as u64, usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
-        Ok(Self { device, queue, surface, config, globals, bind, background, shapes, instances, capacity, images, image_layout, sampler })
+        Ok(Self { device, queue, surface, config, globals, bind, background, shapes, instances, capacity, images, last_capture: std::time::Instant::now(), captured: 0, image_layout, sampler })
     }
 
     /// Uploads a decoded sRGB image. Sampled as stored, matching the
@@ -230,8 +232,15 @@ impl Renderer {
         }
         // Review evidence only: BORDERLESS_WALL_CAPTURE=<file.png> saves settled frames
         // from the GPU, so screenshots never need access to the rest of the screen.
+        // A path containing {n} records a numbered sequence (motion review);
+        // otherwise only settled frames overwrite one file.
+        let sequence = capture_path().filter(|p| p.to_string_lossy().contains("{n}"));
+        let capture = capture || sequence.as_ref().is_some_and(|_| self.last_capture.elapsed().as_millis() >= 100);
         let readback = match (capture, capture_path()) {
             (true, Some(path)) => {
+                self.last_capture = std::time::Instant::now();
+                self.captured += 1;
+                let path = std::path::PathBuf::from(path.to_string_lossy().replace("{n}", &format!("{:04}", self.captured)));
                 let (w, h) = (self.config.width, self.config.height);
                 let row = (w * 4).div_ceil(256) * 256;
                 let buffer = self.device.create_buffer(&wgpu::BufferDescriptor { label: Some("capture"), size: (row * h) as u64, usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ, mapped_at_creation: false });

@@ -1,11 +1,13 @@
 //! Borderless native Wall (milestone 2N). A full-screen wgpu renderer that
 //! follows the hub's room state. It has no authority of its own.
+mod arrival;
 mod model;
 mod render;
 mod room;
 mod text;
 mod tokens;
 
+use arrival::Arrivals;
 use model::{Kind, Room, Surface};
 use render::{Globals, Renderer, Shape};
 use room::RoomEvent;
@@ -64,6 +66,8 @@ struct App {
     pictures: HashMap<String, render::Picture>,
     requested: std::collections::HashSet<String>,
     ask: Option<std::sync::mpsc::Sender<String>>,
+    arrivals: Arrivals,
+    loaded: bool,
 }
 
 fn mix(a: Rgba, b: Rgba, t: f32) -> Rgba {
@@ -94,6 +98,16 @@ impl App {
             }
         }
         self.glides.retain(|id, _| next.surfaces.iter().any(|s| &s.id == id));
+        // New windows arrive with the design-system arrival; a phone throw's
+        // window is carried in by the vortex from its spark. The first
+        // snapshot after connecting is the existing Wall, not an arrival.
+        if self.loaded {
+            let wall = self.renderer.as_ref().map(|r| [r.config.width as f32, r.config.height as f32]).unwrap_or([1920.0, 1080.0]);
+            for s in next.surfaces.iter().filter(|s| !self.room.surfaces.iter().any(|o| o.id == s.id)) {
+                self.arrivals.landed(&s.id, &s.owner_id, &s.title, wall, now, reduced);
+            }
+        }
+        self.loaded = true;
         // Ask for each new room image once; drop images no longer on the Wall.
         let wanted: std::collections::HashSet<String> = next
             .surfaces
@@ -123,17 +137,21 @@ impl App {
             let c = &self.renderer.as_ref().unwrap().config;
             (c.width as f32, c.height as f32)
         };
+        let reduced = std::env::var_os("BORDERLESS_REDUCED_MOTION").is_some();
+        let effects = self.arrivals.tidy(now, reduced);
         let text = self.text.as_mut().unwrap();
         let pictures = &self.pictures;
-        let (shapes, layers, labels, placed, animating) = scene(&self.room, &self.status, &self.glides, &|id| pictures.contains_key(id), self.tokens.radius_window, text, &theme, w, h, now);
+        let view = View { room: &self.room, status: &self.status, glides: &self.glides, arrivals: &self.arrivals, reduced, loaded: &|id| pictures.contains_key(id), radius_token: self.tokens.radius_window, epoch: self.started };
+        let (shapes, layers, labels, placed, moving) = scene(&view, text, &theme, w, h, now);
+        let animating = moving || effects;
         let renderer = self.renderer.as_mut().unwrap();
         text.prepare(&renderer.queue, w as u32, h as u32, &labels);
         let layer_pictures: Vec<Option<&render::Picture>> = placed
             .iter()
             .map(|p| {
-                p.as_ref().and_then(|(id, clip, radius)| {
+                p.as_ref().and_then(|(id, clip, radius, opacity)| {
                     let picture = self.pictures.get(id)?;
-                    renderer.place(picture, *clip, *radius, 1.0);
+                    renderer.place(picture, *clip, *radius, *opacity);
                     Some(picture)
                 })
             })
@@ -152,12 +170,25 @@ impl App {
 
 /// Shapes, their paint layers (one per window, then the Wall's own chrome),
 /// each layer's text, and whether anything is still moving.
-type Frame = (Vec<Shape>, Vec<std::ops::Range<u32>>, Vec<Vec<Label>>, Vec<Option<(String, [f32; 4], f32)>>, bool);
+type Frame = (Vec<Shape>, Vec<std::ops::Range<u32>>, Vec<Vec<Label>>, Vec<Option<(String, [f32; 4], f32, f32)>>, bool);
+
+/// Everything the scene reads, besides text layout and the look.
+struct View<'a> {
+    room: &'a Room,
+    status: &'a str,
+    glides: &'a HashMap<String, Glide>,
+    arrivals: &'a Arrivals,
+    reduced: bool,
+    loaded: &'a dyn Fn(&str) -> bool,
+    radius_token: f32,
+    epoch: Instant,
+}
 
 /// Builds one frame's shapes and labels in paint order, following the
 /// design-system window anatomy: content, then the glass ornament below it.
 #[allow(clippy::too_many_arguments)]
-fn scene(room: &Room, status: &str, glides: &HashMap<String, Glide>, loaded: &dyn Fn(&str) -> bool, radius_token: f32, text: &mut Text, theme: &Theme, w: f32, h: f32, now: Instant) -> Frame {
+fn scene(v: &View<'_>, text: &mut Text, theme: &Theme, w: f32, h: f32, now: Instant) -> Frame {
+    let (room, status, glides, loaded, radius_token) = (v.room, v.status, v.glides, v.loaded, v.radius_token);
     let scale = h / 1080.0;
     let mut shapes = Vec::new();
     let mut layers: Vec<std::ops::Range<u32>> = Vec::new();
@@ -215,7 +246,7 @@ fn scene(room: &Room, status: &str, glides: &HashMap<String, Glide>, loaded: &dy
                 put(text, url, 18.0 * scale, 24.0 * scale, 500, Face::Mono, theme.accent, top);
             }
             Kind::File { mime, asset_id, .. } if mime.starts_with("image/") && loaded(asset_id) => {
-                picture = Some((asset_id.clone(), [x, y, sw, ch], radius));
+                picture = Some((asset_id.clone(), [x, y, sw, ch], radius, 1.0));
             }
             Kind::File { mime, .. } => {
                 let kind = if mime.starts_with("image/") { "Image" } else if mime == "application/pdf" { "PDF" } else if mime.starts_with("video/") { "Video" } else { "File" };
@@ -241,10 +272,44 @@ fn scene(room: &Room, status: &str, glides: &HashMap<String, Glide>, loaded: &dy
         ol.bounds = bounds;
         labels.push(tl);
         labels.push(ol);
+        // Arrival: fade and settle the whole window around its centre.
+        let (opacity, grow) = v.arrivals.appearance(&s.id, now, v.reduced);
+        if opacity < 1.0 || grow != 1.0 {
+            let (cx, cy) = (x + sw / 2.0, y + sh / 2.0);
+            let at = |px: f32, py: f32| (cx + (px - cx) * grow, cy + (py - cy) * grow);
+            for shape in &mut shapes[first as usize..] {
+                let (nx, ny) = at(shape.rect[0], shape.rect[1]);
+                shape.rect = [nx, ny, shape.rect[2] * grow, shape.rect[3] * grow];
+                shape.fill[3] *= opacity;
+                shape.ring[3] *= opacity;
+                shape.params[2] *= opacity;
+            }
+            for label in &mut labels {
+                let (nx, ny) = at(label.left, label.top);
+                label.left = nx;
+                label.top = ny;
+                let (b0, b1) = at(label.bounds[0], label.bounds[1]);
+                let (b2, b3) = at(label.bounds[2], label.bounds[3]);
+                label.bounds = [b0, b1, b2, b3];
+                label.colour[3] *= opacity;
+            }
+            if let Some(p) = &mut picture {
+                let (nx, ny) = at(p.1[0], p.1[1]);
+                p.1 = [nx, ny, p.1[2] * grow, p.1[3] * grow];
+                p.3 = opacity;
+            }
+        }
         layers.push(first..shapes.len() as u32);
         texts.push(labels);
         pictures.push(picture);
     }
+    // Phone throws: sparks with real progress, vortex particles, ripples.
+    let first = shapes.len() as u32;
+    let mut labels = Vec::new();
+    effects(v, text, theme, w, h, now, &mut shapes, &mut labels, glass, glass_edge);
+    layers.push(first..shapes.len() as u32);
+    texts.push(labels);
+    pictures.push(None);
     let first = shapes.len() as u32;
     let mut labels = Vec::new();
     if room.surfaces.is_empty() {
@@ -328,7 +393,7 @@ impl ApplicationHandler<RoomEvent> for App {
                     self.pictures.insert(p.asset, picture);
                 }
             }
-            RoomEvent::Live(_) => {}
+            RoomEvent::Live(message) => self.arrivals.event(&message, Instant::now()),
         }
         if let Some(w) = &self.window {
             w.request_redraw();
@@ -385,8 +450,77 @@ fn main() {
         pictures: HashMap::new(),
         requested: Default::default(),
         ask: None,
+        arrivals: Arrivals::default(),
+        loaded: false,
     };
     event_loop.run_app(&mut app).expect("Wall event loop");
+}
+
+/// The arrival effects layer, drawn above every window.
+#[allow(clippy::too_many_arguments)]
+fn effects(v: &View<'_>, text: &mut Text, theme: &Theme, w: f32, h: f32, now: Instant, shapes: &mut Vec<Shape>, labels: &mut Vec<Label>, glass: Rgba, glass_edge: Rgba) {
+    let scale = h / 1080.0;
+    let circle = |x: f32, y: f32, r: f32, colour: Rgba| Shape { rect: [x - r, y - r, r * 2.0, r * 2.0], fill: colour, ring: [0.0; 4], params: [r, 0.0, 0.0, 0.0] };
+    let fade = |c: Rgba, a: f32| [c[0], c[1], c[2], c[3] * a];
+    let mut ids: Vec<&String> = v.arrivals.pending.keys().collect();
+    ids.sort();
+    for id in ids {
+        let p = &v.arrivals.pending[id];
+        let owner = theme.owner(&p.owner_id, p.colour.as_deref());
+        let (x, y) = (p.aim * w, 0.42 * h);
+        let life = match p.leaving {
+            Some(l) => 1.0 - (now.duration_since(l).as_secs_f32() / 0.4).min(1.0),
+            None => 1.0,
+        };
+        let failed = p.failed.is_some();
+        // Breathing spark (design-system bl-spark), halo first.
+        let breathe = if v.reduced || failed { 1.0 } else { 1.0 + 0.25 * (1.0 + (now.duration_since(v.epoch).as_secs_f32() * std::f32::consts::TAU / 1.4).sin()) };
+        for (radius, alpha) in [(30.0, 0.10), (20.0, 0.18), (12.0, 0.35)] {
+            shapes.push(circle(x, y, radius * scale * breathe, fade(owner, alpha * life * if failed { 0.4 } else { 1.0 })));
+        }
+        shapes.push(circle(x, y, 7.0 * scale, fade(owner, life * if failed { 0.4 } else { 1.0 })));
+        // Progress ring from real bytes received: 48 beads around the spark.
+        if !failed {
+            for i in 0..48 {
+                let k = i as f32 / 48.0;
+                let lit = k < p.progress;
+                let a = -std::f32::consts::FRAC_PI_2 + k * std::f32::consts::TAU;
+                let r = 24.0 * scale;
+                shapes.push(circle(x + a.cos() * r, y + a.sin() * r, 1.6 * scale, fade(owner, life * if lit { 0.9 } else { 0.15 })));
+            }
+        }
+        let caption = if failed { format!("{} did not arrive", p.name) } else { format!("{} · {}", p.owner_name, p.name) };
+        let (mut label, lw, _) = text.label(&caption, 18.0 * scale, 24.0 * scale, 500, w * 0.4, Face::Sans, fade(theme.ink, life));
+        let card = [x - (lw + 24.0 * scale) / 2.0, y + 36.0 * scale, lw + 24.0 * scale, 32.0 * scale];
+        shapes.push(Shape { rect: card, fill: fade(glass, life), ring: fade(glass_edge, life), params: [10.0 * scale, 1.0, 0.0, 0.0] });
+        label.left = card[0] + 12.0 * scale;
+        label.top = card[1] + 4.0 * scale;
+        labels.push(label);
+    }
+    for burst in &v.arrivals.bursts {
+        let owner = theme.owner(&burst.owner_id, burst.colour.as_deref());
+        let Some(s) = v.room.surfaces.iter().find(|s| s.id == burst.surface) else { continue };
+        let (r, _) = current_rect(v.glides, s, now);
+        let content = [r[0] * w, r[1] * h, r[2] * w, (r[3] * h - 44.0 * scale).max(24.0 * scale)];
+        let elapsed = now.duration_since(burst.started).as_secs_f32() * 1000.0;
+        if elapsed < arrival::VORTEX_MS {
+            for particle in Arrivals::particles(burst, content, now) {
+                if particle.alpha > 0.01 {
+                    shapes.push(circle(particle.x, particle.y, particle.size * scale, fade(owner, particle.alpha)));
+                }
+            }
+        }
+        // Landing ripple: two rings from the window's centre (bl-ripple).
+        let (cx, cy) = (content[0] + content[2] / 2.0, content[1] + content[3] / 2.0);
+        for delay in [arrival::REVEAL_MS, arrival::REVEAL_MS + 140.0] {
+            let t = (elapsed - delay) / 900.0;
+            if (0.0..1.0).contains(&t) {
+                let e = 1.0 - (1.0 - t).powi(3);
+                let radius = (10.0 + 170.0 * e) * scale;
+                shapes.push(Shape { rect: [cx - radius, cy - radius, radius * 2.0, radius * 2.0], fill: [0.0; 4], ring: fade(owner, 0.6 * (1.0 - t)), params: [radius, 2.0 * scale, 0.0, 0.0] });
+            }
+        }
+    }
 }
 
 #[cfg(test)]

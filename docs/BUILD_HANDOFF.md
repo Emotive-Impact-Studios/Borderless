@@ -6,6 +6,12 @@ Read VISION.md first, then PRODUCT.md and DESIGN.md, then README, PRD, CAPABILIT
 
 Testers (including Codex): run [CODEX_TEST_CHECKLIST.md](CODEX_TEST_CHECKLIST.md) and record each result here.
 
+## Milestone 2N · native Wall, photos and arrival effects · 4 November 2026
+
+The native Wall now fetches room images with its session (PNG, JPEG, WebP, GIF; at most 25 MB, scaled to 2048 px), uploads them as GPU textures and draws them letterboxed inside the window's rounded corners. The phone arrival is native too (`wall/src/arrival.rs`), driven only by hub events as in the browser Wall: `transfer.start` shows a breathing spark in the sender's colour at the aimed point with a 48-bead ring that fills from `transfer.progress`; when the stored file's window appears in the state, 160 particles spiral from the spark into it, the window fades and settles (0.86 to 1.03 to 1, the design-system arrival) from 520 ms, and two ripples spread from its centre. A rejected transfer reads "<name> did not arrive" and lands nothing. Windows that arrive any other way get the arrival animation alone; the first snapshot after connecting does not animate. `BORDERLESS_REDUCED_MOTION=1` cross-fades instead.
+
+Verified on the second monitor: a 2.2 MB PNG was streamed to the hub at about 0.8 MB/s with aim 0.25 while the Wall recorded GPU frames every 100 ms. Evidence: ignored `output/native/m2N/arrival-{spark,vortex,landed}.png`. `cargo test` (9) and `cargo clippy --all-targets -- -D warnings` pass. Recording frames slows the animation while PNGs are written; it is for review only.
+
 ## Milestone 2N · native Wall, first slice · 4 November 2026
 
 `wall/` is the native Rust Wall (winit, wgpu 25 on Metal, glyphon text). It pairs with the one-use display invitation (`/wall-pair`), saves its session cookie owner-only, follows `/state` and the `/live` WebSocket with reconnect, validates the snapshot as the browser Wall does, and renders from `design-system/dist/tokens.json`: the canvas washes and dot grid, windows with rounded corners and soft shadows, glass ornaments with title and owner, notes in the owner's colour, link cards, file and live-window placeholders, the room card and the empty state. Layout changes glide with the design-system easing. Each window's text is drawn in that window's paint layer, so nothing shows through a window above it. Fonts use the first family in the design-system stack with real 400/600/700 faces (Inter on this Mac; the variable system font is not split into weights by fontdb).
