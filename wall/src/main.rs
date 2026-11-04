@@ -84,6 +84,29 @@ struct App {
     movies: HashMap<String, movie::Movie>,
     /// Keep drawing briefly after a seek or pause so the right frame shows.
     movie_settle: Instant,
+    backdrop_key: Option<(Option<String>, u32, u32)>,
+}
+
+/// The canvas as frosted glass sees it: the look's colour washes without the
+/// dot grid, at an eighth of the size (it is only ever seen blurred).
+fn backdrop(theme: &Theme, w: f32, h: f32) -> (u32, u32, Vec<u8>) {
+    let (bw, bh) = (((w / 8.0) as u32).max(1), ((h / 8.0) as u32).max(1));
+    let wash = |u: f32, v: f32, cx: f32, cy: f32, rx: f32, ry: f32| {
+        let d = (((u - cx) / rx).powi(2) + ((v - cy) / ry).powi(2)).sqrt();
+        let t = (d / 0.6).clamp(0.0, 1.0);
+        1.0 - t * t * (3.0 - 2.0 * t)
+    };
+    let mut out = Vec::with_capacity((bw * bh * 4) as usize);
+    for y in 0..bh {
+        for x in 0..bw {
+            let (u, v) = ((x as f32 + 0.5) / bw as f32, (y as f32 + 0.5) / bh as f32);
+            let mut c = mix(theme.wall, theme.wash_a, wash(u, v, 0.12, 0.08, 0.7, 0.6) * theme.wash_a[3]);
+            c = mix(c, theme.wash_b, wash(u, v, 0.92, 0.92, 0.6, 0.6) * theme.wash_b[3]);
+            out.extend([c[0], c[1], c[2]].map(|k| (k.clamp(0.0, 1.0) * 255.0) as u8));
+            out.push(255);
+        }
+    }
+    (bw, bh, out)
 }
 
 /// True for two different page renders of the same PDF.
@@ -302,6 +325,12 @@ impl App {
                 })
             })
             .collect();
+        let key = (self.room.theme.clone(), w as u32, h as u32);
+        if self.backdrop_key.as_ref() != Some(&key) {
+            let (bw, bh, rgba) = backdrop(&theme, w, h);
+            renderer.set_backdrop(bw, bh, &rgba);
+            self.backdrop_key = Some(key);
+        }
         let globals = Globals { size: [w, h], scale: h / 1080.0, time: now.duration_since(self.started).as_secs_f32(), wall: theme.wall, wash_a: theme.wash_a, wash_b: theme.wash_b, grid: theme.grid };
         let text_ref = &*text;
         if let Err(e) = renderer.frame(globals, &shapes, &layers, &layer_pictures, &layer_videos, !animating, &mut |i, pass| text_ref.render(i, pass)) {
@@ -355,8 +384,8 @@ fn scene(v: &View<'_>, text: &mut Text, theme: &Theme, w: f32, h: f32, now: Inst
     let mut animating = false;
     let radius = radius_token * scale;
     let glass_edge = [1.0, 1.0, 1.0, if theme.dark { 0.12 } else { 0.55 }];
-    // Until the backdrop blur pass lands, glass is drawn more opaque and
-    // without a shadow underneath, which would otherwise show through it grey.
+    // Glass over the canvas is frosted (extra.x); glass over window content
+    // (state pills, spark captions) is drawn more opaque instead.
     let mut glass = theme.glass;
     glass[3] = glass[3].max(if theme.dark { 0.72 } else { 0.82 });
     for s in &room.surfaces {
@@ -372,7 +401,7 @@ fn scene(v: &View<'_>, text: &mut Text, theme: &Theme, w: f32, h: f32, now: Inst
         let ch = (sh - ornament_h - gap).max(24.0 * scale);
         let live = matches!(s.kind, Kind::Live);
         let fill = if matches!(s.kind, Kind::Note { .. }) { mix(theme.surface, owner, 0.07) } else { theme.surface };
-        shapes.push(Shape { rect: [x, y, sw, ch], fill, ring: if live { owner } else { [0.0; 4] }, params: [radius, if live { 2.5 * scale } else { 0.0 }, 0.16, 28.0 * scale] });
+        shapes.push(Shape { rect: [x, y, sw, ch], fill, ring: if live { owner } else { [0.0; 4] }, params: [radius, if live { 2.5 * scale } else { 0.0 }, 0.16, 28.0 * scale], extra: [0.0; 4] });
         let pad = 32.0 * scale;
         let inner = (sw - pad * 2.0).max(1.0);
         let clip = [x, y, x + sw, y + ch];
@@ -386,13 +415,13 @@ fn scene(v: &View<'_>, text: &mut Text, theme: &Theme, w: f32, h: f32, now: Inst
         };
         match &s.kind {
             Kind::Note { text: body } => {
-                shapes.push(Shape { rect: [x, y + radius * 0.5, 6.0 * scale, ch - radius], fill: owner, ring: [0.0; 4], params: [3.0 * scale, 0.0, 0.0, 0.0] });
+                shapes.push(Shape { rect: [x, y + radius * 0.5, 6.0 * scale, ch - radius], fill: owner, ring: [0.0; 4], params: [3.0 * scale, 0.0, 0.0, 0.0], extra: [0.0; 4] });
                 let mut top = y + pad;
                 top += put(text, &s.title, 44.0 * scale, 52.0 * scale, 700, Face::Sans, theme.ink, top) + 12.0 * scale;
                 put(text, body, 28.0 * scale, 38.0 * scale, 400, Face::Sans, theme.ink, top);
             }
             Kind::Link { url, host, site, description, pending } => {
-                shapes.push(Shape { rect: [x + radius * 0.5, y, sw - radius, 4.0 * scale], fill: owner, ring: [0.0; 4], params: [2.0 * scale, 0.0, 0.0, 0.0] });
+                shapes.push(Shape { rect: [x + radius * 0.5, y, sw - radius, 4.0 * scale], fill: owner, ring: [0.0; 4], params: [2.0 * scale, 0.0, 0.0, 0.0], extra: [0.0; 4] });
                 let mut top = y + pad;
                 let site_line = if site.is_empty() { host.clone() } else { format!("{site} · {host}") };
                 top += put(text, &site_line, 18.0 * scale, 24.0 * scale, 400, Face::Sans, theme.ink_muted, top) + 8.0 * scale;
@@ -433,7 +462,7 @@ fn scene(v: &View<'_>, text: &mut Text, theme: &Theme, w: f32, h: f32, now: Inst
                     // Paused, reconnecting or waiting: say so over the last frame.
                     let (mut l, lw, _) = text.label(state, 22.0 * scale, 28.0 * scale, 600, inner, Face::Sans, theme.ink);
                     let pill = [x + (sw - lw) / 2.0 - 16.0 * scale, y + ch / 2.0 - 22.0 * scale, lw + 32.0 * scale, 44.0 * scale];
-                    shapes.push(Shape { rect: pill, fill: glass, ring: glass_edge, params: [22.0 * scale, 1.0, 0.0, 0.0] });
+                    shapes.push(Shape { rect: pill, fill: glass, ring: glass_edge, params: [22.0 * scale, 1.0, 0.0, 0.0], extra: [0.0; 4] });
                     l.left = pill[0] + 16.0 * scale;
                     l.top = pill[1] + 8.0 * scale;
                     l.bounds = clip;
@@ -450,11 +479,11 @@ fn scene(v: &View<'_>, text: &mut Text, theme: &Theme, w: f32, h: f32, now: Inst
             },
             _ => s.title.clone(),
         };
-        let (mut tl, tw, _) = text.label(&title, 20.0 * scale, 24.0 * scale, 600, sw * 0.7, Face::Sans, theme.ink);
-        let (mut ol, ow_text, _) = text.label(&s.owner_name, 20.0 * scale, 24.0 * scale, 400, sw * 0.3, Face::Sans, theme.ink_muted);
+        let (mut tl, tw, _) = text.line(&title, 20.0 * scale, 24.0 * scale, 600, sw * 0.62, Face::Sans, theme.ink);
+        let (mut ol, ow_text, _) = text.line(&s.owner_name, 20.0 * scale, 24.0 * scale, 400, sw * 0.25, Face::Sans, theme.ink_muted);
         let ow = (tw + ow_text + 40.0 * scale).min(sw);
         let (ox, oy) = (x + (sw - ow) / 2.0, y + ch + gap);
-        shapes.push(Shape { rect: [ox, oy, ow, ornament_h], fill: glass, ring: glass_edge, params: [ornament_h / 2.0, 1.0, 0.0, 0.0] });
+        shapes.push(Shape { rect: [ox, oy, ow, ornament_h], fill: theme.glass, ring: glass_edge, params: [ornament_h / 2.0, 1.0, 0.0, 0.0], extra: [1.0, 0.0, 0.0, 0.0] });
         let ty = oy + (ornament_h - 24.0 * scale) / 2.0;
         let bounds = [ox, oy, ox + ow, oy + ornament_h];
         tl.left = ox + 16.0 * scale;
@@ -521,11 +550,11 @@ fn scene(v: &View<'_>, text: &mut Text, theme: &Theme, w: f32, h: f32, now: Inst
     let cw = nw.max(stw) + 32.0 * scale;
     let card = [w - cw - 24.0 * scale, h - 76.0 * scale, cw, 52.0 * scale];
     let busy = room.surfaces.len() >= 3;
-    let mut card_fill = glass;
+    let mut card_fill = theme.glass;
     if busy {
         card_fill[3] *= 0.4;
     }
-    shapes.push(Shape { rect: card, fill: card_fill, ring: glass_edge, params: [16.0 * scale, 1.0, 0.0, 0.0] });
+    shapes.push(Shape { rect: card, fill: card_fill, ring: glass_edge, params: [16.0 * scale, 1.0, 0.0, 0.0], extra: [1.0, 0.0, 0.0, 0.0] });
     for (mut l, top) in [(name, card[1] + 6.0 * scale), (state, card[1] + 28.0 * scale)] {
         l.left = card[0] + 16.0 * scale;
         l.top = top;
@@ -602,6 +631,7 @@ impl ApplicationHandler<RoomEvent> for App {
             RoomEvent::MovieFile { asset, path } => {
                 if let Some(m) = movie::Movie::open(&path) {
                     self.movies.insert(asset, m);
+                    self.movie_settle = Instant::now() + std::time::Duration::from_millis(2000);
                 }
             }
         }
@@ -689,6 +719,7 @@ fn main() {
         pdf_pages: HashMap::new(),
         movies: HashMap::new(),
         movie_settle: Instant::now(),
+        backdrop_key: None,
     };
     event_loop.run_app(&mut app).expect("Wall event loop");
 }
@@ -697,7 +728,7 @@ fn main() {
 #[allow(clippy::too_many_arguments)]
 fn effects(v: &View<'_>, text: &mut Text, theme: &Theme, w: f32, h: f32, now: Instant, shapes: &mut Vec<Shape>, labels: &mut Vec<Label>, glass: Rgba, glass_edge: Rgba) {
     let scale = h / 1080.0;
-    let circle = |x: f32, y: f32, r: f32, colour: Rgba| Shape { rect: [x - r, y - r, r * 2.0, r * 2.0], fill: colour, ring: [0.0; 4], params: [r, 0.0, 0.0, 0.0] };
+    let circle = |x: f32, y: f32, r: f32, colour: Rgba| Shape { rect: [x - r, y - r, r * 2.0, r * 2.0], fill: colour, ring: [0.0; 4], params: [r, 0.0, 0.0, 0.0], extra: [0.0; 4] };
     let fade = |c: Rgba, a: f32| [c[0], c[1], c[2], c[3] * a];
     let mut ids: Vec<&String> = v.arrivals.pending.keys().collect();
     ids.sort();
@@ -729,7 +760,7 @@ fn effects(v: &View<'_>, text: &mut Text, theme: &Theme, w: f32, h: f32, now: In
         let caption = if failed { format!("{} did not arrive", p.name) } else { format!("{} · {}", p.owner_name, p.name) };
         let (mut label, lw, _) = text.label(&caption, 18.0 * scale, 24.0 * scale, 500, w * 0.4, Face::Sans, fade(theme.ink, life));
         let card = [x - (lw + 24.0 * scale) / 2.0, y + 36.0 * scale, lw + 24.0 * scale, 32.0 * scale];
-        shapes.push(Shape { rect: card, fill: fade(glass, life), ring: fade(glass_edge, life), params: [10.0 * scale, 1.0, 0.0, 0.0] });
+        shapes.push(Shape { rect: card, fill: fade(glass, life), ring: fade(glass_edge, life), params: [10.0 * scale, 1.0, 0.0, 0.0], extra: [0.0; 4] });
         label.left = card[0] + 12.0 * scale;
         label.top = card[1] + 4.0 * scale;
         labels.push(label);
@@ -754,7 +785,7 @@ fn effects(v: &View<'_>, text: &mut Text, theme: &Theme, w: f32, h: f32, now: In
             if (0.0..1.0).contains(&t) {
                 let e = 1.0 - (1.0 - t).powi(3);
                 let radius = (10.0 + 170.0 * e) * scale;
-                shapes.push(Shape { rect: [cx - radius, cy - radius, radius * 2.0, radius * 2.0], fill: [0.0; 4], ring: fade(owner, 0.6 * (1.0 - t)), params: [radius, 2.0 * scale, 0.0, 0.0] });
+                shapes.push(Shape { rect: [cx - radius, cy - radius, radius * 2.0, radius * 2.0], fill: [0.0; 4], ring: fade(owner, 0.6 * (1.0 - t)), params: [radius, 2.0 * scale, 0.0, 0.0], extra: [0.0; 4] });
             }
         }
     }
@@ -765,11 +796,9 @@ fn pairing_scene(input: &str, message: &str, text: &mut Text, theme: &Theme, w: 
     let scale = h / 1080.0;
     let (pw, ph) = (880.0 * scale, 360.0 * scale);
     let (px, py) = ((w - pw) / 2.0, (h - ph) / 2.0);
-    let mut glass = theme.glass;
-    glass[3] = glass[3].max(0.86);
-    let mut shapes = vec![Shape { rect: [px, py, pw, ph], fill: glass, ring: [1.0, 1.0, 1.0, 0.5], params: [28.0 * scale, 1.0, 0.12, 32.0 * scale] }];
+    let mut shapes = vec![Shape { rect: [px, py, pw, ph], fill: theme.glass, ring: [1.0, 1.0, 1.0, 0.5], params: [28.0 * scale, 1.0, 0.12, 32.0 * scale], extra: [1.0, 0.0, 0.0, 0.0] }];
     let field = [px + 48.0 * scale, py + 150.0 * scale, pw - 96.0 * scale, 64.0 * scale];
-    shapes.push(Shape { rect: field, fill: theme.surface, ring: theme.accent, params: [14.0 * scale, if input.is_empty() { 0.0 } else { 2.0 * scale }, 0.0, 0.0] });
+    shapes.push(Shape { rect: field, fill: theme.surface, ring: theme.accent, params: [14.0 * scale, if input.is_empty() { 0.0 } else { 2.0 * scale }, 0.0, 0.0], extra: [0.0; 4] });
     let mut labels = Vec::new();
     let mut put = |text: &mut Text, value: &str, size: f32, weight: u16, colour: Rgba, left: f32, top: f32, width: f32| {
         let (mut l, _, _) = text.label(value, size, size * 1.3, weight, width, Face::Sans, colour);

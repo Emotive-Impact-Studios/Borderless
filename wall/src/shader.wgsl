@@ -12,6 +12,9 @@ struct Globals {
   grid: vec4<f32>,
 };
 @group(0) @binding(0) var<uniform> g: Globals;
+// The canvas behind glass, blurred once per look and size (frosted glass).
+@group(0) @binding(1) var backdrop: texture_2d<f32>;
+@group(0) @binding(2) var backdrop_sampler: sampler;
 
 struct BgOut { @builtin(position) pos: vec4<f32>, @location(0) uv: vec2<f32> };
 
@@ -47,6 +50,7 @@ struct Shape {
   @location(1) fill: vec4<f32>,
   @location(2) ring: vec4<f32>,
   @location(3) params: vec4<f32>,    // radius, ring width, shadow strength, blur
+  @location(4) extra: vec4<f32>,     // x: frosted glass
 };
 struct ShapeOut {
   @builtin(position) pos: vec4<f32>,
@@ -55,6 +59,7 @@ struct ShapeOut {
   @location(2) fill: vec4<f32>,
   @location(3) ring: vec4<f32>,
   @location(4) params: vec4<f32>,
+  @location(5) extra: vec4<f32>,
 };
 
 @vertex fn shape_vs(@builtin(vertex_index) i: u32, s: Shape) -> ShapeOut {
@@ -67,7 +72,7 @@ struct ShapeOut {
   let px = centre + local;
   var o: ShapeOut;
   o.pos = vec4<f32>(px.x / g.size.x * 2.0 - 1.0, 1.0 - px.y / g.size.y * 2.0, 0.0, 1.0);
-  o.local = local; o.extent = extent; o.fill = s.fill; o.ring = s.ring; o.params = s.params;
+  o.local = local; o.extent = extent; o.fill = s.fill; o.ring = s.ring; o.params = s.params; o.extra = s.extra;
   return o;
 }
 
@@ -87,8 +92,17 @@ fn rounded(p: vec2<f32>, extent: vec2<f32>, r: f32) -> f32 {
     out = vec4<f32>(0.12, 0.16, 0.31, a);
   }
   let inside = 1.0 - smoothstep(-0.75, 0.75, d);
-  out = mix(out, vec4<f32>(in.fill.rgb, 1.0), inside * in.fill.a);
-  out.a = max(out.a, inside * in.fill.a);
+  if (in.extra.x > 0.0) {
+    // Frosted glass: blurred, more saturated canvas under a translucent tint.
+    let behind = textureSample(backdrop, backdrop_sampler, in.pos.xy / g.size).rgb;
+    let grey = dot(behind, vec3<f32>(0.2126, 0.7152, 0.0722));
+    let vivid = mix(vec3<f32>(grey), behind, 1.8);
+    out = mix(out, vec4<f32>(mix(clamp(vivid, vec3<f32>(0.0), vec3<f32>(1.0)), in.fill.rgb, in.fill.a), 1.0), inside);
+    out.a = max(out.a, inside);
+  } else {
+    out = mix(out, vec4<f32>(in.fill.rgb, 1.0), inside * in.fill.a);
+    out.a = max(out.a, inside * in.fill.a);
+  }
   if (in.params.y > 0.0) {
     let ring = (1.0 - smoothstep(-0.75, 0.75, abs(d + in.params.y * 0.5) - in.params.y * 0.5)) * in.ring.a;
     out = vec4<f32>(mix(out.rgb, in.ring.rgb, ring), max(out.a, ring));

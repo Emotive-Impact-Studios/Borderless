@@ -12,6 +12,8 @@ pub struct Shape {
     pub ring: [f32; 4],
     /// radius, ring width, shadow strength, shadow blur (pixels)
     pub params: [f32; 4],
+    /// x: 1 for frosted glass (the blurred canvas shows through the tint).
+    pub extra: [f32; 4],
 }
 
 #[repr(C)]
@@ -49,6 +51,7 @@ pub struct Renderer {
     sampler: wgpu::Sampler,
     video: wgpu::RenderPipeline,
     video_layout: wgpu::BindGroupLayout,
+    globals_layout: wgpu::BindGroupLayout,
 }
 
 /// A live window's latest frame on the GPU as Y, U and V planes.
@@ -98,9 +101,12 @@ impl Renderer {
         let globals = device.create_buffer(&wgpu::BufferDescriptor { label: Some("globals"), size: std::mem::size_of::<Globals>() as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: None,
-            entries: &[wgpu::BindGroupLayoutEntry { binding: 0, visibility: wgpu::ShaderStages::VERTEX_FRAGMENT, ty: wgpu::BindingType::Buffer { ty: wgpu::BufferBindingType::Uniform, has_dynamic_offset: false, min_binding_size: None }, count: None }],
+            entries: &[
+                wgpu::BindGroupLayoutEntry { binding: 0, visibility: wgpu::ShaderStages::VERTEX_FRAGMENT, ty: wgpu::BindingType::Buffer { ty: wgpu::BufferBindingType::Uniform, has_dynamic_offset: false, min_binding_size: None }, count: None },
+                wgpu::BindGroupLayoutEntry { binding: 1, visibility: wgpu::ShaderStages::FRAGMENT, ty: wgpu::BindingType::Texture { sample_type: wgpu::TextureSampleType::Float { filterable: true }, view_dimension: wgpu::TextureViewDimension::D2, multisampled: false }, count: None },
+                wgpu::BindGroupLayoutEntry { binding: 2, visibility: wgpu::ShaderStages::FRAGMENT, ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering), count: None },
+            ],
         });
-        let bind = device.create_bind_group(&wgpu::BindGroupDescriptor { label: None, layout: &layout, entries: &[wgpu::BindGroupEntry { binding: 0, resource: globals.as_entire_binding() }] });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor { label: None, bind_group_layouts: &[&layout], push_constant_ranges: &[] });
         let image_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("picture"),
@@ -112,6 +118,7 @@ impl Renderer {
         });
         let image_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor { label: None, bind_group_layouts: &[&layout, &image_layout], push_constant_ranges: &[] });
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor { mag_filter: wgpu::FilterMode::Linear, min_filter: wgpu::FilterMode::Linear, mipmap_filter: wgpu::FilterMode::Linear, ..Default::default() });
+        let bind = Self::globals_bind(&device, &queue, &layout, &globals, &sampler, 1, 1, &[255, 255, 255, 255]);
         let target = [Some(wgpu::ColorTargetState { format, blend: Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING), write_mask: wgpu::ColorWrites::ALL })];
         let background = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("background"),
@@ -124,7 +131,7 @@ impl Renderer {
             multiview: None,
             cache: None,
         });
-        let attributes = wgpu::vertex_attr_array![0 => Float32x4, 1 => Float32x4, 2 => Float32x4, 3 => Float32x4];
+        let attributes = wgpu::vertex_attr_array![0 => Float32x4, 1 => Float32x4, 2 => Float32x4, 3 => Float32x4, 4 => Float32x4];
         let shapes = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("shapes"),
             layout: Some(&pipeline_layout),
@@ -177,7 +184,7 @@ impl Renderer {
         });
         let capacity = 1024;
         let instances = device.create_buffer(&wgpu::BufferDescriptor { label: Some("shapes"), size: (capacity * std::mem::size_of::<Shape>()) as u64, usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
-        Ok(Self { device, queue, surface, config, globals, bind, background, shapes, instances, capacity, images, last_capture: std::time::Instant::now(), captured: 0, image_layout, sampler, video, video_layout })
+        Ok(Self { device, queue, surface, config, globals, bind, background, shapes, instances, capacity, images, last_capture: std::time::Instant::now(), captured: 0, image_layout, sampler, video, video_layout, globals_layout: layout })
     }
 
     /// Uploads a decoded sRGB image. Sampled as stored, matching the
@@ -254,6 +261,28 @@ impl Renderer {
         let dest = [clip[0] + (clip[2] - w) / 2.0, clip[1] + (clip[3] - h) / 2.0, w, h];
         let data: [f32; 12] = [dest[0], dest[1], dest[2], dest[3], clip[0], clip[1], clip[2], clip[3], radius, opacity, 0.0, 0.0];
         self.queue.write_buffer(&picture.placement, 0, bytes(&data));
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn globals_bind(device: &wgpu::Device, queue: &wgpu::Queue, layout: &wgpu::BindGroupLayout, globals: &wgpu::Buffer, sampler: &wgpu::Sampler, width: u32, height: u32, rgba: &[u8]) -> wgpu::BindGroup {
+        let size = wgpu::Extent3d { width, height, depth_or_array_layers: 1 };
+        let texture = device.create_texture(&wgpu::TextureDescriptor { label: Some("backdrop"), size, mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2, format: wgpu::TextureFormat::Rgba8Unorm, usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST, view_formats: &[] });
+        queue.write_texture(texture.as_image_copy(), rgba, wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(width * 4), rows_per_image: Some(height) }, size);
+        let view = texture.create_view(&Default::default());
+        device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("globals"),
+            layout,
+            entries: &[
+                wgpu::BindGroupEntry { binding: 0, resource: globals.as_entire_binding() },
+                wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::TextureView(&view) },
+                wgpu::BindGroupEntry { binding: 2, resource: wgpu::BindingResource::Sampler(sampler) },
+            ],
+        })
+    }
+
+    /// Sets the blurred canvas that frosted glass shows through.
+    pub fn set_backdrop(&mut self, width: u32, height: u32, rgba: &[u8]) {
+        self.bind = Self::globals_bind(&self.device, &self.queue, &self.globals_layout, &self.globals, &self.sampler, width, height, rgba);
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {

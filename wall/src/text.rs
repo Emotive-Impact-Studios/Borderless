@@ -12,6 +12,7 @@ pub enum Face {
 #[derive(Clone, PartialEq, Eq, Hash)]
 struct Key {
     text: String,
+    single: bool,
     size: u32,
     line: u32,
     weight: u16,
@@ -60,10 +61,33 @@ impl Text {
     /// Lays out `text` within `width` pixels and returns its label and size.
     #[allow(clippy::too_many_arguments)]
     pub fn label(&mut self, text: &str, size: f32, line: f32, weight: u16, width: f32, face: Face, colour: [f32; 4]) -> (Label, f32, f32) {
-        let key = Key { text: text.to_owned(), size: (size * 4.0) as u32, line: (line * 4.0) as u32, weight, width: width.max(1.0) as u32, face };
+        self.layout(text, size, line, weight, width, face, colour, false)
+    }
+
+    /// One line that never wraps; shortened with an ellipsis to fit `max_width`.
+    #[allow(clippy::too_many_arguments)]
+    pub fn line(&mut self, text: &str, size: f32, line: f32, weight: u16, max_width: f32, face: Face, colour: [f32; 4]) -> (Label, f32, f32) {
+        let full = self.layout(text, size, line, weight, 100_000.0, face, colour, true);
+        if full.1 <= max_width || text.chars().count() < 2 {
+            return full;
+        }
+        let chars: Vec<char> = text.chars().collect();
+        let (mut lo, mut hi) = (0usize, chars.len());
+        while lo + 1 < hi {
+            let mid = (lo + hi) / 2;
+            let candidate: String = chars[..mid].iter().collect::<String>().trim_end().to_owned() + "…";
+            if self.layout(&candidate, size, line, weight, 100_000.0, face, colour, true).1 <= max_width { lo = mid } else { hi = mid }
+        }
+        let fitted: String = chars[..lo].iter().collect::<String>().trim_end().to_owned() + "…";
+        self.layout(&fitted, size, line, weight, 100_000.0, face, colour, true)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn layout(&mut self, text: &str, size: f32, line: f32, weight: u16, width: f32, face: Face, colour: [f32; 4], single: bool) -> (Label, f32, f32) {
+        let key = Key { single, text: text.to_owned(), size: (size * 4.0) as u32, line: (line * 4.0) as u32, weight, width: width.max(1.0) as u32, face };
         if !self.buffers.contains_key(&key) {
             let mut buffer = Buffer::new(&mut self.fonts, Metrics::new(size, line));
-            buffer.set_wrap(&mut self.fonts, Wrap::WordOrGlyph);
+            buffer.set_wrap(&mut self.fonts, if single { Wrap::None } else { Wrap::WordOrGlyph });
             buffer.set_size(&mut self.fonts, Some(width.max(1.0)), None);
             let family = match face {
                 Face::Sans if self.sans == "sans-serif" => Family::SansSerif,

@@ -6,6 +6,10 @@ Read VISION.md first, then PRODUCT.md and DESIGN.md, then README, PRD, CAPABILIT
 
 Testers (including Codex): run [CODEX_TEST_CHECKLIST.md](CODEX_TEST_CHECKLIST.md) and record each result here.
 
+## Milestone 2N · frosted glass and tidy ornaments · 4 November 2026
+
+Glass over the canvas (window ornaments, the room card, the pairing panel) is now frosted: the shader samples a backdrop of the look's colour washes without the dot grid, computed on the CPU at an eighth of the display size whenever the look or size changes, boosts its saturation (the design-system glass saturate of 1.8) and tints it with the token glass fill. Glass drawn over window content (state pills, spark captions) stays a more opaque tint, because the backdrop is the canvas only. Ornament titles and owners stay on one line and end with an ellipsis instead of wrapping out of the capsule. A paused video now shows its first frame on arrival. Evidence: ignored `output/native/m2N/native-frosted.png`.
+
 ## Milestone 2N · video files, shared playback · 4 November 2026
 
 Video and audio files now have one playback for the whole room. The hub's `item.play` command (owner or leader; video and audio only; position 0 to 86,400 s) stores `playback: { playing, position, at }` with `at` in hub milliseconds, and every viewer computes where to be from it. The browser Wall and Console follow it too: only people who can edit see the controls, and their play, pause and seek become room commands. The native Wall saves the file owner-only under its home folder and plays it with AVFoundation (hardware decoding, sound through the Mac's output, as the brief's "platform decoders, no FFmpeg" rule asks), seeking when more than half a second out, and draws each new BGRA frame into the window. Windows Media Foundation and Linux GStreamer players are not built yet; the native Wall on those platforms shows the file placeholder.

@@ -30,6 +30,9 @@ mod imp {
                 let output = AVPlayerItemVideoOutput::initWithPixelBufferAttributes(AVPlayerItemVideoOutput::alloc(), Some(&attributes));
                 item.addOutput(&output);
                 let player = AVPlayer::playerWithPlayerItem(Some(&item), mtm);
+                // A seek makes the paused player decode its first frame for the Wall.
+                let zero = CMTime::with_seconds(0.0, 600);
+                player.seekToTime_toleranceBefore_toleranceAfter(zero, zero, zero);
                 Some(Self { player, item, output })
             }
         }
