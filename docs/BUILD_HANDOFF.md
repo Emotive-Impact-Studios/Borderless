@@ -4,6 +4,12 @@
 
 Read VISION.md first, then PRODUCT.md and DESIGN.md, then README, PRD, CAPABILITIES, ARCHITECTURE and DELIVERY. The original conversation is preserved in `docs/source/` and checked against SHA-256. The repository began with only a README at main commit `7b773ca855f0438bdd6e5f08d4e71b556037fd50`.
 
+## Milestone 1 · trusted LAN signalling · 4 November 2026
+
+The managed SFU now accepts an explicit room interface and advertises a TLS signalling origin. The hub issues its usual per-person grants. The supplied Caddy configuration exposes the RTC routes and keeps the control API on loopback. Setup and the disposable commissioning command are in [OPERATIONS.md](OPERATIONS.md).
+
+On this Mac's Ethernet IPv4 address, a separate HTTPS hub created a disposable room, paired a Wall and issued a WSS viewer grant. Caddy 2.10.2 forwarded the SDK WebSocket to LiveKit 1.13.11. The test received a signalling message and Stop closed the connection. The certificate was trusted in the test process. Browser-origin validation, rejection of anonymous signalling, refusal of the external control route and reachability of the media TCP port also passed. All test services were closed afterwards. A second machine is needed to verify ICE and actual media delivery over the room network.
+
 ## Milestone 1 · permission restored and 60 fps ceiling tested · 3 November 2026
 
 - The user's screenshot correctly showed no password prompt and no Borderless Native entry. Re-inspected live Settings; Add opened normally without another unlock. A stale/duplicate Go To chooser caused misleading focus and inactive controls. Recovered its path field, selected the exact rebuilt bundle, dismissed the duplicate chooser and verified **Borderless Native: on**. The previous password blocker is resolved; do not ask the user to repeat it.

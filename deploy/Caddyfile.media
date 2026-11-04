@@ -1,0 +1,21 @@
+{
+	admin off
+	auto_https off
+	persist_config off
+}
+https://{$BORDERLESS_MEDIA_HOST}:{$BORDERLESS_MEDIA_TLS_PORT:7443} {
+	bind {$BORDERLESS_MEDIA_BIND}
+	tls {$BORDERLESS_TLS_CERT} {$BORDERLESS_TLS_KEY}
+	@signal {
+		method GET
+		path /rtc /rtc/v1 /rtc/validate /rtc/v1/validate
+	}
+	handle @signal {
+		reverse_proxy 127.0.0.1:{$BORDERLESS_MEDIA_UPSTREAM_PORT:7880} {
+			header_up -Cookie
+		}
+	}
+	handle {
+		respond 404
+	}
+}

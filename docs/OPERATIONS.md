@@ -41,6 +41,28 @@ npm start
 
 This package does not change your OS trust store or firewall automatically.
 
+## Live Mac windows across the room network
+
+Install LiveKit Server and Caddy on the hub. The native publisher and paired Tauri Wall both need to trust the room certificate. Use the same room hostname for the hub and signalling. Choose the IPv4 address of the Ethernet or Wi-Fi interface that reaches the Wall. Substitute your actual addresses and absolute certificate paths below.
+
+```sh
+export BORDERLESS_HOST=192.168.1.10
+export BORDERLESS_MEDIA_RTC_ADDRESS=192.168.1.10
+export BORDERLESS_MEDIA_BIND=192.168.1.10
+export BORDERLESS_MEDIA_HOST=room-hub.local
+export BORDERLESS_PUBLIC_URL=https://room-hub.local:8443
+export BORDERLESS_MEDIA_SIGNAL_URL=wss://room-hub.local:7443
+export BORDERLESS_TLS_CERT=/path/to/room-chain.pem
+export BORDERLESS_TLS_KEY=/path/to/room-key.pem
+export BORDERLESS_MEDIA=1
+```
+
+From the repository, run `caddy run --config deploy/Caddyfile.media --adapter caddyfile` in one terminal and `npm start` with the same environment in another. Keep one hub process for the room. The hub starts its own LiveKit server, issues grants and revokes them. Caddy exposes only the SDK signalling paths and strips cookies before forwarding. The service API and random SFU credentials stay on the hub. The default configuration for a single Mac continues to work with loopback signalling.
+
+Allow room clients to reach TCP 8443 (hub), TCP 7443 (TLS signalling), UDP 7882 (media), and TCP 7881 (media fallback) on the private interface. Resolve the room hostname to that interface from both machines. Pair the second Wall with its own one-use invitation and join the Mac publisher using a participant invitation. Confirm the selected window updates on the second machine, then press Stop and observe the Wall clear.
+
+For a disposable transport check, set `BORDERLESS_MEDIA_RTC_ADDRESS`, `BORDERLESS_TLS_CERT`, and `BORDERLESS_TLS_KEY` to an interface IP and a certificate covering that IP. If the issuing CA is private, supply its public certificate via `NODE_EXTRA_CA_CERTS`. Run `node scripts/check-lan-media.mjs` with Caddy and LiveKit Server installed. The check uses temporary data, an ephemeral HTTPS hub port, WSS 17443 and SFU ports 17880–17882. Its client and server run on one machine. A second physical machine is needed for the room-network playback gate.
+
 ## Display setup
 
 For a display connected to the host, open Wall from the leader console and put its browser window on the TV/projector. Enter Full screen.

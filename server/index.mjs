@@ -2,7 +2,13 @@ import { createApp } from "./app.mjs";
 import { Bonjour } from "bonjour-service";
 import { startMediaProcess } from "./media-process.mjs";
 
+if (process.env.BORDERLESS_MEDIA === "1" && (process.env.BORDERLESS_MEDIA_SIGNAL_URL || process.env.BORDERLESS_MEDIA_RTC_ADDRESS) &&
+    !(process.env.BORDERLESS_TLS_CERT && process.env.BORDERLESS_TLS_KEY))
+  throw new Error("Configure trusted hub TLS before enabling LAN media.");
+
 const media = process.env.BORDERLESS_MEDIA === "1" ? await startMediaProcess({
+  signalURL: process.env.BORDERLESS_MEDIA_SIGNAL_URL,
+  rtcAddress: process.env.BORDERLESS_MEDIA_RTC_ADDRESS,
   executable: process.env.BORDERLESS_LIVEKIT_BINARY || "livekit-server",
   dataDir: process.env.BORDERLESS_DATA || ".borderless",
 }) : null;

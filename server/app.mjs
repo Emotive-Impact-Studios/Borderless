@@ -134,6 +134,9 @@ export async function createApp(options = {}) {
     if (media) {
       const endpoint = new URL(options.media.url);
       if (!["ws:", "wss:"].includes(endpoint.protocol) || endpoint.username || endpoint.password) throw new Error("Invalid media URL");
+      if (!["localhost", "127.0.0.1", "::1"].includes(host) &&
+          (endpoint.protocol !== "wss:" || ["localhost", "127.0.0.1", "[::1]"].includes(endpoint.hostname)))
+        throw new Error("A LAN hub requires a reachable WSS media origin.");
       endpoint.protocol = endpoint.protocol === "wss:" ? "https:" : "http:";
       mediaHTTPOrigin = endpoint.origin;
     }

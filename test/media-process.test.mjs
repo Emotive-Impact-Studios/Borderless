@@ -41,3 +41,9 @@ test("missing executable fails startup and removes its credential file", async t
   await assert.rejects(startMediaProcess({ executable: join(dataDir, "missing"), dataDir }), /not installed/);
   assert.deepEqual(await readdir(join(dataDir, "media")), []);
 });
+
+test("LAN signalling requires WSS and the explicitly selected local RTC address", async () => {
+  await assert.rejects(startMediaProcess({signalURL:"wss://room.test:7443"}), /Configure both/);
+  await assert.rejects(startMediaProcess({signalURL:"ws://room.test:7443",rtcAddress:"192.0.2.1"}), /trusted wss/);
+  await assert.rejects(startMediaProcess({signalURL:"wss://room.test:7443",rtcAddress:"127.0.0.1"}), /network interface/);
+});
