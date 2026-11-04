@@ -4,6 +4,8 @@
 
 Read VISION.md first, then PRODUCT.md and DESIGN.md, then README, PRD, CAPABILITIES, ARCHITECTURE and DELIVERY. The original conversation is preserved in `docs/source/` and checked against SHA-256. The repository began with only a README at main commit `7b773ca855f0438bdd6e5f08d4e71b556037fd50`.
 
+Testers (including Codex): run [CODEX_TEST_CHECKLIST.md](CODEX_TEST_CHECKLIST.md) and record each result here.
+
 ## Milestone 2 · smart layout and thoughts on the Wall · 4 November 2026
 
 PRD B46. `smartLayout` in `server/spatial.mjs` is applied by the hub, so every Wall and Console shows one arrangement. Modes: Auto (one window large; two side by side; four in a two-by-two grid; otherwise a lead window with the rest stacked beside it, or in a grid when there are more than four), Side by side (one row), Stack by person (one column per owner, their windows as an offset deck) and the existing Focus, Grid and Free. The lead is a live window, then the leader's choice, then the newest arrival. Under Auto every arrival (file, link, thought or live window) re-lays the Wall out; a window moved or resized by hand is pinned and the layout works around it until the leader re-applies a mode. Undo restores the geometry from before the leader's last layout change. Private live windows never take part. Only the leader can change the layout. The shared Console shows a design-system segmented control (Auto, Side by side, Stack by person, Focus, Free, Undo) and windows glide to new positions, except while dragged or with reduced motion.
