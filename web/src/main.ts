@@ -1,17 +1,17 @@
 /// <reference types="vite/client" />
 import { Room, RoomEvent, Track, ConnectionState, DisconnectReason } from 'livekit-client';
 import './style.css';
-import { FileWindow, LinkWindow, isFile, isLink, type Recipient, type WallFile } from './files';
+import { FileWindow, LinkWindow, NoteWindow, isFile, isLink, isNote, type Recipient, type WallFile, type WallLink, type WallNote } from './files';
 import { Arrivals, ownerColour, type TransferStart } from './arrival';
 
 type Stream = { id: string; ownerId: string; ownerName: string; title: string; colour: string; x: number; y: number; w: number; h: number; version: number; z?: number; canReceive: boolean };
-type State = { id: string; name: string; ended: boolean; items: unknown[]; devices: Recipient[]; streams: Stream[]; me: { id: string; role: string; csrf: string }; theme?: string };
+type State = { id: string; name: string; ended: boolean; layout?: string; items: unknown[]; devices: Recipient[]; streams: Stream[]; me: { id: string; role: string; csrf: string }; theme?: string };
 type Grant = { url: string; room: string; token: string; publisher: boolean };
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const wall = element('wall'), windows = element('windows'), empty = element('empty'), status = element('status'), connection = element('connection');
 const route = location.pathname.match(/^\/app\/(wall|console)\/([a-zA-Z0-9_-]{8,48})\/?$/);
 const roomID = route?.[2];
-const files = new Map<string, FileWindow | LinkWindow>();
+const files = new Map<string, FileWindow | LinkWindow | NoteWindow>();
 const arrivals = new Arrivals(wall);
 const nodes = new Map<string, LiveWindow>();
 let state: State | undefined;
@@ -56,26 +56,34 @@ function render(input: unknown) {
     if (!node) { node = new LiveWindow(stream); nodes.set(stream.id, node); }
     node.update(stream);
   }
-  const assets = state.items.filter(item => isFile(item) || isLink(item)) as (WallFile | import('./files').WallLink)[];
+  const assets = state.items.filter(item => isFile(item) || isLink(item) || isNote(item)) as (WallFile | WallLink | WallNote)[];
   const ids = new Set(assets.map(item => item.id));
   for (const [id, node] of files) if (!ids.has(id)) { node.close(); files.delete(id); }
   for (const item of assets) {
     let node = files.get(item.id);
     const fresh = !node;
     if (!node) {
-      node = item.kind === 'link' ? new LinkWindow(windows, item) : new FileWindow(windows, roomID!, item, () => chooseRecipient(item));
+      node = item.kind === 'link' ? new LinkWindow(windows, item) : item.kind === 'note' ? new NoteWindow(windows, item)
+        : new FileWindow(windows, roomID!, item, () => chooseRecipient(item));
       files.set(item.id, node);
       const tile = node;
       for (const [handle, operation] of [[tile.moveHandle,'move'],[tile.resizeHandle,'resize']] as const) {
         bindGesture(handle, operation, 'item', () => tile.model, () => connected && tile.root.hasAttribute('data-editable'),
-          value => tile.bounds(value), active => { tile.dragging = active; });
+          value => tile.bounds(value), active => { tile.dragging = active; tile.root.toggleAttribute('data-dragging', active); });
       }
     }
     const editable = route?.[1] === 'console' && (state.me.role === 'admin' || state.me.id === item.ownerId);
     if (node instanceof LinkWindow && item.kind === 'link') node.update(item, editable);
+    else if (node instanceof NoteWindow && item.kind === 'note') node.update(item, editable);
     else if (node instanceof FileWindow && item.kind === 'file') node.update(item, editable);
     if (fresh && connected) arrivals.land(item.ownerId, item.title, node.root);
   }
+  // PRD B46: the leader arranges the Wall from the Console; the hub applies it for everyone.
+  const layouts = element('layouts');
+  layouts.hidden = !(route?.[1] === 'console' && state.me.role === 'admin');
+  element('layout-undo').hidden = layouts.hidden;
+  for (const button of layouts.querySelectorAll<HTMLButtonElement>('[data-layout]'))
+    if (button.dataset.layout !== 'undo') button.setAttribute('aria-pressed', String(button.dataset.layout === (state.layout ?? 'free')));
   const count = nodes.size + files.size;
   empty.hidden = count > 0;
   status.textContent = 'Send a file or live window to the Wall.';
@@ -326,7 +334,7 @@ class LiveWindow {
   }
   private gesture(handle: HTMLElement, operation: 'move' | 'resize') {
     bindGesture(handle, operation, 'stream', () => this.model, () => this.editable(),
-      value => this.bounds(value), active => { this.dragging = active; });
+      value => this.bounds(value), active => { this.dragging = active; this.root.toggleAttribute('data-dragging', active); });
   }
 
   close() {
@@ -337,6 +345,12 @@ class LiveWindow {
   }
 }
 
+element('tools').addEventListener('click', event => {
+  const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-layout]');
+  if (!button || !connected) return;
+  void api('command', { type: 'room.layout', layout: button.dataset.layout, commandId: crypto.randomUUID() })
+    .catch(error => { connection.textContent = error.message; });
+});
 element('fullscreen').onclick = () => void (document.fullscreenElement ? document.exitFullscreen() : wall.requestFullscreen());
 let idle: ReturnType<typeof setTimeout>;
 wall.addEventListener('pointermove', () => {

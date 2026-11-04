@@ -20,7 +20,7 @@ import {
   passwordMatches,
 } from "./store.mjs";
 import { assetStorage, safeName, mimeFor } from "./assets.mjs";
-import { minimumSurfaceSize, raiseSurface, focusSurface, arrangeScene, filePlacement } from "./spatial.mjs";
+import { minimumSurfaceSize, raiseSurface, focusSurface, arrangeScene, filePlacement, smartLayout } from "./spatial.mjs";
 import { audiences, currentInvitation, invitationLifetime, mayKnowStream, mayReceiveStream, removeStreamRecipient } from "./stream-policy.mjs";
 import {
   fail,
@@ -355,6 +355,7 @@ export async function createApp(options = {}) {
           version: 1,
         });
         raiseSurface(state, state.items.at(-1));
+        if (state.layout === "auto") smartLayout(state, "auto", { arrival: true });
         break;
       }
       case "link.add": {
@@ -367,7 +368,8 @@ export async function createApp(options = {}) {
         const centre = input.aim === undefined || input.aim === null
           ? (s.seat === "left" ? .18 : s.seat === "right" ? .82 : .49)
           : number(Number(input.aim), 0, 1);
-        const placement = filePlacement(state, centre, .1);
+        // Under Auto the arrival is re-laid out at once, so a full Wall still has room.
+        const placement = filePlacement(state, centre, .1) || (state.layout === "auto" ? { x: .36, y: .1, w: .28, h: .36 } : null);
         if (!placement) fail(409, "There is no free space on the Wall. Arrange the windows and try again.");
         const link = {
           id: id(), kind: "link", url: url.href, host: url.host, title: url.host, site: "", description: "",
@@ -376,6 +378,7 @@ export async function createApp(options = {}) {
         };
         state.items.push(link);
         raiseSurface(state, link);
+        if (state.layout === "auto") smartLayout(state, "auto", { arrival: true });
         const roomId = room.id;
         after.push(() => {
           void Promise.resolve().then(() => linkPreview(link.url)).then(
@@ -410,6 +413,7 @@ export async function createApp(options = {}) {
           state.items = state.items.filter((i) => i.id !== item.id);
         if (item.restoreBounds && ["item.move", "item.resize"].includes(command))
           fail(409, "Restore the window before moving or resizing it.");
+        if (["item.move", "item.resize"].includes(command) && state.layout === "auto") item.pinned = true;
         if (command === "item.move") {
           item.x = number(input.x, 0, 1 - item.w);
           item.y = number(input.y, 0, 1 - item.h);
@@ -434,9 +438,27 @@ export async function createApp(options = {}) {
       }
       case "room.layout": {
         requireLeader(s);
-        choice(input.layout, ["grid", "focus", "free"], "Layout");
-        state.layout = input.layout;
+        choice(input.layout, ["auto", "side", "stack", "grid", "focus", "free", "undo"], "Layout");
         const count = state.items.length + state.streams.length;
+        const geometry = (list) => list.map((v) => ({ id: v.id, x: v.x, y: v.y, w: v.w, h: v.h }));
+        if (input.layout === "undo") {
+          // Restores the arrangement from before the leader's last layout change.
+          if (!state.layoutUndo) fail(409, "There is no layout change to undo.");
+          for (const saved of state.layoutUndo) {
+            const surface = [...state.items, ...state.streams].find((v) => v.id === saved.id);
+            if (!surface) continue;
+            Object.assign(surface, { x: saved.x, y: saved.y, w: saved.w, h: saved.h });
+            delete surface.restoreBounds; delete surface.pinned;
+            surface.version++;
+          }
+          state.layout = state.layoutUndoMode || "free";
+          delete state.layoutUndo; delete state.layoutUndoMode;
+          break;
+        }
+        state.layoutUndo = geometry([...state.items, ...state.streams].filter((v) => v.audience !== "private"));
+        state.layoutUndoMode = state.layout;
+        state.layout = input.layout;
+        if (["auto", "side", "stack"].includes(input.layout) && count) smartLayout(state, input.layout);
         if (input.layout === "grid" && count) arrangeScene(state);
         if (input.layout === "focus" && count) {
           const item =
@@ -740,6 +762,7 @@ export async function createApp(options = {}) {
           version: 1,
         });
         raiseSurface(state, state.streams.at(-1));
+        if (state.layout === "auto") smartLayout(state, "auto", { arrival: true });
         break;
       }
       case "stream.move":
@@ -755,6 +778,7 @@ export async function createApp(options = {}) {
           fail(409, "Restore the window before moving or resizing it.");
         if (command === "stream.focus") focusSurface(state, stream);
         else {
+          if (state.layout === "auto") stream.pinned = true;
           if (command === "stream.move") {
             stream.x = number(input.x, 0, 1 - stream.w);
             stream.y = number(input.y, 0, 1 - stream.h);
@@ -1186,7 +1210,7 @@ export async function createApp(options = {}) {
           const centre = aimHeader === undefined
             ? (s.seat === "left" ? .18 : s.seat === "right" ? .82 : .49)
             : number(Number(aimHeader), 0, 1);
-          const placement = filePlacement(current.state, centre, .1);
+          const placement = filePlacement(current.state, centre, .1) || (current.state.layout === "auto" ? { x: .36, y: .1, w: .28, h: .36 } : null);
           if (!placement) fail(409, "There is no free space on the Wall. Arrange the windows and try again.");
           store.transaction(() => {
             const created = now();
@@ -1218,6 +1242,7 @@ export async function createApp(options = {}) {
               version: 1,
             });
             raiseSurface(current.state, current.state.items.at(-1));
+            if (current.state.layout === "auto") smartLayout(current.state, "auto", { arrival: true });
             store.audit(roomId, s.device_id, "asset.uploaded", {
               assetId,
               size: info.size,

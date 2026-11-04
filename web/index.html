@@ -20,7 +20,16 @@
       <form method="dialog"><button class="bl-button bl-button--small">Close</button></form>
     </dialog>
     <aside class="bl-join bl-glass" id="identity"><span><b id="room-name">Borderless</b><span id="connection">Connecting</span></span></aside>
-    <nav class="bl-toolbar bl-glass" id="tools" aria-label="Wall tools"><button class="bl-button bl-button--small" id="fullscreen">Full screen</button></nav>
+    <nav class="bl-toolbar bl-glass" id="tools" aria-label="Wall tools">
+      <span id="layouts" class="bl-segmented" role="group" aria-label="Arrange the Wall" hidden>
+        <button type="button" data-layout="auto" aria-pressed="false">Auto</button>
+        <button type="button" data-layout="side" aria-pressed="false">Side by side</button>
+        <button type="button" data-layout="stack" aria-pressed="false">Stack by person</button>
+        <button type="button" data-layout="focus" aria-pressed="false">Focus</button>
+        <button type="button" data-layout="free" aria-pressed="false">Free</button>
+        </span>
+      <button class="bl-button bl-button--small" data-layout="undo" id="layout-undo" hidden>Undo</button>
+      <button class="bl-button bl-button--small" id="fullscreen">Full screen</button></nav>
   </main>
   <script type="module" src="/src/main.ts"></script>
 </body></html>

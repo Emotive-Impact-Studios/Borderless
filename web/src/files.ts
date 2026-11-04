@@ -148,3 +148,61 @@ export class LinkWindow {
     Object.assign(this.root.style,{left:`${link.x*100}%`,top:`${link.y*100}%`,width:`${link.w*100}%`,height:`${link.h*100}%`,zIndex:String(this.model.z ?? 0)});
   }
 }
+
+export type WallNote = {
+  id: string; version: number; kind: 'note'; title: string; text: string; ownerId: string; ownerName: string; colour?: string;
+  x: number; y: number; w: number; h: number; z: number;
+};
+export function isNote(value: unknown): value is WallNote {
+  const n = value as WallNote | null;
+  return !!n && n.kind === 'note' && Number.isInteger(n.version) && uuid.test(n.id) &&
+    [n.title, n.text, n.ownerId, n.ownerName].every(s => typeof s === 'string') &&
+    [n.x, n.y, n.w, n.h].every(v => Number.isFinite(v) && v >= 0 && v <= 1);
+}
+
+/** A thought on the Wall: a flat, readable card in its owner's colour (no tilt). */
+export class NoteWindow {
+  dragging = false;
+  model: WallNote;
+  readonly moveHandle = document.createElement('div');
+  readonly resizeHandle = document.createElement('button');
+  readonly root = document.createElement('section');
+  readonly button = document.createElement('button');
+  private readonly heading = document.createElement('h2');
+  private readonly body = document.createElement('p');
+  private readonly title = document.createElement('span');
+  private readonly owner = document.createElement('span');
+  constructor(parent: HTMLElement, note: WallNote) {
+    this.model = note;
+    this.root.className = 'bl-window';
+    const content = document.createElement('div');
+    content.className = 'bl-window__content note-content';
+    this.heading.className = 'note-title'; this.body.className = 'note-text';
+    content.append(this.heading, this.body);
+    this.moveHandle.className = 'bl-ornament bl-glass';
+    this.title.className = 'bl-ornament__title'; this.owner.className = 'bl-ornament__who';
+    this.button.hidden = true;
+    this.moveHandle.append(this.title, this.owner);
+    this.resizeHandle.className = 'bl-icon-button resize'; this.resizeHandle.textContent = '↘';
+    content.append(this.resizeHandle);
+    this.root.append(content, this.moveHandle);
+    parent.append(this.root);
+  }
+  close() { this.root.remove(); }
+  update(note: WallNote, editable: boolean) {
+    this.model = note;
+    this.resizeHandle.hidden = !editable;
+    this.moveHandle.tabIndex = editable ? 0 : -1;
+    this.root.toggleAttribute('data-editable', editable);
+    this.root.setAttribute('aria-label', note.title);
+    this.root.style.setProperty('--o', ownerColour(note.ownerId, note.colour));
+    this.heading.textContent = note.title;
+    this.body.textContent = note.text;
+    this.title.textContent = 'Thought';
+    this.owner.textContent = note.ownerName;
+    if (!this.dragging) this.bounds(note);
+  }
+  bounds(note: Pick<WallNote,'x'|'y'|'w'|'h'>) {
+    Object.assign(this.root.style,{left:`${note.x*100}%`,top:`${note.y*100}%`,width:`${note.w*100}%`,height:`${note.h*100}%`,zIndex:String(this.model.z ?? 0)});
+  }
+}

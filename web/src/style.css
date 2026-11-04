@@ -51,3 +51,13 @@ body { overflow: hidden; }
 .link-description { margin: 0; color: var(--bl-ink-muted); font-size: var(--bl-wall-label-size); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .link-address { margin: 0; font: 500 var(--bl-wall-label-size)/1.3 var(--bl-font-mono); color: var(--bl-accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bl-window[data-preview="pending"] .link-title { color: var(--bl-ink-muted); }
+
+/* Smart layout (PRD B46): windows glide to the hub's arrangement, never while dragged. */
+.bl-window { transition: left var(--bl-dur-slow) var(--bl-ease-glide), top var(--bl-dur-slow) var(--bl-ease-glide), width var(--bl-dur-slow) var(--bl-ease-glide), height var(--bl-dur-slow) var(--bl-ease-glide); }
+.bl-window[data-dragging] { transition: none; }
+@media (prefers-reduced-motion: reduce) { .bl-window { transition: none; } }
+
+/* Thoughts (notes): flat cards, Wall-sized text, owner colour edge. */
+.note-content { display: flex; flex-direction: column; gap: var(--bl-space-4); padding: var(--bl-space-7); background: color-mix(in srgb, var(--o) 7%, var(--bl-surface)); border-left: 6px solid var(--o); overflow: hidden; }
+.note-title { margin: 0; font: var(--bl-wall-heading-weight) var(--bl-wall-heading-size)/var(--bl-wall-heading-line) var(--bl-font-sans); }
+.note-text { margin: 0; font-size: calc(28px * var(--bl-wall-scale)); line-height: 1.35; white-space: pre-wrap; overflow-wrap: anywhere; overflow: hidden; }

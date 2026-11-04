@@ -58,6 +58,7 @@ export function publicSession(s) {
 }
 export function publicState(room, s, devices) {
   const state = structuredClone(room.state);
+  delete state.layoutUndo; delete state.layoutUndoMode;
   state.streams = state.streams.filter(stream => mayKnowStream(stream, s));
   for (const stream of state.streams) {
     stream.canReceive = mayReceiveStream(stream, s);

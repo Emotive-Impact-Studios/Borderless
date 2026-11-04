@@ -4,6 +4,16 @@
 
 Read VISION.md first, then PRODUCT.md and DESIGN.md, then README, PRD, CAPABILITIES, ARCHITECTURE and DELIVERY. The original conversation is preserved in `docs/source/` and checked against SHA-256. The repository began with only a README at main commit `7b773ca855f0438bdd6e5f08d4e71b556037fd50`.
 
+## Milestone 2 · smart layout and thoughts on the Wall · 4 November 2026
+
+PRD B46. `smartLayout` in `server/spatial.mjs` is applied by the hub, so every Wall and Console shows one arrangement. Modes: Auto (one window large; two side by side; four in a two-by-two grid; otherwise a lead window with the rest stacked beside it, or in a grid when there are more than four), Side by side (one row), Stack by person (one column per owner, their windows as an offset deck) and the existing Focus, Grid and Free. The lead is a live window, then the leader's choice, then the newest arrival. Under Auto every arrival (file, link, thought or live window) re-lays the Wall out; a window moved or resized by hand is pinned and the layout works around it until the leader re-applies a mode. Undo restores the geometry from before the leader's last layout change. Private live windows never take part. Only the leader can change the layout. The shared Console shows a design-system segmented control (Auto, Side by side, Stack by person, Focus, Free, Undo) and windows glide to new positions, except while dragged or with reduced motion.
+
+The shared Wall also had no viewer for thoughts (notes), so a note held a layout slot invisibly. Notes now render as flat cards in the owner's colour at Wall text sizes.
+
+Verified by `test/layout.test.mjs` (5 tests) and a disposable headless run on 127.0.0.1:8455: the leader picked Auto in the 1440 px Console, two people added two images, a PDF and a thought, and the 1080p Wall went from one large window to side by side, lead plus stack, then a two-by-two grid; Stack by person and Undo were also exercised. Evidence: ignored `output/native/m2-arrival/layout-*.png`; script `output/native/m2/layout-journey.mjs`. Node 24 `npm run verify` passed 80 tests.
+
+Not built: tap to fan out a deck, the deck count label, avoiding physical panel bezels (milestone 6b), per-panel layout, and aspect-aware cell sizing beyond letterboxing.
+
 ## Milestone 2 · links as preview cards · 4 November 2026
 
 PRD B42, first half. The Portal gains "Or send a link" and accepts a pasted http(s) link anywhere outside a text field; the throw card then shows the site and flicks like a file. The hub's new `link.add` command validates the link again (http or https only, no sign-in details, 2,048 characters), places it where the phone aimed using the same free-space placement as files, audits it and broadcasts at once. A preview is fetched afterwards by `server/link-preview.mjs`: public addresses only (loopback, private, link-local, carrier-grade NAT, multicast, ULA and IPv4-mapped forms are refused), the checked address is pinned for the request, no cookies, at most three redirects each re-checked, 5 s, 256 KB, text fields only and no images fetched or proxied. The Wall renders a readable card (site, title, description, address) in the owner's colour, movable and resizable like files; if the page cannot be previewed (offline room, refused page) the card keeps the host as its title.
