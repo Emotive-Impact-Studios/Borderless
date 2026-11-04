@@ -31,6 +31,7 @@ BORDERLESS_DATA=$PWD/output/native/codex-check/data BORDERLESS_PORT=8455 node se
 | H1 | `node output/native/m2/arrival-journey.mjs` | Prints the spark label, a progress ring between 1 and 99, and "landed at". Screenshots `output/native/m2-arrival/1-incoming.png` (spark with ring at the aimed side), `2-vortex.png` (particles converging), `3-landed.png` (image window, owner name, no spark). |
 | H2 | `node output/native/m2/link-journey.mjs` | `preview: "ready"` with the page title (needs internet). `link-wall.png` shows a readable card: site, title, address, owner. |
 | H3 | `node output/native/m2/layout-journey.mjs` | Prints `"auto"`. `layout-auto-1..4.png` go one large, side by side, lead plus stack, two-by-two. `layout-stack.png` has one column per person. `layout-undo.png` matches `layout-auto-4.png`. No window overlaps another or leaves the screen. |
+| H5 | `node output/native/m2/pdf-sync-journey.mjs` | An old `/wall/` pairing link lands on `/app/wall/` and pairs; Next and Previous in the Console change the page on the Wall; the Wall has no page buttons. |
 | H4 | `node output/native/m2/pdf-journey.mjs` (needs the 8444 review room file) | Short and sideways gestures send nothing; PDF pages 1 and 2 render; the chosen phone downloads identical bytes; the other phone has no invitation. |
 
 ### Behaviour to confirm by hand in a browser (Portal at 390 px with touch emulation, Wall at 1920×1080)
@@ -50,6 +51,8 @@ BORDERLESS_DATA=$PWD/output/native/codex-check/data BORDERLESS_PORT=8455 node se
 | M2-11 | A participant (not leader) opens the Console | No layout control; `room.layout` returns 403 |
 | M2-12 | Add a thought from a phone | It appears on the Wall as a flat card at readable size |
 | M2-13 | Console: Send back on a file, choose one phone | Only that phone's inbox shows it; the download matches the original bytes |
+| M2-15 | Console: Invite, then "Pair a separate display", open the link on another screen | The shared Wall (`/app/wall/…`) opens and pairs, not the old Wall |
+| M2-16 | Turn a PDF's page in the Console | The Wall shows the same page within a second; a non-owner sees no page buttons |
 | M2-14 | System setting Reduce Motion on | No vortex or gliding; items cross-fade in |
 
 ### Security checks

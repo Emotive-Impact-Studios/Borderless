@@ -399,6 +399,7 @@ export async function createApp(options = {}) {
       case "item.remove":
       case "item.focus":
       case "item.raise":
+      case "item.page":
       case "item.edit": {
         requireContributor(s, room);
         const item = state.items.find((i) => i.id === input.itemId);
@@ -428,6 +429,13 @@ export async function createApp(options = {}) {
         }
         if (command === "item.focus") focusSurface(state, item);
         if (command === "item.raise") { raiseSurface(state, item); item.version++; }
+        if (command === "item.page") {
+          // One page for everyone: the Wall and every Console follow the owner or leader.
+          if (item.kind !== "file" || item.mime !== "application/pdf") fail(400, "Only PDFs have pages.");
+          if (!Number.isInteger(input.page) || input.page < 1 || input.page > 10000) fail(400, "Invalid page.");
+          item.page = input.page;
+          item.version++;
+        }
         if (command === "item.edit") {
           if (item.kind !== "note") fail(400, "Only notes can be edited here.");
           item.text = text(input.text, 4000, "Note");
@@ -1055,7 +1063,7 @@ export async function createApp(options = {}) {
           store.audit(roomId, s.device_id, "display.pairing.created");
         });
         return json(res, 200, {
-          url: `${baseURL(req)}/wall/${roomId}#pair=${token}`,
+          url: `${baseURL(req)}/app/wall/${roomId}#pair=${token}`,
         });
       }
       if (route === "invite" && req.method === "GET") {
@@ -1329,6 +1337,13 @@ export async function createApp(options = {}) {
     if (!["GET", "HEAD"].includes(req.method)) fail(405, "Method not allowed.");
     // The shared TypeScript app uses the same origin, cookies and room authority.
     // Only the entry point and hashed build assets are exposed, never web sources.
+    // The shared TypeScript Wall replaces the old one. Browsers keep the
+    // #pair fragment across this redirect, so old invitations still pair.
+    const oldWall = path.match(/^\/wall\/([a-zA-Z0-9_-]{8,48})$/);
+    if (oldWall) {
+      res.writeHead(302, { Location: `/app/wall/${oldWall[1]}` });
+      return res.end();
+    }
     if (path.startsWith("/app/")) {
       const entry = /^\/app\/(wall|console)\/[a-zA-Z0-9_-]{8,48}\/?$/.test(path);
       const asset = path.match(/^\/app\/assets\/([a-zA-Z0-9_.-]+\.(?:js|css))$/);

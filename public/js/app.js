@@ -235,7 +235,7 @@ function renderPanel() {
 function renderPanelContents(el, kind) {
   const admin = state.me.role === "admin";
   if (kind === "room") {
-    el.innerHTML = `<p class="panel-intro">${esc(state.name)} · ${esc(displayName(state.mode))}</p><div class="room-window-actions"><a class="btn outline full" href="/wall/${state.id}" target="_blank" rel="noopener">${icon("wall")}Open wall</a><a class="btn outline full" href="/portal/${state.id}">${icon("pointer")}Open mobile portal</a>${button("my.device", "Your device", "people", "full subtle")}${admin ? button("panel.activity", "Activity", "clock", "full subtle") : ""}${button("ink.export", "Save whiteboard", "download", "full subtle")}</div><p class="form-hint">Move the windows by their title bars. Room tools open over the canvas and can be closed.</p>`;
+    el.innerHTML = `<p class="panel-intro">${esc(state.name)} · ${esc(displayName(state.mode))}</p><div class="room-window-actions"><a class="btn outline full" href="/app/wall/${state.id}" target="_blank" rel="noopener">${icon("wall")}Open wall</a><a class="btn outline full" href="/portal/${state.id}">${icon("pointer")}Open mobile portal</a>${button("my.device", "Your device", "people", "full subtle")}${admin ? button("panel.activity", "Activity", "clock", "full subtle") : ""}${button("ink.export", "Save whiteboard", "download", "full subtle")}</div><p class="form-hint">Move the windows by their title bars. Room tools open over the canvas and can be closed.</p>`;
     return;
   }
   if (kind === "settings" && admin) {
@@ -1341,7 +1341,7 @@ async function boot() {
       return;
     }
     if (state.me.role === "wall" && view !== "wall") {
-      location.replace(`/wall/${state.id}`);
+      location.replace(`/app/wall/${state.id}`);
       return;
     }
     if (view === "portal") portalShell();

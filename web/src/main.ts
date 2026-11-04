@@ -64,7 +64,12 @@ function render(input: unknown) {
     const fresh = !node;
     if (!node) {
       node = item.kind === 'link' ? new LinkWindow(windows, item) : item.kind === 'note' ? new NoteWindow(windows, item)
-        : new FileWindow(windows, roomID!, item, () => chooseRecipient(item));
+        : new FileWindow(windows, roomID!, item, () => chooseRecipient(item), page => {
+            const file = files.get(item.id);
+            if (!file || !connected) return;
+            void api('command', { type: 'item.page', itemId: item.id, version: file.model.version, page, commandId: crypto.randomUUID() })
+              .catch(error => { connection.textContent = error.message; });
+          });
       files.set(item.id, node);
       const tile = node;
       for (const [handle, operation] of [[tile.moveHandle,'move'],[tile.resizeHandle,'resize']] as const) {
